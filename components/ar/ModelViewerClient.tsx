@@ -9,6 +9,11 @@ interface ModelViewerClientProps {
   readonly mode: "preview" | "ar";
 }
 
+type ModelViewerElement = HTMLElement & {
+  readonly loaded?: boolean;
+  activateAR?: () => Promise<void>;
+};
+
 function getCompatibilityStatus(): ArCompatibilityStatus {
   if (typeof window === "undefined") {
     return { kind: "unknown", message: "Checking browser AR support." };
@@ -32,20 +37,48 @@ function getCompatibilityStatus(): ArCompatibilityStatus {
 }
 
 export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): React.JSX.Element {
-  const modelViewerRef = useRef<HTMLElement & { activateAR?: () => Promise<void> }>(null);
+  const modelViewerRef = useRef<ModelViewerElement | null>(null);
   const [compatibility, setCompatibility] = useState<ArCompatibilityStatus>(prototype.statuses.arCompatibility);
   const [modelLoaded, setModelLoaded] = useState<boolean>(false);
   const [modelFailed, setModelFailed] = useState<boolean>(false);
+  const modelSource = useMemo<string>(
+    () => prototype.model.remoteModelUrl ?? prototype.model.glbPath,
+    [prototype.model.glbPath, prototype.model.remoteModelUrl],
+  );
 
   useEffect(() => {
     void import("@google/model-viewer");
     setCompatibility(getCompatibilityStatus());
   }, []);
 
-  const modelSource = useMemo<string>(
-    () => prototype.model.remoteModelUrl ?? prototype.model.glbPath,
-    [prototype.model.glbPath, prototype.model.remoteModelUrl],
-  );
+  useEffect(() => {
+    const modelViewer = modelViewerRef.current;
+    if (modelViewer === null) {
+      return undefined;
+    }
+
+    function handleLoad(): void {
+      setModelLoaded(true);
+      setModelFailed(false);
+    }
+
+    function handleError(): void {
+      setModelLoaded(false);
+      setModelFailed(true);
+    }
+
+    modelViewer.addEventListener("load", handleLoad);
+    modelViewer.addEventListener("error", handleError);
+
+    if (modelViewer.loaded === true) {
+      handleLoad();
+    }
+
+    return () => {
+      modelViewer.removeEventListener("load", handleLoad);
+      modelViewer.removeEventListener("error", handleError);
+    };
+  }, [modelSource]);
 
   function handleArLaunch(): void {
     void modelViewerRef.current?.activateAR?.();

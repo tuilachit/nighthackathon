@@ -54,7 +54,7 @@ export function BuildPackViewer({ buildPack }: BuildPackViewerProps): React.JSX.
           </div>
         ) : null}
 
-        <pre className="noscroll max-h-[620px] overflow-auto bg-transparent p-4 text-xs leading-5 text-slate-100">
+        <pre className="noscroll max-h-[620px] overflow-auto whitespace-pre-wrap break-words bg-transparent p-4 text-xs leading-5 text-slate-100 sm:whitespace-pre">
           <code>{activeFile.content}</code>
         </pre>
       </section>

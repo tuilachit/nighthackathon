@@ -131,6 +131,31 @@ export function RealityCreateClient(): React.JSX.Element {
                 {validationError}
               </p>
             ) : null}
+
+            <div className="concept-abstract concept-abstract-warm mt-5 hidden min-h-[244px] flex-col justify-between p-6 text-white shadow-[0_20px_44px_rgba(15,23,42,0.14)] md:flex">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-white/74">Live preview</p>
+                  <h2 className="mt-2 max-w-[12rem] text-[34px] font-black leading-[0.96] tracking-normal">
+                    Ready for AR
+                  </h2>
+                </div>
+                <div className="concept-circle-button flex h-12 w-12 items-center justify-center bg-white/75">
+                  <CubeIcon size={18} color="#050505" />
+                </div>
+              </div>
+              <div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/28">
+                  <div className="h-full w-3/4 rounded-full bg-white" />
+                </div>
+                <div className="mt-3 flex items-end justify-between gap-4">
+                  <p className="max-w-[15rem] text-sm font-semibold leading-5 text-white">
+                    Concept, route, QR handoff, and Build Pack generated together.
+                  </p>
+                  <p className="text-[28px] font-black leading-none">3/4</p>
+                </div>
+              </div>
+            </div>
           </section>
 
           <section className="min-w-0">
