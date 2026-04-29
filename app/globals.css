@@ -5,9 +5,30 @@
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
+  --panel: #ffffff;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --primary: #2563eb;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --radius: 8px;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-rendering: geometricPrecision;
+}
+
+.mono {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+
+.noscroll {
+  scrollbar-width: none;
+}
+
+.noscroll::-webkit-scrollbar {
+  display: none;
 }
