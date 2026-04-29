@@ -23,18 +23,18 @@ export function GenerationTrace({ prototype }: GenerationTraceProps): React.JSX.
   ];
 
   return (
-    <section className="rounded-lg border border-slate-800 bg-[#0B1220] p-4 shadow-sm">
-      <div className="mono mb-1 text-[9px] uppercase tracking-[0.14em] text-blue-300">codex-generated layer</div>
-      <h2 className="text-lg font-semibold text-slate-50">Codex generation trace</h2>
+    <section className="concept-panel p-4">
+      <div className="mono mb-1 text-[9px] uppercase tracking-[0.14em] text-slate-400">codex-generated layer</div>
+      <h2 className="text-lg font-bold text-slate-950">Codex generation trace</h2>
       <div className="mt-3 grid gap-2">
         {steps.map((step, index) => (
-          <div key={step.title} className="flex gap-3 rounded-lg border border-slate-800 bg-slate-900/70 p-3">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#2563EB] text-xs font-semibold text-white">
+          <div key={step.title} className="flex gap-3 border-b border-black/5 pb-3 last:border-b-0 last:pb-0">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black text-xs font-bold text-white">
               {index + 1}
             </span>
             <div>
-              <p className="text-sm font-semibold text-slate-100">{step.title}</p>
-              <p className="mt-1 text-sm leading-5 text-slate-400">{step.detail}</p>
+              <p className="text-sm font-bold text-slate-950">{step.title}</p>
+              <p className="mt-1 text-sm leading-5 text-slate-500">{step.detail}</p>
             </div>
           </div>
         ))}

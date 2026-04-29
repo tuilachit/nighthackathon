@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CubeIcon, DotIcon, SparkleIcon } from "@/components/ui/Icon";
+import { getIosModelSource, getModelViewerAssetUrl, getPrimaryModelSource } from "@/lib/assets";
 import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeFromLocalStorage } from "@/lib/local-prototype-store";
 import type { PrototypeSpec } from "@/lib/prototype-types";
 
@@ -198,7 +199,17 @@ export function LaunchPageClient({ prototype }: LaunchPageClientProps): React.JS
 
 function LaunchModelStage({ prototype }: { readonly prototype: PrototypeSpec }): React.JSX.Element {
   const modelViewerRef = useRef<HTMLElement>(null);
-  const modelSource = prototype.model.remoteModelUrl ?? prototype.model.glbPath;
+  const [modelLoaded, setModelLoaded] = useState<boolean>(false);
+  const [modelFailed, setModelFailed] = useState<boolean>(false);
+  const rawModelSource = useMemo<string>(() => getPrimaryModelSource(prototype.model), [prototype.model]);
+  const modelSource = useMemo<string>(
+    () => getModelViewerAssetUrl(rawModelSource) ?? prototype.model.glbPath,
+    [prototype.model.glbPath, rawModelSource],
+  );
+  const iosSource = useMemo<string | undefined>(
+    () => getModelViewerAssetUrl(getIosModelSource(prototype.model)),
+    [prototype.model],
+  );
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "test") {
@@ -206,19 +217,42 @@ function LaunchModelStage({ prototype }: { readonly prototype: PrototypeSpec }):
     }
   }, []);
 
+  useEffect(() => {
+    setModelLoaded(false);
+    setModelFailed(false);
+  }, [modelSource]);
+
   return (
     <div className="pointer-events-none absolute bottom-10 right-[-18%] top-12 -z-0 w-[82%] opacity-90 md:right-[-8%] md:w-[58%]">
       <model-viewer
         ref={modelViewerRef}
         src={modelSource}
-        ios-src={prototype.model.remoteUsdzUrl ?? prototype.model.iosPath}
+        ios-src={iosSource}
         camera-controls
         auto-rotate
         shadow-intensity="0.85"
         exposure="0.95"
         loading="eager"
         class="h-full min-h-[420px] w-full bg-transparent"
+        onLoad={() => {
+          setModelLoaded(true);
+          setModelFailed(false);
+        }}
+        onError={() => {
+          setModelLoaded(false);
+          setModelFailed(true);
+        }}
       />
+      {!modelLoaded && !modelFailed ? (
+        <div className="absolute inset-x-8 top-1/2 rounded-lg border border-[#151515]/10 bg-white/80 px-4 py-3 text-center text-sm font-semibold text-[#475569] shadow-sm backdrop-blur">
+          Loading generated 3D model
+        </div>
+      ) : null}
+      {modelFailed ? (
+        <div className="absolute inset-x-8 top-1/2 rounded-lg border border-red-200 bg-red-50/95 px-4 py-3 text-center text-sm font-semibold leading-5 text-red-900 shadow-sm backdrop-blur">
+          The generated model could not load. Check that the Meshy GLB URL is valid and has not expired.
+        </div>
+      ) : null}
     </div>
   );
 }

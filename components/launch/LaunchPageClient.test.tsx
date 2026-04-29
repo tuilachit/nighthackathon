@@ -20,6 +20,29 @@ describe("LaunchPageClient", () => {
     expect(screen.getByText("Backend Notion route")).toBeInTheDocument();
   });
 
+  it("loads signed remote models through the same-origin model asset proxy", () => {
+    const prototype = analyzePromptToPrototype("A smart water bottle for gym users");
+    const remoteModelUrl =
+      "https://assets.meshy.ai/users/abc/tasks/123/output/model.glb?Expires=4931020800&Signature=test";
+
+    const { container } = render(
+      <LaunchPageClient
+        prototype={{
+          ...prototype,
+          model: {
+            ...prototype.model,
+            remoteModelUrl,
+            source: "generated",
+            generationMode: "text-to-3d",
+          },
+        }}
+      />,
+    );
+
+    expect(container.querySelector("model-viewer")).toHaveAttribute("src", `/api/model-asset?url=${encodeURIComponent(remoteModelUrl)}`);
+    expect(screen.getByText("Loading generated 3D model")).toBeInTheDocument();
+  });
+
   it("previews the lead payload without calling the backend", () => {
     const prototype = analyzePromptToPrototype("A smart water bottle for gym users");
     const fetchMock = vi.fn();
