@@ -19,10 +19,10 @@ export function PhoneHandoff({ prototype }: PhoneHandoffProps): React.JSX.Elemen
   }, []);
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="concept-panel p-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <div
-          className="grid h-36 w-36 shrink-0 self-center rounded-lg border border-slate-200 bg-white p-2 sm:self-auto"
+          className="grid h-36 w-36 shrink-0 self-center rounded-[24px] border border-black/10 bg-white p-3 shadow-[0_12px_26px_rgba(15,23,42,0.08)] sm:self-auto"
           style={{ gridTemplateColumns: `repeat(${pattern.size}, minmax(0, 1fr))` }}
           aria-label={`QR-style phone handoff for ${arUrl}`}
         >
@@ -35,12 +35,12 @@ export function PhoneHandoff({ prototype }: PhoneHandoffProps): React.JSX.Elemen
         </div>
 
         <div className="text-center sm:text-left">
-          <p className="text-sm font-semibold text-slate-900">Phone handoff</p>
+          <p className="text-base font-bold text-slate-950">Phone handoff</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Open this seeded AR route on the demo phone. The visual code is deterministic for the URL; use the link
             below if your camera does not scan it.
           </p>
-          <a href={arPath} className="mt-3 inline-flex break-all text-sm font-semibold text-[#2563EB]">
+          <a href={arPath} className="mt-3 inline-flex break-all text-sm font-bold text-slate-950 underline decoration-black/20 underline-offset-4">
             {arUrl}
           </a>
         </div>

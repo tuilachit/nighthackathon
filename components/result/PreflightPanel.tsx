@@ -24,7 +24,7 @@ export function PreflightPanel({ prototype }: PreflightPanelProps): React.JSX.El
   ];
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <section className="concept-panel p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Demo preflight</h2>
@@ -37,7 +37,7 @@ export function PreflightPanel({ prototype }: PreflightPanelProps): React.JSX.El
 
       <div className="mt-3 grid gap-2">
         {items.map((item) => (
-          <div key={item.label} className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div key={item.label} className="flex items-start gap-3 border-b border-black/5 pb-3 last:border-b-0 last:pb-0">
             <span className={`mt-1 h-2.5 w-2.5 rounded-full ${item.ready ? "bg-[#10B981]" : "bg-[#F59E0B]"}`} />
             <div>
               <p className="text-sm font-semibold text-slate-900">{item.label}</p>

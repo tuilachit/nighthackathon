@@ -53,8 +53,13 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-gradient-to-b from-slate-100 to-slate-200">
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-[length:20px_20px] opacity-60 [transform:perspective(400px)_rotateX(60deg)_translateY(40%)_scale(2)] [transform-origin:center_bottom]" />
+      <div
+        className={
+          mode === "ar"
+            ? "concept-abstract concept-abstract-warm relative min-h-[340px] border border-white/20 sm:min-h-[420px]"
+            : "concept-abstract relative min-h-[320px] border border-black/10 shadow-[0_20px_42px_rgba(15,23,42,0.16)] sm:min-h-[380px]"
+        }
+      >
         <model-viewer
           ref={modelViewerRef}
           src={modelSource}
@@ -66,7 +71,7 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
           shadow-intensity="0.8"
           exposure="0.9"
           loading="eager"
-          class="relative h-[320px] w-full bg-transparent"
+          class="relative z-10 h-[320px] w-full bg-transparent sm:h-[380px]"
           onLoad={() => {
             setModelLoaded(true);
             setModelFailed(false);
@@ -76,15 +81,27 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
             setModelFailed(true);
           }}
         />
-        <div className="mono pointer-events-none absolute left-3 top-3 text-[9px] uppercase tracking-wide text-slate-500">
+        <div
+          className={`mono pointer-events-none absolute left-3 top-3 rounded-full px-2 py-1 text-[9px] uppercase tracking-wide ${
+            mode === "ar" ? "bg-white/10 text-white/55 backdrop-blur" : "bg-white/70 text-slate-500 backdrop-blur"
+          }`}
+        >
           {prototype.model.source} · {prototype.model.glbPath.split("/").pop()}
         </div>
-        <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700">
-          <CubeIcon size={10} />
+        <div
+          className={`pointer-events-none absolute bottom-4 right-4 z-20 flex items-center gap-1 rounded-full border px-3 py-2 text-[10px] font-semibold ${
+            mode === "ar" ? "border-white/20 bg-white/20 text-white backdrop-blur" : "border-white/20 bg-white/80 text-slate-900 backdrop-blur"
+          }`}
+        >
+          <CubeIcon size={10} color={mode === "ar" ? "#D1D5DB" : "#334155"} />
           <span className="mono">.glb</span>
         </div>
         {!modelLoaded && !modelFailed ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-500">
+          <div
+            className={`pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium ${
+              mode === "ar" ? "text-white/55" : "text-slate-500"
+            }`}
+          >
             Loading 3D preview
           </div>
         ) : null}
@@ -101,19 +118,19 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
       <div
         className={
           mode === "ar"
-            ? "rounded-lg border border-white/10 bg-white/10 p-3 backdrop-blur"
-            : "rounded-lg border border-slate-200 bg-white p-3"
+            ? "concept-panel p-4"
+            : "rounded-[24px] border border-black/10 bg-white p-3"
         }
       >
-        <p className={`text-xs font-semibold uppercase tracking-wide ${mode === "ar" ? "text-white/50" : "text-slate-500"}`}>
+        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
           AR compatibility
         </p>
-        <p className={`mt-1 text-sm ${mode === "ar" ? "text-white/70" : "text-slate-700"}`}>{compatibility.message}</p>
+        <p className="mt-1 text-sm leading-5 text-slate-600">{compatibility.message}</p>
         {mode === "ar" ? (
           <button
             type="button"
             onClick={handleArLaunch}
-            className="mt-3 w-full rounded-lg bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-sm"
+            className="concept-primary-button mt-3 w-full px-4 py-3 text-sm font-bold"
             data-testid="view-in-ar-button"
           >
             View in AR

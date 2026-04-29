@@ -3,15 +3,24 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f5f5f7;
+  --foreground: #111827;
   --panel: #ffffff;
-  --border: #e2e8f0;
-  --muted: #64748b;
+  --border: rgba(60, 60, 67, 0.18);
+  --muted: rgba(60, 60, 67, 0.72);
   --primary: #2563eb;
+  --ink: #050505;
   --success: #10b981;
   --warning: #f59e0b;
   --radius: 8px;
+  --apple-bg: #f5f5f7;
+  --apple-grouped-bg: #f2f2f7;
+  --apple-label: #111827;
+  --apple-secondary-label: rgba(60, 60, 67, 0.72);
+  --apple-tertiary-label: rgba(60, 60, 67, 0.44);
+  --apple-separator: rgba(60, 60, 67, 0.18);
+  --apple-material: rgba(255, 255, 255, 0.74);
+  --apple-material-strong: rgba(255, 255, 255, 0.88);
 }
 
 body {
@@ -19,6 +28,7 @@ body {
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   text-rendering: geometricPrecision;
+  overflow-x: hidden;
 }
 
 .mono {
@@ -31,4 +41,179 @@ body {
 
 .noscroll::-webkit-scrollbar {
   display: none;
+}
+
+.apple-page {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(245, 245, 247, 0.96) 24%, var(--apple-grouped-bg) 100%);
+  color: var(--apple-label);
+}
+
+.apple-dark-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(37, 99, 235, 0.24), transparent 34%),
+    linear-gradient(180deg, #111827 0%, #030712 100%);
+  color: #ffffff;
+}
+
+.apple-material {
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--radius);
+  background: var(--apple-material);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+}
+
+.apple-material-strong {
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--radius);
+  background: var(--apple-material-strong);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+.apple-glass-dark {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(24px) saturate(1.25);
+  -webkit-backdrop-filter: blur(24px) saturate(1.25);
+}
+
+.apple-topbar {
+  border-bottom: 1px solid var(--apple-separator);
+  background: rgba(245, 245, 247, 0.78);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+}
+
+.apple-large-title {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.apple-section-title {
+  color: var(--apple-secondary-label);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.apple-primary-button {
+  min-height: 48px;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.26);
+}
+
+.apple-secondary-button {
+  min-height: 44px;
+  border: 1px solid var(--apple-separator);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--apple-label);
+}
+
+.safe-bottom {
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+}
+
+.concept-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 8%, rgba(255, 255, 255, 0.96), transparent 34%),
+    linear-gradient(135deg, #eef2f3 0%, #f8fafc 48%, #e7ecef 100%);
+  color: var(--ink);
+}
+
+.concept-shell {
+  border: 6px solid rgba(255, 255, 255, 0.78);
+  border-radius: 30px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.1);
+}
+
+.concept-panel {
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+
+.concept-pill {
+  min-height: 46px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.concept-primary-button {
+  min-height: 56px;
+  border-radius: 999px;
+  background: #050505;
+  color: #ffffff;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.24);
+}
+
+.concept-abstract {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px 7px),
+    radial-gradient(circle at 34% 38%, rgba(110, 36, 255, 0.86), transparent 27%),
+    radial-gradient(circle at 68% 54%, rgba(255, 35, 95, 0.8), transparent 24%),
+    linear-gradient(135deg, #12d0f3 0%, #1f72ff 42%, #f1b441 100%);
+}
+
+@media (min-width: 640px) {
+  .concept-shell {
+    border-width: 10px;
+    border-radius: 34px;
+    box-shadow: 0 26px 70px rgba(15, 23, 42, 0.12);
+  }
+
+  .concept-panel,
+  .concept-abstract {
+    border-radius: 28px;
+  }
+}
+
+.concept-abstract::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.18) 100%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.1) 0 1px, transparent 1px 4px);
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}
+
+.concept-abstract-warm {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.14) 0 2px, transparent 2px 7px),
+    radial-gradient(circle at 46% 42%, rgba(153, 38, 255, 0.84), transparent 29%),
+    radial-gradient(circle at 70% 50%, rgba(255, 38, 85, 0.82), transparent 25%),
+    linear-gradient(135deg, #f2c14e 0%, #d996ff 52%, #77a7ff 100%);
+}
+
+.concept-circle-button {
+  min-height: 56px;
+  min-width: 56px;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: rgba(255, 255, 255, 0.72);
+  color: #050505;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }

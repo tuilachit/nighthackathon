@@ -16,11 +16,11 @@ export default async function BuildPackPage({ params }: BuildPackPageProps): Pro
 
   if (prototype === undefined) {
     return (
-      <main className="min-h-screen bg-[#F8FAFC] px-4 py-6 text-[#0F172A]">
-        <section className="mx-auto max-w-xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <main className="concept-page px-4 py-6">
+        <section className="concept-shell mx-auto max-w-xl p-5">
           <p className="text-sm font-semibold text-[#F59E0B]">Build Pack missing</p>
           <h1 className="mt-2 text-2xl font-semibold">No generated artifacts exist for this URL.</h1>
-          <Link href="/" className="mt-5 inline-flex rounded-lg bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white">
+          <Link href="/" className="concept-primary-button mt-5 inline-flex items-center px-6 py-3 text-sm font-bold">
             Back to create
           </Link>
         </section>
@@ -31,22 +31,22 @@ export default async function BuildPackPage({ params }: BuildPackPageProps): Pro
   const buildPack = generateBuildPack(prototype);
 
   return (
-    <main className="min-h-screen bg-[#0F172A] px-4 py-5 text-slate-100">
-      <section className="mx-auto flex w-full max-w-6xl flex-col gap-4">
-        <div className="rounded-lg border border-slate-800 bg-[#0B1220] p-4 shadow-sm">
+    <main className="concept-page px-4 py-5 safe-bottom">
+      <section className="concept-shell mx-auto flex w-full max-w-6xl flex-col gap-4 p-3 sm:p-4 md:p-6">
+        <div className="flex flex-col gap-4 rounded-[28px] bg-white p-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-blue-300">Codex Build Pack</p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-normal text-white">{prototype.name}</h1>
+              <p className="mono text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Codex Build Pack</p>
+              <h1 className="mt-1 text-[32px] font-black leading-[0.98] tracking-normal text-slate-950 sm:text-[38px]">{prototype.name}</h1>
             </div>
             <Link
               href={`/result/${prototype.id}`}
-              className="rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200"
+              className="concept-pill inline-flex items-center px-5 py-3 text-sm font-bold"
             >
               Back to result
             </Link>
           </div>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
+          <p className="max-w-3xl text-sm leading-6 text-slate-600">
             Reality MVP uses Codex to generate the runnable spatial prototype app layer around a product concept:
             AR page, product config, AGENTS.md, MVP spec, validation plan, and README submission content.
           </p>
