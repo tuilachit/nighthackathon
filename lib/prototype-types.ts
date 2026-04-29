@@ -29,10 +29,18 @@ export type AssetStatus =
 
 export type MeshyStatus =
   | { kind: "disabled"; reason: FallbackReason; message: string }
-  | { kind: "pending"; mode: GenerationMode; message: string }
-  | { kind: "succeeded"; mode: GenerationMode; message: string }
-  | { kind: "failed"; reason: FallbackReason; message: string }
-  | { kind: "timeout"; message: string };
+  | { kind: "pending"; mode: GenerationMode; message: string; taskId?: string; progress?: number }
+  | {
+      kind: "succeeded";
+      mode: GenerationMode;
+      message: string;
+      taskId?: string;
+      remoteModelUrl: string;
+      remoteUsdzUrl?: string;
+      thumbnailUrl?: string;
+    }
+  | { kind: "failed"; reason: FallbackReason; message: string; mode?: GenerationMode; taskId?: string }
+  | { kind: "timeout"; message: string; mode?: GenerationMode; taskId?: string };
 
 export type StorageStatus =
   | { kind: "unavailable"; message: string }
@@ -58,6 +66,7 @@ export interface PrototypeModel {
   readonly category: ProductCategory;
   readonly generationMode: GenerationMode;
   readonly remoteModelUrl?: string;
+  readonly remoteUsdzUrl?: string;
 }
 
 export interface PrototypeStatuses {
@@ -80,6 +89,49 @@ export interface PrototypeSpec {
   readonly refined3DPrompt: string;
   readonly model: PrototypeModel;
   readonly statuses: PrototypeStatuses;
+  readonly analysis?: ProductAnalysis;
+}
+
+export interface ProductAnalysis {
+  readonly category: ProductCategory;
+  readonly productName: string;
+  readonly shape: string;
+  readonly materials: readonly string[];
+  readonly features: readonly FeatureCallout[];
+  readonly intendedUse: string;
+  readonly refinedMeshyPrompt: string;
+  readonly fallbackCategory: ProductCategory;
+  readonly visualDirection: string;
+  readonly generationNotes: readonly string[];
+  readonly source: "openai" | "fallback";
+}
+
+export interface ConceptQuestion {
+  readonly id: string;
+  readonly label: string;
+  readonly placeholder: string;
+}
+
+export interface ConceptRefinement {
+  readonly questions: readonly ConceptQuestion[];
+  readonly visualDirection: string;
+  readonly generationBrief: string;
+  readonly promptAdditions: readonly string[];
+  readonly source: "openai" | "fallback";
+}
+
+export interface GeneratedModelResult {
+  readonly id: string;
+  readonly mode: Exclude<GenerationMode, "none">;
+  readonly status: "pending" | "succeeded" | "failed" | "timeout";
+  readonly taskId?: string;
+  readonly glbUrl?: string;
+  readonly usdzUrl?: string;
+  readonly thumbnailUrl?: string;
+  readonly refinedMeshyPrompt: string;
+  readonly fallbackModelPath: string;
+  readonly error?: string;
+  readonly progress?: number;
 }
 
 export interface BuildPackFile {

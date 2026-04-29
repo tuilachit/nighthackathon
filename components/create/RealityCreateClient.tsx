@@ -1,12 +1,30 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { analyzePromptToPrototype, DEFAULT_PROMPT, EXAMPLE_PROMPTS } from "@/lib/analyzer";
 import { savePrototypeToLocalStorage } from "@/lib/local-prototype-store";
-import { getInitialMeshyStatus, withMeshyStatus } from "@/lib/model-generation";
+import { applyGeneratedModelResult, getStartingMeshyStatus, withMeshyStatus } from "@/lib/model-generation";
 import { validateImageUpload } from "@/lib/upload-validation";
 import { ArrowRightIcon, CameraIcon, CubeIcon, DotIcon, SparkleIcon, UploadIcon } from "@/components/ui/Icon";
+import type { ConceptRefinement, GeneratedModelResult, PrototypeSpec } from "@/lib/prototype-types";
+
+const POLL_INTERVAL_MS = 3500;
+const MAX_POLLS = 80;
+
+interface RefineConceptResponse {
+  readonly refinement?: ConceptRefinement;
+  readonly error?: string;
+}
+
+interface StartGenerationResponse {
+  readonly prototypeSpec?: PrototypeSpec;
+  readonly generation?: GeneratedModelResult;
+}
+
+interface StatusGenerationResponse {
+  readonly generation?: GeneratedModelResult;
+}
 
 export function RealityCreateClient(): React.JSX.Element {
   const router = useRouter();
@@ -14,16 +32,21 @@ export function RealityCreateClient(): React.JSX.Element {
   const [prompt, setPrompt] = useState<string>(DEFAULT_PROMPT);
   const [imageName, setImageName] = useState<string>("No sketch selected");
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | undefined>(undefined);
+  const [imageDataUrl, setImageDataUrl] = useState<string | undefined>(undefined);
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
-  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [refinement, setRefinement] = useState<ConceptRefinement | undefined>(undefined);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [isRefining, setIsRefining] = useState<boolean>(false);
+  const [isPending, startTransition] = useTransition();
 
-  const canGenerate = useMemo<boolean>(() => prompt.trim().length > 0 && !isGenerating, [isGenerating, prompt]);
+  const canGenerate = useMemo<boolean>(() => prompt.trim().length > 0 && !isPending && !isRefining, [isPending, isRefining, prompt]);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0];
     if (file === undefined) {
       setImageName("No sketch selected");
       setImagePreviewUrl(undefined);
+      setImageDataUrl(undefined);
       setValidationError(undefined);
       return;
     }
@@ -32,13 +55,56 @@ export function RealityCreateClient(): React.JSX.Element {
     if (!validation.valid) {
       setImageName(file.name);
       setImagePreviewUrl(undefined);
+      setImageDataUrl(undefined);
       setValidationError(validation.message);
       return;
     }
 
     setImageName(file.name);
-    setImagePreviewUrl(URL.createObjectURL(file));
     setValidationError(undefined);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : undefined;
+      setImagePreviewUrl(result);
+      setImageDataUrl(result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleAskQuestions(): Promise<void> {
+    if (prompt.trim().length === 0) {
+      return;
+    }
+
+    setValidationError(undefined);
+    setIsRefining(true);
+
+    try {
+      const response = await fetch("/api/refine-concept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, imageDataUrl }),
+      });
+      const data = (await response.json()) as RefineConceptResponse;
+
+      if (!response.ok || data.refinement === undefined) {
+        setValidationError(data.error ?? "Could not prepare product questions.");
+        return;
+      }
+
+      setRefinement(data.refinement);
+      setAnswers((currentAnswers) => {
+        const nextAnswers = { ...currentAnswers };
+        for (const question of data.refinement?.questions ?? []) {
+          nextAnswers[question.id] ??= "";
+        }
+        return nextAnswers;
+      });
+    } catch {
+      setValidationError("Could not prepare product questions.");
+    } finally {
+      setIsRefining(false);
+    }
   }
 
   function handleGenerate(): void {
@@ -46,11 +112,19 @@ export function RealityCreateClient(): React.JSX.Element {
       return;
     }
 
-    setIsGenerating(true);
-    const analyzedSpec = analyzePromptToPrototype(prompt);
-    const spec = withMeshyStatus(analyzedSpec, getInitialMeshyStatus(imagePreviewUrl !== undefined));
-    savePrototypeToLocalStorage(spec);
-    router.push(`/result/${spec.id}`);
+    if (refinement === undefined) {
+      void handleAskQuestions();
+      return;
+    }
+
+    startTransition(() => {
+      const founderContext = buildFounderContext(refinement, answers);
+      const analyzedSpec = analyzePromptToPrototype(prompt);
+      const spec = withMeshyStatus(analyzedSpec, getStartingMeshyStatus(imageDataUrl !== undefined));
+      savePrototypeToLocalStorage(spec);
+      void upgradePrototypeWithGeneratedModel(spec, prompt, imageDataUrl, founderContext);
+      router.push(`/result/${spec.id}`);
+    });
   }
 
   return (
@@ -74,7 +148,7 @@ export function RealityCreateClient(): React.JSX.Element {
               <span>Walk around it.</span>
             </h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Snap a sketch, describe your idea, and generate the spatial prototype, Build Pack and all.
+              Snap a sketch, describe your idea, answer focused product questions, and generate the spatial prototype.
             </p>
           </div>
         </header>
@@ -166,10 +240,11 @@ export function RealityCreateClient(): React.JSX.Element {
                 onChange={(event) => setPrompt(event.target.value)}
                 className="min-h-32 w-full resize-none bg-transparent text-[16px] font-medium leading-7 text-slate-950 outline-none"
                 aria-label="Product prompt"
+                placeholder="Describe the object: shape, parts, materials, controls, seams, handles, surface details..."
               />
               <div className="mt-2 flex items-center justify-between">
                 <p className="mono text-[10px] text-slate-500">{prompt.length} chars</p>
-                <p className="text-[10px] text-slate-500">fallback first · Meshy optional</p>
+                <p className="text-[10px] text-slate-500">generated model syncs to result, AR, and launch</p>
               </div>
             </div>
 
@@ -189,19 +264,68 @@ export function RealityCreateClient(): React.JSX.Element {
                 </button>
               ))}
             </div>
-
-            <button
-              type="button"
-              disabled={!canGenerate}
-              onClick={handleGenerate}
-              className="concept-primary-button mt-6 flex w-full min-w-0 items-center justify-center gap-2 px-5 py-4 text-[15px] font-bold disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
-            >
-              <SparkleIcon size={16} color="#fff" />
-              {isGenerating ? "Generating Reality MVP" : "Generate Reality MVP"}
-              <ArrowRightIcon size={16} color="#fff" />
-            </button>
           </section>
         </div>
+
+        <section className="concept-panel p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <SectionLabel>3 · Founder context</SectionLabel>
+              <p className="text-sm leading-6 text-slate-600">
+                Add the object details that make the generated model specific: shape, parts, materials, and hero functional details.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={isRefining || prompt.trim().length === 0}
+              onClick={() => void handleAskQuestions()}
+              className="concept-pill px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:text-slate-300"
+            >
+              {isRefining ? "Asking" : refinement === undefined ? "Ask" : "Refresh"}
+            </button>
+          </div>
+
+          {refinement !== undefined ? (
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {refinement.questions.map((question) => (
+                <label key={question.id} className="block">
+                  <span className="text-sm font-semibold text-slate-900">{question.label}</span>
+                  <input
+                    value={answers[question.id] ?? ""}
+                    onChange={(event) => setAnswers((currentAnswers) => ({ ...currentAnswers, [question.id]: event.target.value }))}
+                    placeholder={question.placeholder}
+                    className="mt-2 h-10 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-[#2563EB]"
+                  />
+                </label>
+              ))}
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 md:col-span-2">
+                <p className="text-sm font-semibold text-blue-950">{refinement.visualDirection}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {refinement.promptAdditions.map((addition) => (
+                    <span key={addition} className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-blue-800">
+                      {addition}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm leading-6 text-slate-600">
+              The first tap prepares targeted questions. The second tap generates the prototype with those answers included.
+            </p>
+          )}
+        </section>
+
+        <button
+          type="button"
+          disabled={!canGenerate}
+          onClick={handleGenerate}
+          className="concept-primary-button flex w-full min-w-0 items-center justify-center gap-2 px-5 py-4 text-[15px] font-bold disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+        >
+          <SparkleIcon size={16} color="#fff" />
+          {isPending ? "Generating Reality MVP" : refinement === undefined ? "Answer product questions" : "Generate Reality MVP"}
+          <ArrowRightIcon size={16} color="#fff" />
+        </button>
 
         <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500">
           <DotIcon size={6} color="#10B981" />
@@ -210,6 +334,96 @@ export function RealityCreateClient(): React.JSX.Element {
       </section>
     </main>
   );
+}
+
+async function upgradePrototypeWithGeneratedModel(
+  fallbackSpec: PrototypeSpec,
+  prompt: string,
+  imageDataUrl: string | undefined,
+  founderContext: string,
+): Promise<void> {
+  try {
+    const startResponse = await fetch("/api/generate-model/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, imageDataUrl, founderContext }),
+    });
+
+    if (!startResponse.ok) {
+      return;
+    }
+
+    const startData = (await startResponse.json()) as StartGenerationResponse;
+    let activeSpec = startData.prototypeSpec ?? fallbackSpec;
+    if (startData.prototypeSpec !== undefined) {
+      savePrototypeToLocalStorage(startData.prototypeSpec);
+    }
+
+    let generation = startData.generation;
+    if (generation === undefined || generation.status !== "pending" || generation.taskId === undefined) {
+      return;
+    }
+
+    for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
+      await delay(POLL_INTERVAL_MS);
+
+      const params = new URLSearchParams({
+        taskId: generation.taskId,
+        mode: generation.mode,
+        refinedPrompt: generation.refinedMeshyPrompt,
+        fallbackModelPath: generation.fallbackModelPath,
+        allowTextFallback: generation.mode === "image-to-3d" ? "true" : "false",
+      });
+
+      const statusResponse = await fetch(`/api/generate-model/status?${params.toString()}`);
+      if (!statusResponse.ok) {
+        return;
+      }
+
+      const statusData = (await statusResponse.json()) as StatusGenerationResponse;
+      if (statusData.generation === undefined) {
+        return;
+      }
+
+      generation = statusData.generation;
+      activeSpec = applyGeneratedModelResult(activeSpec, generation);
+      savePrototypeToLocalStorage(activeSpec);
+
+      if (generation.status !== "pending" || generation.taskId === undefined) {
+        return;
+      }
+    }
+
+    savePrototypeToLocalStorage(
+      applyGeneratedModelResult(activeSpec, {
+        ...generation,
+        status: "timeout",
+        error: "Custom generation took too long for the live demo.",
+      }),
+    );
+  } catch (error) {
+    console.warn("Generated model upgrade failed.", error);
+  }
+}
+
+function buildFounderContext(refinement: ConceptRefinement, answers: Record<string, string>): string {
+  const answerLines = refinement.questions
+    .map((question) => {
+      const answer = answers[question.id]?.trim();
+      return answer !== undefined && answer.length > 0 ? `${question.label}: ${answer}` : "";
+    })
+    .filter(Boolean);
+
+  return [
+    refinement.generationBrief,
+    refinement.visualDirection,
+    ...refinement.promptAdditions.map((addition) => `Prompt guidance: ${addition}`),
+    ...answerLines,
+  ].join("\n");
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function SectionLabel({ children }: { readonly children: React.ReactNode }): React.JSX.Element {

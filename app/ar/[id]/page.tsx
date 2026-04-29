@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ModelViewerClient } from "@/components/ar/ModelViewerClient";
-import { getSeededPrototype } from "@/lib/prototype-registry";
+import { getPrototypeForRoute } from "@/lib/prototype-registry";
 import { CodeIcon, DotIcon } from "@/components/ui/Icon";
 
 interface ArPageProps {
@@ -11,21 +11,7 @@ interface ArPageProps {
 
 export default async function ArPage({ params }: ArPageProps): Promise<React.JSX.Element> {
   const { id } = await params;
-  const prototype = getSeededPrototype(id);
-
-  if (prototype === undefined) {
-    return (
-      <main className="concept-page px-4 py-6">
-        <section className="concept-shell mx-auto max-w-xl p-5">
-          <p className="text-sm font-semibold text-[#F59E0B]">AR route missing</p>
-          <h1 className="mt-2 text-2xl font-semibold">No seeded prototype exists for this URL.</h1>
-          <Link href="/" className="concept-primary-button mt-5 inline-flex items-center px-6 py-3 text-sm font-bold">
-            Back to create
-          </Link>
-        </section>
-      </main>
-    );
-  }
+  const prototype = getPrototypeForRoute(id);
 
   return (
     <main className="concept-page px-4 py-5 safe-bottom">

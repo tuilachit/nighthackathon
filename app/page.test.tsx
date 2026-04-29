@@ -13,6 +13,6 @@ describe("Home", () => {
     render(<Home />);
 
     expect(screen.getByRole("heading", { name: "Sketch a product. Walk around it." })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Generate Reality MVP" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Answer product questions" })).toBeInTheDocument();
   });
 });

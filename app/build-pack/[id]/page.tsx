@@ -2,7 +2,7 @@ import Link from "next/link";
 import { GenerationTrace } from "@/components/build-pack/GenerationTrace";
 import { BuildPackViewer } from "@/components/build-pack/BuildPackViewer";
 import { generateBuildPack } from "@/lib/build-pack";
-import { getSeededPrototype } from "@/lib/prototype-registry";
+import { getPrototypeForRoute } from "@/lib/prototype-registry";
 
 interface BuildPackPageProps {
   readonly params: Promise<{
@@ -12,21 +12,7 @@ interface BuildPackPageProps {
 
 export default async function BuildPackPage({ params }: BuildPackPageProps): Promise<React.JSX.Element> {
   const { id } = await params;
-  const prototype = getSeededPrototype(id);
-
-  if (prototype === undefined) {
-    return (
-      <main className="concept-page px-4 py-6">
-        <section className="concept-shell mx-auto max-w-xl p-5">
-          <p className="text-sm font-semibold text-[#F59E0B]">Build Pack missing</p>
-          <h1 className="mt-2 text-2xl font-semibold">No generated artifacts exist for this URL.</h1>
-          <Link href="/" className="concept-primary-button mt-5 inline-flex items-center px-6 py-3 text-sm font-bold">
-            Back to create
-          </Link>
-        </section>
-      </main>
-    );
-  }
+  const prototype = getPrototypeForRoute(id);
 
   const buildPack = generateBuildPack(prototype);
 
@@ -47,8 +33,9 @@ export default async function BuildPackPage({ params }: BuildPackPageProps): Pro
             </Link>
           </div>
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            Reality MVP uses Codex to generate the runnable spatial prototype app layer around a product concept:
-            AR page, product config, AGENTS.md, MVP spec, validation plan, and README submission content.
+            Reality MVP uses Codex to generate the runnable spatial prototype and launch app layer around a product concept:
+            AR page, launch page, waitlist API, product config, AGENTS.md, MVP spec, validation plan, and README submission
+            content.
           </p>
         </div>
 
