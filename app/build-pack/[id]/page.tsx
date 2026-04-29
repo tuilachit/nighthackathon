@@ -33,8 +33,9 @@ export default async function BuildPackPage({ params }: BuildPackPageProps): Pro
             </Link>
           </div>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-            Reality MVP uses Codex to generate the runnable spatial prototype app layer around a product concept:
-            AR page, product config, AGENTS.md, MVP spec, validation plan, and README submission content.
+            Reality MVP uses Codex to generate the runnable spatial prototype and launch app layer around a product concept:
+            AR page, launch page, waitlist API, product config, AGENTS.md, MVP spec, validation plan, and README submission
+            content.
           </p>
         </div>
 

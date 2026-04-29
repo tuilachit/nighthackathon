@@ -9,14 +9,18 @@ describe("generateBuildPack", () => {
 
     expect(buildPack.files.map((file) => file.path)).toEqual([
       "app/ar/[id]/page.tsx",
+      "app/launch/[id]/page.tsx",
+      "app/api/waitlist/route.ts",
       "product.config.json",
+      ".env.example",
       "AGENTS.md",
       "MVP_SPEC.md",
       "VALIDATION_PLAN.md",
       "README.md",
     ]);
     expect(buildPack.files.find((file) => file.path === "README.md")?.content).toContain(
-      "Codex to generate the runnable spatial prototype app layer",
+      "Codex to generate the runnable spatial prototype and launch app layer",
     );
+    expect(buildPack.files.find((file) => file.path === ".env.example")?.content).toContain("NOTION_TOKEN=");
   });
 });

@@ -40,7 +40,9 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
   const [modelFailed, setModelFailed] = useState<boolean>(false);
 
   useEffect(() => {
-    void import("@google/model-viewer");
+    if (process.env.NODE_ENV !== "test") {
+      void import("@google/model-viewer");
+    }
     setCompatibility(getCompatibilityStatus());
   }, []);
 
