@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { analyzePromptToPrototype, DEFAULT_PROMPT, EXAMPLE_PROMPTS } from "@/lib/analyzer";
 import { savePrototypeToLocalStorage } from "@/lib/local-prototype-store";
@@ -15,9 +15,9 @@ export function RealityCreateClient(): React.JSX.Element {
   const [imageName, setImageName] = useState<string>("No sketch selected");
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | undefined>(undefined);
   const [validationError, setValidationError] = useState<string | undefined>(undefined);
-  const [isPending, startTransition] = useTransition();
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
 
-  const canGenerate = useMemo<boolean>(() => prompt.trim().length > 0 && !isPending, [isPending, prompt]);
+  const canGenerate = useMemo<boolean>(() => prompt.trim().length > 0 && !isGenerating, [isGenerating, prompt]);
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0];
@@ -46,12 +46,11 @@ export function RealityCreateClient(): React.JSX.Element {
       return;
     }
 
-    startTransition(() => {
-      const analyzedSpec = analyzePromptToPrototype(prompt);
-      const spec = withMeshyStatus(analyzedSpec, getInitialMeshyStatus(imagePreviewUrl !== undefined));
-      savePrototypeToLocalStorage(spec);
-      router.push(`/result/${spec.id}`);
-    });
+    setIsGenerating(true);
+    const analyzedSpec = analyzePromptToPrototype(prompt);
+    const spec = withMeshyStatus(analyzedSpec, getInitialMeshyStatus(imagePreviewUrl !== undefined));
+    savePrototypeToLocalStorage(spec);
+    router.push(`/result/${spec.id}`);
   }
 
   return (
@@ -173,7 +172,7 @@ export function RealityCreateClient(): React.JSX.Element {
               className="concept-primary-button mt-6 flex w-full min-w-0 items-center justify-center gap-2 px-5 py-4 text-[15px] font-bold disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             >
               <SparkleIcon size={16} color="#fff" />
-              {isPending ? "Generating Reality MVP" : "Generate Reality MVP"}
+              {isGenerating ? "Generating Reality MVP" : "Generate Reality MVP"}
               <ArrowRightIcon size={16} color="#fff" />
             </button>
           </section>
