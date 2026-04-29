@@ -15,6 +15,10 @@ dist/
 
 # testing
 coverage/
+test-results/
+
+# TypeScript
+*.tsbuildinfo
 
 # OS
 .DS_Store
