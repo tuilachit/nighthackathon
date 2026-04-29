@@ -80,8 +80,8 @@ export function RealityCreateClient(): React.JSX.Element {
           </div>
         </header>
 
-        <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-          <section>
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+          <section className="min-w-0">
             <SectionLabel>1 · Sketch</SectionLabel>
 
             <input
@@ -94,9 +94,9 @@ export function RealityCreateClient(): React.JSX.Element {
               aria-label="Upload sketch or product photo"
             />
 
-            <button type="button" className="mt-2 w-full text-left" onClick={() => fileInputRef.current?.click()}>
+            <button type="button" className="mt-2 w-full min-w-0 text-left" onClick={() => fileInputRef.current?.click()}>
               {imagePreviewUrl === undefined ? (
-                <div className="concept-panel flex min-h-[104px] items-center gap-4 border-dashed p-4">
+                <div className="concept-panel flex min-h-[104px] w-full min-w-0 items-center gap-4 border-dashed p-4">
                   <div className="concept-circle-button flex h-14 w-14 shrink-0 items-center justify-center">
                     <CameraIcon size={22} color="#050505" />
                   </div>
@@ -109,7 +109,7 @@ export function RealityCreateClient(): React.JSX.Element {
                   </div>
                 </div>
               ) : (
-                <div className="concept-panel flex min-h-[104px] items-center gap-3 p-2">
+                <div className="concept-panel flex min-h-[104px] w-full min-w-0 items-center gap-3 p-2">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[22px] bg-slate-100">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={imagePreviewUrl} alt="Uploaded product sketch preview" className="h-full w-full object-cover" />
@@ -134,9 +134,9 @@ export function RealityCreateClient(): React.JSX.Element {
             ) : null}
           </section>
 
-          <section>
+          <section className="min-w-0">
             <SectionLabel>2 · Describe it</SectionLabel>
-            <div className="concept-panel p-4">
+            <div className="concept-panel w-full min-w-0 p-4">
               <textarea
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
@@ -149,7 +149,7 @@ export function RealityCreateClient(): React.JSX.Element {
               </div>
             </div>
 
-            <div className="noscroll mt-4 flex gap-2 overflow-x-auto pb-1">
+            <div className="noscroll mt-4 flex max-w-full gap-2 overflow-x-auto pb-1">
               {EXAMPLE_PROMPTS.map((examplePrompt) => (
                 <button
                   type="button"
@@ -170,7 +170,7 @@ export function RealityCreateClient(): React.JSX.Element {
               type="button"
               disabled={!canGenerate}
               onClick={handleGenerate}
-              className="concept-primary-button mt-6 flex w-full items-center justify-center gap-2 px-5 py-4 text-[15px] font-bold disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+              className="concept-primary-button mt-6 flex w-full min-w-0 items-center justify-center gap-2 px-5 py-4 text-[15px] font-bold disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             >
               <SparkleIcon size={16} color="#fff" />
               {isPending ? "Generating Reality MVP" : "Generate Reality MVP"}
