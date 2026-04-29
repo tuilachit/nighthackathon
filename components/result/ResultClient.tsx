@@ -7,7 +7,7 @@ import { PhoneHandoff } from "@/components/result/PhoneHandoff";
 import { PreflightPanel } from "@/components/result/PreflightPanel";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { CubeIcon, DotIcon, SparkleIcon } from "@/components/ui/Icon";
-import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeFromLocalStorage } from "@/lib/local-prototype-store";
+import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeForRouteFromLocalStorage } from "@/lib/local-prototype-store";
 import type { PrototypeSpec } from "@/lib/prototype-types";
 
 interface ResultClientProps {
@@ -17,6 +17,7 @@ interface ResultClientProps {
 export function ResultClient({ prototype }: ResultClientProps): React.JSX.Element {
   const [activePrototype, setActivePrototype] = useState<PrototypeSpec>(prototype);
   const generationState = getGenerationState(activePrototype);
+  const modelReadinessLabel = getModelReadinessLabel(activePrototype);
 
   useEffect(() => {
     window.addEventListener(LOCAL_PROTOTYPE_UPDATED_EVENT, syncLocalPrototype);
@@ -28,7 +29,7 @@ export function ResultClient({ prototype }: ResultClientProps): React.JSX.Elemen
     };
 
     function syncLocalPrototype(): void {
-      const localPrototype = loadPrototypeFromLocalStorage(prototype.id);
+      const localPrototype = loadPrototypeForRouteFromLocalStorage(prototype.id);
       if (localPrototype !== undefined) {
         setActivePrototype(localPrototype);
       }
@@ -67,8 +68,8 @@ export function ResultClient({ prototype }: ResultClientProps): React.JSX.Elemen
                 <p className="text-sm font-semibold text-slate-500">Generated prototype</p>
                 <h1 className="mt-1 text-[34px] font-black leading-[0.98] tracking-normal sm:text-[40px]">{activePrototype.name}</h1>
               </div>
-            <StatusPill tone={activePrototype.statuses.meshy.kind === "succeeded" ? "success" : "warning"}>
-                {activePrototype.statuses.meshy.kind === "succeeded" ? "Generated GLB ready" : "Fallback AR ready"}
+              <StatusPill tone={activePrototype.statuses.meshy.kind === "succeeded" ? "success" : "warning"}>
+                {modelReadinessLabel}
               </StatusPill>
             </div>
 
@@ -91,7 +92,7 @@ export function ResultClient({ prototype }: ResultClientProps): React.JSX.Elemen
               <CubeIcon size={16} color="#050505" />
               <h2 className="text-lg font-semibold">3D preview</h2>
               <p className="mono ml-auto text-[10px] uppercase tracking-wide text-slate-500">
-                {activePrototype.model.source} · {activePrototype.category}.glb
+                {activePrototype.model.remoteModelUrl !== undefined ? "generated" : "model"} · {activePrototype.category}.glb
               </p>
             </div>
             <div className="mt-3">
@@ -147,7 +148,11 @@ export function ResultClient({ prototype }: ResultClientProps): React.JSX.Elemen
             </div>
             <div className="mt-3 flex flex-col gap-3">
               <TimelineRow tone="success" title="Product spec ready" body="Codex app-layer inputs are generated locally." />
-              <TimelineRow tone="success" title="Fallback model selected" body={activePrototype.model.glbPath} />
+              <TimelineRow
+                tone={activePrototype.model.remoteModelUrl !== undefined ? "success" : "warning"}
+                title={activePrototype.model.remoteModelUrl !== undefined ? "Generated model linked" : "Model source pending"}
+                body={activePrototype.model.remoteModelUrl ?? activePrototype.statuses.meshy.message}
+              />
               <TimelineRow
                 tone={activePrototype.statuses.meshy.kind === "succeeded" ? "success" : "warning"}
                 title="Custom 3D"
@@ -202,6 +207,18 @@ function getGenerationState(prototype: PrototypeSpec): {
   return { tone: "success", dotColor: "#10B981", label: "AR READY" };
 }
 
+function getModelReadinessLabel(prototype: PrototypeSpec): string {
+  if (prototype.model.remoteModelUrl !== undefined || prototype.statuses.meshy.kind === "succeeded") {
+    return "Generated GLB ready";
+  }
+
+  if (prototype.statuses.meshy.kind === "pending") {
+    return "Generating GLB";
+  }
+
+  return "Model pending";
+}
+
 function GenerationStatusBanner({ prototype }: { readonly prototype: PrototypeSpec }): React.JSX.Element | null {
   const status = prototype.statuses.meshy;
 
@@ -217,7 +234,7 @@ function GenerationStatusBanner({ prototype }: { readonly prototype: PrototypeSp
   if (status.kind === "failed" || status.kind === "timeout") {
     return (
       <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-900">
-        Using fallback model. {status.message}
+        Generated model is unavailable. {status.message}
       </div>
     );
   }

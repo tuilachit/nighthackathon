@@ -4,6 +4,7 @@ import {
   getFallbackModel,
   getModelViewerAssetUrl,
   getPrimaryModelSource,
+  hasGeneratedModelAssetSource,
   isSupportedLocalModelAssetPath,
   isSupportedRemoteModelAssetUrl,
 } from "./assets";
@@ -44,5 +45,18 @@ describe("assets", () => {
     const remoteModelUrl = "https://assets.meshy.ai/tasks/123/output/model.glb?Expires=4931020800&Signature=abc";
 
     expect(getPrimaryModelSource({ ...model, remoteModelUrl })).toBe(remoteModelUrl);
+  });
+
+  it("does not treat the validated bottle fallback as the user's generated model", () => {
+    const model = getFallbackModel("bottle");
+
+    expect(hasGeneratedModelAssetSource(model)).toBe(false);
+    expect(hasGeneratedModelAssetSource({ ...model, glbPath: "/models/generated/demo.glb" })).toBe(true);
+    expect(
+      hasGeneratedModelAssetSource({
+        ...model,
+        remoteModelUrl: "https://assets.meshy.ai/tasks/123/output/model.glb?Expires=4931020800&Signature=abc",
+      }),
+    ).toBe(true);
   });
 });

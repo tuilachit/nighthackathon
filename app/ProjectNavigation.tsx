@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const DEFAULT_ID = "smart-hydration-bottle";
+const DEFAULT_ID = "reality-mvp-prototype";
 
 const NAV_ITEMS: ReadonlyArray<{
   readonly href: string;

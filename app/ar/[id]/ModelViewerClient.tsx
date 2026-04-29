@@ -6,9 +6,10 @@ import {
   getIosModelSource,
   getModelViewerAssetUrl,
   getPrimaryModelSource,
+  hasGeneratedModelAssetSource,
   isSupportedModelAssetSource,
 } from "@/lib/assets";
-import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeFromLocalStorage } from "@/lib/local-prototype-store";
+import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeForRouteFromLocalStorage } from "@/lib/local-prototype-store";
 import { DotIcon } from "@/components/ui/Icon";
 import type { ArCompatibilityStatus, PrototypeSpec } from "@/lib/prototype-types";
 
@@ -51,9 +52,10 @@ export function ModelViewerClient({ prototype }: ModelViewerClientProps): React.
   const [compatibility, setCompatibility] = useState<ArCompatibilityStatus>(prototype.statuses.arCompatibility);
 
   const rawModelSource = useMemo<string>(() => getPrimaryModelSource(activePrototype.model), [activePrototype.model]);
-  const modelSource = useMemo<string>(
-    () => getModelViewerAssetUrl(rawModelSource) ?? activePrototype.model.glbPath,
-    [activePrototype.model.glbPath, rawModelSource],
+  const hasGeneratedModel = useMemo<boolean>(() => hasGeneratedModelAssetSource(activePrototype.model), [activePrototype.model]);
+  const modelSource = useMemo<string | undefined>(
+    () => (hasGeneratedModel ? getModelViewerAssetUrl(rawModelSource) ?? activePrototype.model.glbPath : undefined),
+    [activePrototype.model.glbPath, hasGeneratedModel, rawModelSource],
   );
   const iosSource = useMemo<string | undefined>(
     () => getModelViewerAssetUrl(getIosModelSource(activePrototype.model)),
@@ -93,7 +95,7 @@ export function ModelViewerClient({ prototype }: ModelViewerClientProps): React.
     };
 
     function syncLocalPrototype(): void {
-      const localPrototype = loadPrototypeFromLocalStorage(prototype.id);
+      const localPrototype = loadPrototypeForRouteFromLocalStorage(prototype.id);
 
       if (localPrototype !== undefined) {
         setActivePrototype(localPrototype);
@@ -128,37 +130,46 @@ export function ModelViewerClient({ prototype }: ModelViewerClientProps): React.
         </div>
       ) : null}
 
-      <model-viewer
-        ref={modelViewerRef}
-        src={modelSource}
-        ios-src={iosSource}
-        alt={activePrototype.name}
-        ar
-        ar-modes="webxr scene-viewer quick-look"
-        camera-controls
-        auto-rotate
-        shadow-intensity="1"
-        exposure="1"
-        interaction-prompt="auto"
-        touch-action="pan-y"
-        className="h-[100dvh] w-full"
-        onError={() => {
-          setModelFailed(true);
-        }}
-      />
+      {hasGeneratedModel ? (
+        <model-viewer
+          ref={modelViewerRef}
+          src={modelSource}
+          ios-src={iosSource}
+          alt={activePrototype.name}
+          ar
+          ar-modes="webxr scene-viewer quick-look"
+          camera-controls
+          auto-rotate
+          shadow-intensity="1"
+          exposure="1"
+          interaction-prompt="auto"
+          touch-action="pan-y"
+          className="h-[100dvh] w-full"
+          onError={() => {
+            setModelFailed(true);
+          }}
+        />
+      ) : null}
 
       <button
-        className="fixed bottom-56 left-1/2 z-40 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-slate-950 shadow-2xl ring-1 ring-slate-950/10"
+        className="fixed bottom-56 left-1/2 z-40 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-lg bg-white px-5 py-3 text-sm font-semibold text-slate-950 shadow-2xl ring-1 ring-slate-950/10 disabled:cursor-not-allowed disabled:bg-slate-300"
         data-testid="view-in-ar-button"
+        disabled={!hasGeneratedModel}
         onClick={handleLaunchAR}
         type="button"
       >
         View in AR
       </button>
 
-      {modelFailed || !hasSupportedModel ? (
+      {!hasGeneratedModel ? (
+        <div className="absolute left-4 right-4 top-4 z-40 rounded-lg border border-white/10 bg-white/90 p-3 text-xs font-medium leading-5 text-slate-950 shadow-xl">
+          Generate the 3D model to launch this object in AR.
+        </div>
+      ) : null}
+
+      {hasGeneratedModel && (modelFailed || !hasSupportedModel) ? (
         <div className="absolute left-4 right-4 top-4 z-40 rounded-lg border border-red-300/30 bg-red-100/95 p-3 text-xs font-medium leading-5 text-red-950 shadow-xl">
-          The GLB model could not be loaded. Check that the Meshy URL is HTTPS, points to a .glb file, and has not expired.
+          The GLB model could not be loaded. Check that the generated URL is HTTPS, points to a .glb file, and has not expired.
         </div>
       ) : null}
 

@@ -215,10 +215,11 @@ export function RealityCreateClient(): React.JSX.Element {
                 onChange={(event) => setPrompt(event.target.value)}
                 className="min-h-32 w-full resize-none bg-transparent text-[16px] font-medium leading-7 text-slate-950 outline-none"
                 aria-label="Product prompt"
+                placeholder="Describe the object: shape, parts, materials, controls, seams, handles, surface details..."
               />
               <div className="mt-2 flex items-center justify-between">
                 <p className="mono text-[10px] text-slate-500">{prompt.length} chars</p>
-                <p className="text-[10px] text-slate-500">fallback first · custom model optional</p>
+                <p className="text-[10px] text-slate-500">generated model syncs to result, AR, and launch</p>
               </div>
             </div>
 
@@ -372,11 +373,11 @@ async function upgradePrototypeWithGeneratedModel(
       applyGeneratedModelResult(activeSpec, {
         ...generation,
         status: "timeout",
-        error: "Custom generation took too long for the live demo. Fallback AR is still available.",
+        error: "Custom generation took too long for the live demo.",
       }),
     );
   } catch (error) {
-    console.warn("Generated model upgrade failed; fallback AR remains available.", error);
+    console.warn("Generated model upgrade failed.", error);
   }
 }
 

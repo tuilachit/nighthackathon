@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { analyzePromptToPrototype, classifyProductCategory, DEFAULT_PROMPT } from "./analyzer";
 
 describe("analyzer", () => {
-  it("returns the default smart hydration bottle spec", () => {
+  it("keeps the create prompt empty and seeds a generic prototype", () => {
     const spec = analyzePromptToPrototype(DEFAULT_PROMPT);
 
-    expect(spec.id).toBe("smart-hydration-bottle");
-    expect(spec.category).toBe("bottle");
-    expect(spec.model.glbPath).toBe("/models/bottle.glb");
+    expect(DEFAULT_PROMPT).toBe("");
+    expect(spec.id).toBe("reality-mvp-prototype");
+    expect(spec.category).toBe("unknown");
+    expect(spec.prompt).toBe("A product concept captured in Reality MVP.");
   });
 
   it("classifies supported product categories", () => {

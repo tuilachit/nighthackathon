@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { analyzePromptToPrototype } from "@/lib/analyzer";
+import { savePrototypeToLocalStorage } from "@/lib/local-prototype-store";
+import { applyGeneratedModelResult } from "@/lib/model-generation";
 import { LaunchPageClient } from "./LaunchPageClient";
 
 describe("LaunchPageClient", () => {
@@ -41,6 +43,28 @@ describe("LaunchPageClient", () => {
 
     expect(container.querySelector("model-viewer")).toHaveAttribute("src", `/api/model-asset?url=${encodeURIComponent(remoteModelUrl)}`);
     expect(screen.getByText("Loading generated 3D model")).toBeInTheDocument();
+  });
+
+  it("hydrates the latest generated model when opened from the generic route", async () => {
+    const placeholder = analyzePromptToPrototype("");
+    const generated = applyGeneratedModelResult(analyzePromptToPrototype("wearable sensor with visible vents"), {
+      id: "generated-model",
+      mode: "text-to-3d",
+      status: "succeeded",
+      glbUrl: "https://assets.meshy.ai/users/abc/tasks/123/output/model.glb?Expires=4931020800&Signature=test",
+      refinedMeshyPrompt: "wearable sensor with visible vents",
+      fallbackModelPath: "/models/bottle.glb",
+    });
+
+    savePrototypeToLocalStorage(generated);
+    const { container } = render(<LaunchPageClient prototype={placeholder} />);
+
+    expect(await screen.findByRole("heading", { name: generated.name })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View in AR" })).toHaveAttribute("href", `/ar/${generated.id}`);
+    expect(container.querySelector("model-viewer")).toHaveAttribute(
+      "src",
+      `/api/model-asset?url=${encodeURIComponent(generated.model.remoteModelUrl ?? "")}`,
+    );
   });
 
   it("previews the lead payload without calling the backend", () => {

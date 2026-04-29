@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { analyzePromptToPrototype } from "./analyzer";
-import { loadPrototypeFromLocalStorage, savePrototypeToLocalStorage } from "./local-prototype-store";
+import {
+  loadLatestPrototypeFromLocalStorage,
+  loadPrototypeForRouteFromLocalStorage,
+  loadPrototypeFromLocalStorage,
+  savePrototypeToLocalStorage,
+} from "./local-prototype-store";
+import { applyGeneratedModelResult } from "./model-generation";
 
 describe("local prototype store", () => {
   it("saves and loads a prototype", () => {
@@ -11,6 +17,24 @@ describe("local prototype store", () => {
 
     expect(status.kind).toBe("saved");
     expect(loaded?.id).toBe(spec.id);
+  });
+
+  it("tracks the latest generated prototype for route handoff", () => {
+    const placeholder = analyzePromptToPrototype("");
+    const generated = applyGeneratedModelResult(analyzePromptToPrototype("wearable sensor with visible vents"), {
+      id: "generated-model",
+      mode: "text-to-3d",
+      status: "succeeded",
+      glbUrl: "https://assets.meshy.ai/users/abc/tasks/123/output/model.glb?Expires=4931020800&Signature=test",
+      refinedMeshyPrompt: "wearable sensor with visible vents",
+      fallbackModelPath: "/models/bottle.glb",
+    });
+
+    savePrototypeToLocalStorage(placeholder);
+    savePrototypeToLocalStorage(generated);
+
+    expect(loadLatestPrototypeFromLocalStorage()?.id).toBe(generated.id);
+    expect(loadPrototypeForRouteFromLocalStorage("reality-mvp-prototype")?.id).toBe(generated.id);
   });
 
   it("ignores malformed JSON", () => {

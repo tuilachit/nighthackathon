@@ -1,9 +1,9 @@
 import { analyzePromptToPrototype, DEFAULT_PROMPT } from "./analyzer";
 import type { PrototypeSpec } from "./prototype-types";
 
-const SMART_HYDRATION_BOTTLE = analyzePromptToPrototype(DEFAULT_PROMPT);
+const DEFAULT_PROTOTYPE = analyzePromptToPrototype(DEFAULT_PROMPT);
 
-export const SEEDED_PROTOTYPES: readonly PrototypeSpec[] = [SMART_HYDRATION_BOTTLE];
+export const SEEDED_PROTOTYPES: readonly PrototypeSpec[] = [DEFAULT_PROTOTYPE];
 
 export function getSeededPrototype(id: string): PrototypeSpec | undefined {
   return SEEDED_PROTOTYPES.find((prototype) => prototype.id === id);
@@ -14,7 +14,7 @@ export function getPrototypeForRoute(id: string): PrototypeSpec {
 }
 
 export function getDefaultPrototype(): PrototypeSpec {
-  return SMART_HYDRATION_BOTTLE;
+  return DEFAULT_PROTOTYPE;
 }
 
 export function listSeededPrototypes(): readonly PrototypeSpec[] {

@@ -5,8 +5,8 @@ export function getInitialMeshyStatus(imageAvailable: boolean): MeshyStatus {
     kind: "disabled",
     reason: "meshy-disabled",
     message: imageAvailable
-      ? "Image-to-3D is ready to connect after fallback AR is verified."
-      : "Text-to-3D is ready to connect after fallback AR is verified.",
+      ? "Image-to-3D can start from an uploaded sketch."
+      : "Text-to-3D can start from the product details.",
   };
 }
 
@@ -73,7 +73,7 @@ export function applyGeneratedModelResult(spec: PrototypeSpec, result: Generated
       kind: "timeout",
       mode: result.mode,
       taskId: result.taskId,
-      message: result.error ?? "Custom generation took too long. Fallback AR is still available.",
+      message: result.error ?? "Custom generation took too long.",
     });
   }
 
@@ -82,6 +82,6 @@ export function applyGeneratedModelResult(spec: PrototypeSpec, result: Generated
     reason: result.mode === "text-to-3d" ? "text-generation-failed" : "image-generation-failed",
     mode: result.mode,
     taskId: result.taskId,
-    message: result.error ?? "Custom generation failed. Fallback AR is still available.",
+    message: result.error ?? "Custom generation failed.",
   });
 }

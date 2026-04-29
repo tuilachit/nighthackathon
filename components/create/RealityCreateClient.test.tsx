@@ -78,6 +78,9 @@ describe("RealityCreateClient", () => {
     );
     render(<RealityCreateClient />);
 
+    fireEvent.change(screen.getByLabelText("Product prompt"), {
+      target: { value: "A smart water bottle for gym users" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Answer product questions" }));
 
     await screen.findByText("Shape");

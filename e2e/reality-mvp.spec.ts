@@ -7,12 +7,12 @@ test("creates the default prototype and opens the AR route", async ({ page }) =>
       body: JSON.stringify({
         refinement: {
           source: "fallback",
-          visualDirection: "Use a strong product color palette.",
+          visualDirection: "Use clear object details.",
           generationBrief: "Founder wants a smart bottle.",
-          promptAdditions: ["Add logo placement.", "Use material contrast.", "Make the LED visible."],
+          promptAdditions: ["Define the silhouette.", "Use material contrast.", "Make the LED visible."],
           questions: [
-            { id: "brand", label: "Brand", placeholder: "OpenAI logo" },
-            { id: "colors", label: "Colors", placeholder: "black and green" },
+            { id: "shape", label: "Shape", placeholder: "tall cylinder" },
+            { id: "parts", label: "Visible parts", placeholder: "cap and grip" },
             { id: "materials", label: "Materials", placeholder: "metal and silicone" },
             { id: "detail", label: "Detail", placeholder: "LED ring" },
           ],
@@ -35,8 +35,9 @@ test("creates the default prototype and opens the AR route", async ({ page }) =>
   });
   await page.goto("/");
 
+  await page.getByLabel("Product prompt").fill("A smart water bottle for gym users");
   await page.getByRole("button", { name: "Answer product questions" }).click();
-  await expect(page.getByText("Brand")).toBeVisible();
+  await expect(page.getByText("Shape", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Generate Reality MVP" }).click();
   await expect(page).toHaveURL(/\/result\/smart-hydration-bottle$/);
   await expect(page.getByRole("heading", { name: "Smart Hydration Bottle" })).toBeVisible();

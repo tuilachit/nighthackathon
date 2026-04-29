@@ -96,6 +96,14 @@ export function getPrimaryModelSource(model: PrototypeModel): string {
   return model.glbPath;
 }
 
+export function hasGeneratedModelAssetSource(model: PrototypeModel): boolean {
+  if (model.remoteModelUrl !== undefined && isSupportedRemoteModelAssetUrl(model.remoteModelUrl, "glb")) {
+    return true;
+  }
+
+  return model.glbPath.startsWith("/models/generated/") && isSupportedLocalModelAssetPath(model.glbPath, "glb");
+}
+
 export function getIosModelSource(model: PrototypeModel): string | undefined {
   if (model.remoteUsdzUrl !== undefined && isSupportedRemoteModelAssetUrl(model.remoteUsdzUrl, "usdz")) {
     return model.remoteUsdzUrl;

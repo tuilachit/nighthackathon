@@ -9,12 +9,13 @@ const CATEGORY_KEYWORDS: ReadonlyArray<readonly [ProductCategory, readonly strin
   ["device", ["device", "gadget", "phone", "wearable", "sensor"]],
 ];
 
-export const DEFAULT_PROMPT =
-  "A smart water bottle for gym users that glows when hydration is low.";
+export const DEFAULT_PROMPT = "";
+
+const GENERIC_PROMPT = "A product concept captured in Reality MVP.";
 
 export const EXAMPLE_PROMPTS: readonly string[] = [
-  DEFAULT_PROMPT,
-  "A compact desk lamp that changes color when focus time starts.",
+  "A compact wearable air quality sensor with a clip and visible intake vents.",
+  "A compact desk lamp that tilts forward when focus time starts.",
   "An ergonomic chair for creators with posture feedback.",
   "A smart storage box that tracks what is inside.",
 ];
@@ -107,7 +108,7 @@ function getFeatures(category: ProductCategory): readonly FeatureCallout[] {
       { label: "Status lighting", description: "Makes alerts visible without opening an app." },
     ],
     unknown: [
-      { label: "Fallback-ready model", description: "Uses the validated bottle asset for the live demo." },
+      { label: "Object-specific details", description: "Captures the visible parts, materials, and shape cues for the model." },
       { label: "Refined concept", description: "Turns the rough prompt into a structured prototype." },
       { label: "AR route ready", description: "Keeps the spatial preview available immediately." },
     ],
@@ -117,7 +118,7 @@ function getFeatures(category: ProductCategory): readonly FeatureCallout[] {
 }
 
 export function analyzePromptToPrototype(prompt: string): PrototypeSpec {
-  const trimmedPrompt = prompt.trim() || DEFAULT_PROMPT;
+  const trimmedPrompt = prompt.trim() || GENERIC_PROMPT;
   const rawCategory = classifyProductCategory(trimmedPrompt);
   const productName = getProductName(rawCategory, trimmedPrompt);
   const id = productName === "Smart Hydration Bottle" ? "smart-hydration-bottle" : slugify(productName);
@@ -145,12 +146,12 @@ export function analyzePromptToPrototype(prompt: string): PrototypeSpec {
         : {
             kind: "fallback",
             reason: fallbackReason,
-            message: "Using the validated bottle fallback until this category has a tested model.",
+            message: "Waiting for a generated GLB for this product.",
           },
       meshy: {
         kind: "disabled",
         reason: "meshy-disabled",
-        message: "Custom 3D generation is optional; fallback AR is ready now.",
+        message: "Custom 3D generation has not started yet.",
       },
       storage: { kind: "unavailable", message: "Not saved on this device yet." },
       arCompatibility: { kind: "unknown", message: "Open the AR route on a phone to verify support." },
@@ -203,7 +204,7 @@ export function createPrototypeFromAnalysis(prompt: string, analysis: ProductAna
         : {
             kind: "fallback",
             reason: fallbackReason,
-            message: "Using the validated bottle fallback until this category has a tested model.",
+            message: "Waiting for a generated GLB for this product.",
           },
     },
     analysis,

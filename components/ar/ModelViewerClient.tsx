@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CubeIcon } from "@/components/ui/Icon";
-import { getIosModelSource, getModelViewerAssetUrl, getPrimaryModelSource } from "@/lib/assets";
-import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeFromLocalStorage } from "@/lib/local-prototype-store";
+import { getIosModelSource, getModelViewerAssetUrl, getPrimaryModelSource, hasGeneratedModelAssetSource } from "@/lib/assets";
+import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeForRouteFromLocalStorage } from "@/lib/local-prototype-store";
 import type { ArCompatibilityStatus, PrototypeSpec } from "@/lib/prototype-types";
 
 interface ModelViewerClientProps {
@@ -57,16 +57,24 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
     };
 
     function syncLocalPrototype(): void {
-      const localPrototype = loadPrototypeFromLocalStorage(prototype.id);
+      const localPrototype = loadPrototypeForRouteFromLocalStorage(prototype.id);
       if (localPrototype !== undefined) {
         setActivePrototype(localPrototype);
       }
     }
   }, [prototype.id]);
 
-  const modelSource = useMemo<string>(
-    () => getModelViewerAssetUrl(getPrimaryModelSource(activePrototype.model)) ?? activePrototype.model.glbPath,
-    [activePrototype.model],
+  const hasGeneratedModel = useMemo<boolean>(() => hasGeneratedModelAssetSource(activePrototype.model), [activePrototype.model]);
+  const modelSource = useMemo<string | undefined>(
+    () =>
+      hasGeneratedModel
+        ? getModelViewerAssetUrl(getPrimaryModelSource(activePrototype.model)) ?? activePrototype.model.glbPath
+        : undefined,
+    [activePrototype.model, hasGeneratedModel],
+  );
+  const modelFileLabel = useMemo<string>(
+    () => (hasGeneratedModel ? getPrimaryModelSource(activePrototype.model).split("?")[0]?.split("/").pop() ?? "model.glb" : "generated GLB pending"),
+    [activePrototype.model, hasGeneratedModel],
   );
   const iosSource = useMemo<string | undefined>(
     () => getModelViewerAssetUrl(getIosModelSource(activePrototype.model)),
@@ -86,33 +94,35 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
             : "concept-abstract relative min-h-[320px] border border-black/10 shadow-[0_20px_42px_rgba(15,23,42,0.16)] sm:min-h-[380px]"
         }
       >
-        <model-viewer
-          ref={modelViewerRef}
-          src={modelSource}
-          ios-src={iosSource}
-          ar
-          ar-modes="webxr scene-viewer quick-look"
-          camera-controls
-          auto-rotate
-          shadow-intensity="0.8"
-          exposure="0.9"
-          loading="eager"
-          class="relative z-10 h-[320px] w-full bg-transparent sm:h-[380px]"
-          onLoad={() => {
-            setModelLoaded(true);
-            setModelFailed(false);
-          }}
-          onError={() => {
-            setModelLoaded(false);
-            setModelFailed(true);
-          }}
-        />
+        {hasGeneratedModel ? (
+          <model-viewer
+            ref={modelViewerRef}
+            src={modelSource}
+            ios-src={iosSource}
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            camera-controls
+            auto-rotate
+            shadow-intensity="0.8"
+            exposure="0.9"
+            loading="eager"
+            class="relative z-10 h-[320px] w-full bg-transparent sm:h-[380px]"
+            onLoad={() => {
+              setModelLoaded(true);
+              setModelFailed(false);
+            }}
+            onError={() => {
+              setModelLoaded(false);
+              setModelFailed(true);
+            }}
+          />
+        ) : null}
         <div
           className={`mono pointer-events-none absolute left-3 top-3 rounded-full px-2 py-1 text-[9px] uppercase tracking-wide ${
             mode === "ar" ? "bg-white/10 text-white/55 backdrop-blur" : "bg-white/70 text-slate-500 backdrop-blur"
           }`}
         >
-          {activePrototype.model.source} · {getPrimaryModelSource(activePrototype.model).split("?")[0]?.split("/").pop()}
+          {activePrototype.model.remoteModelUrl !== undefined ? "generated" : "model"} · {modelFileLabel}
         </div>
         <div
           className={`pointer-events-none absolute bottom-4 right-4 z-20 flex items-center gap-1 rounded-full border px-3 py-2 text-[10px] font-semibold ${
@@ -122,7 +132,16 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
           <CubeIcon size={10} color={mode === "ar" ? "#D1D5DB" : "#334155"} />
           <span className="mono">.glb</span>
         </div>
-        {!modelLoaded && !modelFailed ? (
+        {!hasGeneratedModel ? (
+          <div
+            className={`pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-sm font-medium ${
+              mode === "ar" ? "text-white/65" : "text-slate-500"
+            }`}
+          >
+            Generate the 3D model to preview it here.
+          </div>
+        ) : null}
+        {hasGeneratedModel && !modelLoaded && !modelFailed ? (
           <div
             className={`pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium ${
               mode === "ar" ? "text-white/55" : "text-slate-500"
@@ -135,7 +154,7 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-100 px-6 text-center">
             <p className="text-sm font-semibold text-slate-900">Model preview needs a validated GLB.</p>
             <p className="text-xs leading-5 text-slate-600">
-              Check that the generated Meshy URL is HTTPS, points to a .glb file, and has not expired.
+              Check that the generated URL is HTTPS, points to a .glb file, and has not expired.
             </p>
           </div>
         ) : null}
@@ -156,7 +175,8 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
           <button
             type="button"
             onClick={handleArLaunch}
-            className="concept-primary-button mt-3 w-full px-4 py-3 text-sm font-bold"
+            disabled={!hasGeneratedModel}
+            className="concept-primary-button mt-3 w-full px-4 py-3 text-sm font-bold disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
             data-testid="view-in-ar-button"
           >
             View in AR

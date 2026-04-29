@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CubeIcon, DotIcon, SparkleIcon } from "@/components/ui/Icon";
-import { getIosModelSource, getModelViewerAssetUrl, getPrimaryModelSource } from "@/lib/assets";
-import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeFromLocalStorage } from "@/lib/local-prototype-store";
+import { getIosModelSource, getModelViewerAssetUrl, getPrimaryModelSource, hasGeneratedModelAssetSource } from "@/lib/assets";
+import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeForRouteFromLocalStorage } from "@/lib/local-prototype-store";
 import type { PrototypeSpec } from "@/lib/prototype-types";
 
 interface LaunchPageClientProps {
@@ -32,7 +32,7 @@ export function LaunchPageClient({ prototype }: LaunchPageClientProps): React.JS
     };
 
     function syncLocalPrototype(): void {
-      const localPrototype = loadPrototypeFromLocalStorage(prototype.id);
+      const localPrototype = loadPrototypeForRouteFromLocalStorage(prototype.id);
       if (localPrototype !== undefined) {
         setActivePrototype(localPrototype);
       }
@@ -84,7 +84,7 @@ export function LaunchPageClient({ prototype }: LaunchPageClientProps): React.JS
         </div>
         <div className="absolute bottom-4 left-5 right-5 mx-auto flex max-w-6xl justify-between border-t border-[#151515]/10 pt-4 text-xs font-semibold uppercase tracking-[0.08em] text-[#64748B]">
           <span>{activePrototype.category}</span>
-          <span>{activePrototype.model.source === "generated" ? "Generated GLB" : "Fallback GLB"}</span>
+          <span>{activePrototype.model.remoteModelUrl !== undefined ? "Generated GLB" : "Model pending"}</span>
         </div>
       </section>
 
@@ -201,10 +201,11 @@ function LaunchModelStage({ prototype }: { readonly prototype: PrototypeSpec }):
   const modelViewerRef = useRef<HTMLElement>(null);
   const [modelLoaded, setModelLoaded] = useState<boolean>(false);
   const [modelFailed, setModelFailed] = useState<boolean>(false);
+  const hasGeneratedModel = useMemo<boolean>(() => hasGeneratedModelAssetSource(prototype.model), [prototype.model]);
   const rawModelSource = useMemo<string>(() => getPrimaryModelSource(prototype.model), [prototype.model]);
-  const modelSource = useMemo<string>(
-    () => getModelViewerAssetUrl(rawModelSource) ?? prototype.model.glbPath,
-    [prototype.model.glbPath, rawModelSource],
+  const modelSource = useMemo<string | undefined>(
+    () => (hasGeneratedModel ? getModelViewerAssetUrl(rawModelSource) ?? prototype.model.glbPath : undefined),
+    [hasGeneratedModel, prototype.model.glbPath, rawModelSource],
   );
   const iosSource = useMemo<string | undefined>(
     () => getModelViewerAssetUrl(getIosModelSource(prototype.model)),
@@ -224,33 +225,40 @@ function LaunchModelStage({ prototype }: { readonly prototype: PrototypeSpec }):
 
   return (
     <div className="pointer-events-none absolute bottom-10 right-[-18%] top-12 -z-0 w-[82%] opacity-90 md:right-[-8%] md:w-[58%]">
-      <model-viewer
-        ref={modelViewerRef}
-        src={modelSource}
-        ios-src={iosSource}
-        camera-controls
-        auto-rotate
-        shadow-intensity="0.85"
-        exposure="0.95"
-        loading="eager"
-        class="h-full min-h-[420px] w-full bg-transparent"
-        onLoad={() => {
-          setModelLoaded(true);
-          setModelFailed(false);
-        }}
-        onError={() => {
-          setModelLoaded(false);
-          setModelFailed(true);
-        }}
-      />
-      {!modelLoaded && !modelFailed ? (
+      {hasGeneratedModel ? (
+        <model-viewer
+          ref={modelViewerRef}
+          src={modelSource}
+          ios-src={iosSource}
+          camera-controls
+          auto-rotate
+          shadow-intensity="0.85"
+          exposure="0.95"
+          loading="eager"
+          class="h-full min-h-[420px] w-full bg-transparent"
+          onLoad={() => {
+            setModelLoaded(true);
+            setModelFailed(false);
+          }}
+          onError={() => {
+            setModelLoaded(false);
+            setModelFailed(true);
+          }}
+        />
+      ) : null}
+      {!hasGeneratedModel ? (
+        <div className="absolute inset-x-8 top-1/2 rounded-lg border border-[#151515]/10 bg-white/80 px-4 py-3 text-center text-sm font-semibold text-[#475569] shadow-sm backdrop-blur">
+          Generate the 3D model to preview it on the launch page.
+        </div>
+      ) : null}
+      {hasGeneratedModel && !modelLoaded && !modelFailed ? (
         <div className="absolute inset-x-8 top-1/2 rounded-lg border border-[#151515]/10 bg-white/80 px-4 py-3 text-center text-sm font-semibold text-[#475569] shadow-sm backdrop-blur">
           Loading generated 3D model
         </div>
       ) : null}
-      {modelFailed ? (
+      {hasGeneratedModel && modelFailed ? (
         <div className="absolute inset-x-8 top-1/2 rounded-lg border border-red-200 bg-red-50/95 px-4 py-3 text-center text-sm font-semibold leading-5 text-red-900 shadow-sm backdrop-blur">
-          The generated model could not load. Check that the Meshy GLB URL is valid and has not expired.
+          The generated model could not load. Check that the GLB URL is valid and has not expired.
         </div>
       ) : null}
     </div>
