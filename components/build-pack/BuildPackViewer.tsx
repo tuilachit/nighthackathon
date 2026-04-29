@@ -12,13 +12,13 @@ export function BuildPackViewer({ buildPack }: BuildPackViewerProps): React.JSX.
   const activeFile = buildPack.files.find((file) => file.path === activePath) ?? buildPack.files[0];
 
   return (
-    <div className="apple-glass-dark overflow-hidden lg:grid lg:grid-cols-[280px_1fr]">
-      <nav className="min-w-0 border-b border-white/10 bg-white/[0.04] p-2 lg:border-b-0 lg:border-r">
+    <div className="overflow-hidden rounded-[28px] border border-black/10 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)] lg:grid lg:grid-cols-[280px_1fr]">
+      <nav className="min-w-0 border-b border-black/10 bg-white p-2 lg:border-b-0 lg:border-r">
         <div className="mb-2 flex items-center gap-2 px-2 py-1">
           <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
           <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
           <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-          <span className="mono ml-2 text-[11px] font-semibold text-slate-400">reality-mvp/</span>
+          <span className="mono ml-2 text-[11px] font-semibold text-slate-500">reality-mvp/</span>
         </div>
         {buildPack.files.map((file) => (
           <button
@@ -27,8 +27,8 @@ export function BuildPackViewer({ buildPack }: BuildPackViewerProps): React.JSX.
             onClick={() => setActivePath(file.path)}
             className={`block w-full min-w-0 rounded-md border-l-2 px-3 py-2 text-left text-sm font-medium ${
               file.path === activeFile.path
-                ? "border-[#2563EB] bg-blue-500/20 text-slate-50"
-                : "border-transparent text-slate-300 hover:bg-white/[0.08]"
+                ? "border-black bg-black text-white"
+                : "border-transparent text-slate-700 hover:bg-slate-100"
             }`}
           >
             <span className="mono block truncate text-[11px]">{file.path}</span>
@@ -36,8 +36,8 @@ export function BuildPackViewer({ buildPack }: BuildPackViewerProps): React.JSX.
         ))}
       </nav>
 
-      <section className="min-w-0 overflow-hidden bg-slate-950/60">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.04] px-4 py-3">
+      <section className="min-w-0 overflow-hidden bg-slate-950">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-slate-900 px-4 py-3">
           <div>
             <p className="mono break-all text-sm font-semibold text-slate-50">{activeFile.path}</p>
             <p className="text-xs text-slate-500">{activeFile.language}</p>
