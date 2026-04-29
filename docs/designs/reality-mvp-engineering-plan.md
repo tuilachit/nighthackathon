@@ -22,7 +22,7 @@ requested App Router architecture.
 | D1 | Port the prototype into a real Next.js TypeScript app | Keep the visual/product ideas from `AR/`, but implement production code as `.ts` and `.tsx`. |
 | D2 | Static seeded slugs plus same-device `localStorage` | Cross-device demo works for seeded routes such as `smart-hydration-bottle`; custom local generations remain same-device only. |
 | D3 | Validated hero bottle asset first | The default AR reveal depends on one proven bottle GLB plus iOS-safe path before broader model coverage. |
-| D4 | Deterministic local analyzer and mocked Meshy timeline | No OpenAI or Meshy API calls in the first MVP; leave typed seams for later integrations. |
+| D4 | Fallback-first plus optional real Meshy generation | Generate a deterministic fallback prototype immediately, then run Meshy Image-to-3D/Text-to-3D as a non-blocking enhancement when configured. Meshy must never block the AR reveal. |
 | D5 | Server route shells plus focused client islands | App Router pages stay server-safe; browser-only upload, storage, and `<model-viewer>` logic live in client components. |
 | D6 | Vitest, Testing Library, and Playwright smoke tests | Unit/component tests cover logic and escaping; browser smoke tests cover the critical create-result-AR path. |
 
@@ -42,6 +42,44 @@ requested App Router architecture.
   artifact ideas. Convert the useful content into typed registry/build-pack
   modules.
 
+## Product Pipeline Decision
+
+The MVP must preserve the real product promise:
+
+```text
+IMAGE + TEXT
+  -> product understanding / refined 3D prompt
+  -> fallback prototype immediately
+  -> optional Meshy custom model generation
+  -> real AR handoff through <model-viewer>
+```
+
+The implementation is still fallback-first for demo reliability. That does not
+mean Meshy is fake or out of scope. It means the app must complete the AR path
+before waiting for custom generation. Meshy is a product upgrade lane, not the
+critical path for the judge reveal.
+
+### Generation Priority
+
+```text
+1. Always create a fallback-ready PrototypeSpec synchronously.
+2. If image input exists and Meshy is enabled, start Image-to-3D first.
+3. If Image-to-3D cannot run or fails, attempt Text-to-3D from the refined prompt.
+4. If Meshy is disabled, pending, failed, timed out, rate-limited, or malformed,
+   preserve the fallback model and visible fallback-ready state.
+5. If Meshy succeeds with a loadable GLB, promote the model source to generated
+   and update the same-device PrototypeSpec.
+```
+
+### Input Semantics
+
+```text
+uploaded image/sketch  -> geometry and silhouette anchor
+text prompt            -> product intent, materials, behavior, target user
+refined 3D prompt      -> normalized instruction for Meshy generation
+fallback registry      -> immediate validated AR-safe demo asset
+```
+
 ## NOT In Scope
 
 - Native mobile app.
@@ -49,7 +87,8 @@ requested App Router architecture.
 - Custom camera streaming.
 - Complex 3D editor or multi-user collaboration.
 - Live Codex invocation during the demo.
-- Live OpenAI or Meshy calls in MVP implementation.
+- Meshy as a blocking dependency for the demo.
+- OpenAI vision as a required dependency for the first demo path.
 - Build Pack export/download in first implementation.
 - Cross-device custom prototype persistence beyond seeded static slugs.
 - Full validation of lamp, chair, box, and device assets before the bottle reveal
@@ -83,9 +122,14 @@ lib/
   assets.ts                      fallback model registry and validation helpers
   build-pack.ts                  artifact generation from PrototypeSpec
   local-prototype-store.ts       localStorage boundary
+  meshy-client.ts                 server-side Meshy API boundary
+  model-generation.ts             generation state machine and fallback promotion
   prototype-registry.ts          seeded static slugs
   prototype-types.ts             shared domain types and status unions
   upload-validation.ts           image type/size/zero-byte validation
+
+app/api/
+  generate-model/route.ts         optional non-blocking Meshy generation endpoint
 ```
 
 ### Dependency Graph
@@ -94,9 +138,14 @@ lib/
 prototype-types.ts
   +--> analyzer.ts
   +--> assets.ts
+  +--> model-generation.ts
   +--> prototype-registry.ts
   +--> build-pack.ts
   +--> local-prototype-store.ts
+
+model-generation.ts
+  +--> meshy-client.ts
+  +--> assets.ts
 
 app/*/page.tsx
   +--> prototype-registry.ts
@@ -130,6 +179,8 @@ PrototypeSpec
     iosPath?
     source: fallback | generated
     category
+    generationMode?: none | image-to-3d | text-to-3d
+    remoteModelUrl?
   statuses
     analysis
     asset
@@ -146,6 +197,20 @@ AssetStatus = ready | missing | invalid | fallback
 MeshyStatus = disabled | pending | succeeded | failed | timeout
 StorageStatus = unavailable | saved | failed
 ArCompatibilityStatus = unknown | webxr | scene-viewer | quick-look | preview-only
+```
+
+Generation must also carry a visible reason for fallback:
+
+```text
+FallbackReason =
+  none
+  | meshy-disabled
+  | missing-api-key
+  | image-generation-failed
+  | text-generation-failed
+  | timeout
+  | invalid-model-url
+  | unsupported-category
 ```
 
 ## Data Flow
@@ -169,18 +234,37 @@ DETERMINISTIC ANALYZER
   v
 PROTOTYPE SPEC
   |
+  +-- fallback model is ready immediately
   +-- save same-device copy to localStorage if available
   +-- seeded slug remains source of truth for cross-device demo
+  +-- optional: POST /api/generate-model with image + refined prompt
   v
 /result/[id]
   |
   +-- product analysis
   +-- model preview
-  +-- mocked Meshy timeline
+  +-- Meshy timeline: disabled | pending | succeeded | failed | timeout
+  +-- fallback-ready state remains visible while Meshy runs
   +-- AR compatibility copy
   +-- View in AR -> /ar/[id]
   +-- Build Pack -> /build-pack/[id]
 ```
+
+### Optional Meshy Flow
+
+```text
+/api/generate-model
+  |
+  +-- validate feature flag and MESHY_API_KEY
+  +-- prefer Image-to-3D when image data is available
+  +-- fall back to Text-to-3D when image generation fails
+  +-- poll with timeout budget
+  +-- validate returned GLB URL is present/loadable
+  +-- return generated model metadata, never throw into the user flow
+```
+
+The client may update same-device localStorage with a generated model once it
+arrives. The seeded static route must continue to work without that custom model.
 
 ## Route Contract
 
@@ -194,6 +278,8 @@ Mobile-first creation surface:
 - Inline validation errors.
 - Deterministic navigation to `/result/smart-hydration-bottle` for the default
   demo prompt.
+- Starts optional Meshy generation only after the fallback spec has been created
+  and navigation is safe.
 
 ### `/result/[id]`
 
@@ -204,6 +290,8 @@ Result surface:
 - Unknown `id` shows a typed not-found state, not a blank page.
 - Real 3D preview uses the same model registry as AR.
 - The page hierarchy is AR reveal first, Build Pack proof second.
+- Meshy progress is honest and non-blocking: `fallback ready` must be the stable
+  state, while custom generation is shown as an upgrade.
 
 ### `/ar/[id]`
 
@@ -262,14 +350,30 @@ device               bottle fallback until device asset is validated
 unknown              bottle fallback
 ```
 
+Generated Meshy assets are treated as same-device enhancements until a file is
+validated and persisted into the deployable asset path. The MVP may use a remote
+generated GLB URL for preview if it loads in `<model-viewer>`, but the fallback
+asset remains the guaranteed AR route.
+
+```text
+model source         behavior
+------------         --------
+fallback             validated local GLB/USDZ path; demo-critical
+generated-remote     optional Meshy GLB URL; same-device enhancement
+generated-local      downloaded/persisted GLB path; post-MVP or if time allows
+```
+
 ## Client/Server Boundary
 
 ```text
 SERVER-SAFE
   app/*/page.tsx
+  app/api/generate-model/route.ts
   lib/analyzer.ts
   lib/assets.ts
   lib/build-pack.ts
+  lib/meshy-client.ts
+  lib/model-generation.ts
   lib/prototype-registry.ts
   lib/prototype-types.ts
   lib/upload-validation.ts
@@ -279,6 +383,7 @@ BROWSER-ONLY CLIENT ISLANDS
   localStorage reads/writes
   navigator/browser capability checks
   model-viewer web component registration
+  optional model generation progress polling
 ```
 
 Do not call `window`, `document`, `localStorage`, `FileReader`, or custom element
@@ -291,6 +396,8 @@ APIs outside client components or guarded browser helpers.
 - Escape prompt-derived content in generated JSON/code strings.
 - Validate generated artifact shape before display so missing fields show explicit
   warnings instead of broken panels.
+- Treat Meshy URLs and prompt-derived fields as untrusted data. Never render them
+  as HTML; store/display them as escaped text or validated URL strings.
 
 ## Test Plan
 
@@ -327,7 +434,14 @@ CODE PATHS                                           USER FLOWS
   +-- [GAP] localStorage unavailable -> graceful fallback
   +-- [GAP] malformed stored JSON ignored
 
-COVERAGE NOW: 0/24 planned paths tested (0%)
+[+] lib/model-generation.ts
+  +-- [GAP] fallback spec returns immediately
+  +-- [GAP] Meshy disabled -> disabled state
+  +-- [GAP] Image-to-3D preferred when image exists
+  +-- [GAP] Text-to-3D fallback after image failure
+  +-- [GAP] failed/timeout/malformed output preserves fallback
+
+COVERAGE NOW: 0/29 planned paths tested (0%)
 REQUIRED BEFORE SHIP: all pure branches covered, plus 3 Playwright smoke flows
 ```
 
@@ -351,6 +465,12 @@ REQUIRED BEFORE SHIP: all pure branches covered, plus 3 Playwright smoke flows
 - `lib/local-prototype-store.test.ts`
   - handles available storage, unavailable storage, failed writes, and malformed
     JSON without throwing.
+- `lib/model-generation.test.ts`
+  - fallback-ready spec is returned before Meshy resolution.
+  - Meshy disabled/missing key returns disabled state.
+  - Image-to-3D is preferred when an image is available.
+  - Text-to-3D is attempted after Image-to-3D failure.
+  - failed, timed out, or malformed Meshy output preserves fallback GLB.
 - `components/create/RealityCreateClient.test.tsx`
   - Generate disables while pending.
   - validation error blocks navigation.
@@ -370,7 +490,7 @@ REQUIRED BEFORE SHIP: all pure branches covered, plus 3 Playwright smoke flows
 | Model preview | GLB missing or bad asset | Asset unit test plus manual preflight | Preview error and fallback copy |
 | AR launch | Device lacks WebXR/Scene Viewer/Quick Look | Playwright smoke plus manual phone preflight | Preview-only compatibility banner |
 | Build Pack | Prompt contains HTML/script text | Unit test | Escaped text rendering only |
-| Mocked Meshy timeline | User reads mocked state as real generation | Component test for labels | Explicit "fallback ready" and "custom generation optional" copy |
+| Meshy generation | API disabled, slow, failed, rate-limited, or malformed output | Unit tests for generation state machine | Preserve fallback; show custom generation as optional upgrade |
 
 Critical gap before implementation: there are currently no real model assets and
 no test runner. The implementation must add both before claiming Vercel readiness.
@@ -387,6 +507,8 @@ Run this on the exact demo phone before judging:
 5. Tap View in AR.
 6. Confirm AR placement works, or preview-only fallback copy is clear.
 7. Record a 20-30 second screen capture backup after the route works.
+8. Only after the fallback reveal works, enable Meshy and verify that failure or
+   timeout does not block the AR route.
 ```
 
 ## Implementation Order
@@ -398,9 +520,11 @@ Run this on the exact demo phone before judging:
 4. Add result route and model preview component.
 5. Add AR route and `<model-viewer>` client component.
 6. Add Build Pack generator and viewer.
-7. Add PWA manifest metadata.
-8. Add tests and Playwright smoke flow.
-9. Deploy to Vercel preview and run manual phone preflight.
+7. Add optional Meshy generation endpoint/state machine behind feature flag.
+8. Add PWA manifest metadata.
+9. Add tests and Playwright smoke flow.
+10. Deploy to Vercel preview and run manual phone preflight.
+11. Enable Meshy only after fallback AR is verified.
 ```
 
 ## Worktree Parallelization Strategy
@@ -412,6 +536,7 @@ This can be split after the base scaffold and shared domain types exist.
 | Base scaffold and types | app/, lib/, config files | - |
 | Create/result flow | components/create/, components/result/, app/, lib/ | Base scaffold and types |
 | AR viewer | components/ar/, app/ar/, public/models/, lib/ | Base scaffold and types, bottle asset |
+| Optional Meshy generation | app/api/generate-model/, lib/meshy-client.ts, lib/model-generation.ts | Base scaffold and types |
 | Build Pack | components/build-pack/, app/build-pack/, lib/ | Base scaffold and types |
 | Tests and E2E | tests/e2e/config | Feature modules |
 
@@ -422,7 +547,8 @@ Lane A: Base scaffold and types
 Lane B: Create/result flow after Lane A
 Lane C: AR viewer after Lane A, in parallel with Lane B if asset is ready
 Lane D: Build Pack after Lane A, in parallel with Lane B and C
-Lane E: Tests after each feature lands, final E2E after B+C+D
+Lane E: Optional Meshy generation after Lane A, never blocking B/C/D
+Lane F: Tests after each feature lands, final E2E after B+C+D
 ```
 
 Conflict flags:
@@ -430,27 +556,31 @@ Conflict flags:
 - `app/` and `lib/` are shared. Keep base types and registry merged before
   parallel work starts.
 - `public/models/` ownership should stay with the AR lane.
+- `lib/model-generation.ts` owns the Meshy/fallback state machine. UI should
+  consume its statuses, not invent separate generation states.
 - Build Pack content should consume `PrototypeSpec`, not duplicate product fields.
 
 ## Completion Summary
 
 - Step 0: Scope Challenge: scope accepted as a Next.js TypeScript port of the
   existing standalone prototype.
-- Architecture Review: 4 issues resolved by decisions D2-D5.
+- Architecture Review: 5 issues resolved by decisions D2-D5 and the non-blocking
+  Meshy generation amendment.
 - Code Quality Review: TypeScript-only domain modules and client/server boundary
   required.
-- Test Review: coverage diagram produced; 24 planned paths identified.
+- Test Review: coverage diagram produced; 29 planned paths identified.
 - Performance Review: no database or server hot path; largest risk is model asset
   weight on mobile.
-- NOT in scope: written.
+- NOT in scope: written and narrowed so Meshy is optional, not removed.
 - What already exists: written.
 - TODOS.md updates: no new TODOs required beyond the existing backup/export/phase
   2 persistence items.
 - Failure modes: no silent critical gaps allowed; all known failure modes require
   either tests or visible user fallback.
 - Outside voice: skipped.
-- Parallelization: 5 lanes, 3 parallel after base scaffold, final E2E sequential.
-- Lake Score: 6/6 decisions chose the complete-enough option for the MVP.
+- Parallelization: 6 lanes, 4 parallel after base scaffold, final E2E sequential.
+- Lake Score: 6/6 decisions chose the complete-enough option for the MVP while
+  preserving the real image/text-to-3D differentiator.
 
 ## References
 
