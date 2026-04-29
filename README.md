@@ -1,8 +1,8 @@
-# Reality MVP
+# ARchitect
 
 Turn a rough product sketch into a spatial MVP you can inspect, share, and open in AR.
 
-Reality MVP is a mobile-first Next.js PWA for hackathon demos: upload or capture a product sketch, describe the idea, answer a few product questions, and get an instant fallback-ready 3D prototype with an optional custom Meshy generation lane.
+ARchitect is a mobile-first Next.js PWA for hackathon demos: upload or capture a product sketch, describe the idea, answer a few product questions, and get an instant fallback-ready 3D prototype with an optional custom Meshy generation lane.
 
 The app is designed so the demo never depends on a slow model generation request. A validated fallback model is ready immediately; OpenAI and Meshy can enhance the result when API keys are configured.
 
