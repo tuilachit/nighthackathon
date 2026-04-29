@@ -40,9 +40,16 @@ export function PhoneHandoff({ prototype }: PhoneHandoffProps): React.JSX.Elemen
             Open this seeded AR route on the demo phone. The visual code is deterministic for the URL; use the link
             below if your camera does not scan it.
           </p>
-          <a href={arPath} className="mt-3 inline-flex break-all text-sm font-bold text-slate-950 underline decoration-black/20 underline-offset-4">
-            {arUrl}
+          <a
+            href={arPath}
+            className="mt-3 inline-flex rounded-full bg-black px-4 py-2 text-sm font-bold text-white shadow-[0_10px_22px_rgba(0,0,0,0.16)]"
+            aria-label={`Open AR route at ${arUrl}`}
+          >
+            Open AR route
           </a>
+          <p className="mono mt-2 break-words text-xs leading-5 text-slate-500">
+            {arPath}
+          </p>
         </div>
       </div>
     </section>
