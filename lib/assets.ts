@@ -49,3 +49,69 @@ export function categoryUsesValidatedAsset(category: ProductCategory): boolean {
 
   return CATEGORY_ASSETS[category].validated;
 }
+
+export type ModelAssetExtension = "glb" | "usdz";
+
+export function getRemoteModelAssetExtension(value: string): ModelAssetExtension | undefined {
+  try {
+    const parsedUrl = new URL(value);
+    const pathname = parsedUrl.pathname.toLowerCase();
+
+    if (parsedUrl.protocol !== "https:") {
+      return undefined;
+    }
+
+    if (pathname.endsWith(".glb")) {
+      return "glb";
+    }
+
+    if (pathname.endsWith(".usdz")) {
+      return "usdz";
+    }
+
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function isSupportedRemoteModelAssetUrl(value: string, extension?: ModelAssetExtension): boolean {
+  const resolvedExtension = getRemoteModelAssetExtension(value);
+  return resolvedExtension !== undefined && (extension === undefined || resolvedExtension === extension);
+}
+
+export function isSupportedLocalModelAssetPath(value: string, extension: ModelAssetExtension): boolean {
+  return value.startsWith("/models/") && value.toLowerCase().endsWith(`.${extension}`);
+}
+
+export function isSupportedModelAssetSource(value: string, extension: ModelAssetExtension): boolean {
+  return isSupportedRemoteModelAssetUrl(value, extension) || isSupportedLocalModelAssetPath(value, extension);
+}
+
+export function getPrimaryModelSource(model: PrototypeModel): string {
+  if (model.remoteModelUrl !== undefined && isSupportedRemoteModelAssetUrl(model.remoteModelUrl, "glb")) {
+    return model.remoteModelUrl;
+  }
+
+  return model.glbPath;
+}
+
+export function getIosModelSource(model: PrototypeModel): string | undefined {
+  if (model.remoteUsdzUrl !== undefined && isSupportedRemoteModelAssetUrl(model.remoteUsdzUrl, "usdz")) {
+    return model.remoteUsdzUrl;
+  }
+
+  return model.iosPath;
+}
+
+export function getModelViewerAssetUrl(source: string | undefined): string | undefined {
+  if (source === undefined) {
+    return undefined;
+  }
+
+  if (isSupportedRemoteModelAssetUrl(source)) {
+    return `/api/model-asset?url=${encodeURIComponent(source)}`;
+  }
+
+  return source;
+}

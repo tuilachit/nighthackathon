@@ -2,7 +2,7 @@ import Link from "next/link";
 import { GenerationTrace } from "@/components/build-pack/GenerationTrace";
 import { BuildPackViewer } from "@/components/build-pack/BuildPackViewer";
 import { generateBuildPack } from "@/lib/build-pack";
-import { getSeededPrototype } from "@/lib/prototype-registry";
+import { getPrototypeForRoute } from "@/lib/prototype-registry";
 
 interface BuildPackPageProps {
   readonly params: Promise<{
@@ -12,21 +12,7 @@ interface BuildPackPageProps {
 
 export default async function BuildPackPage({ params }: BuildPackPageProps): Promise<React.JSX.Element> {
   const { id } = await params;
-  const prototype = getSeededPrototype(id);
-
-  if (prototype === undefined) {
-    return (
-      <main className="min-h-screen bg-[#F8FAFC] px-4 py-6 text-[#0F172A]">
-        <section className="mx-auto max-w-xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-[#F59E0B]">Build Pack missing</p>
-          <h1 className="mt-2 text-2xl font-semibold">No generated artifacts exist for this URL.</h1>
-          <Link href="/" className="mt-5 inline-flex rounded-lg bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white">
-            Back to create
-          </Link>
-        </section>
-      </main>
-    );
-  }
+  const prototype = getPrototypeForRoute(id);
 
   const buildPack = generateBuildPack(prototype);
 

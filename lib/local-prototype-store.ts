@@ -1,6 +1,7 @@
 import type { PrototypeSpec, StorageStatus } from "./prototype-types";
 
 const STORAGE_PREFIX = "reality-mvp:prototype:";
+export const LOCAL_PROTOTYPE_UPDATED_EVENT = "reality-mvp:prototype-updated";
 
 function getStorageKey(id: string): string {
   return `${STORAGE_PREFIX}${id}`;
@@ -13,6 +14,7 @@ export function savePrototypeToLocalStorage(spec: PrototypeSpec): StorageStatus 
 
   try {
     window.localStorage.setItem(getStorageKey(spec.id), JSON.stringify(spec));
+    window.dispatchEvent(new CustomEvent(LOCAL_PROTOTYPE_UPDATED_EVENT, { detail: { id: spec.id } }));
     return { kind: "saved", message: "Prototype saved on this device." };
   } catch {
     return { kind: "failed", message: "Could not save this prototype on the device." };
@@ -53,6 +55,11 @@ function isPrototypeSpec(value: unknown): value is PrototypeSpec {
     typeof candidate.prompt === "string" &&
     typeof candidate.refined3DPrompt === "string" &&
     typeof candidate.model === "object" &&
-    candidate.model !== null
+    candidate.model !== null &&
+    typeof candidate.statuses === "object" &&
+    candidate.statuses !== null &&
+    typeof candidate.statuses.meshy === "object" &&
+    candidate.statuses.meshy !== null &&
+    typeof candidate.statuses.meshy.kind === "string"
   );
 }

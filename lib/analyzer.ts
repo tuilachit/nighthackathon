@@ -1,5 +1,5 @@
 import { categoryUsesValidatedAsset, getFallbackModel, getFallbackReason } from "./assets";
-import type { FeatureCallout, ProductCategory, PrototypeSpec } from "./prototype-types";
+import type { FeatureCallout, ProductAnalysis, ProductCategory, PrototypeSpec } from "./prototype-types";
 
 const CATEGORY_KEYWORDS: ReadonlyArray<readonly [ProductCategory, readonly string[]]> = [
   ["bottle", ["bottle", "hydration", "water", "drink", "flask"]],
@@ -155,5 +155,57 @@ export function analyzePromptToPrototype(prompt: string): PrototypeSpec {
       storage: { kind: "unavailable", message: "Not saved on this device yet." },
       arCompatibility: { kind: "unknown", message: "Open the AR route on a phone to verify support." },
     },
+  };
+}
+
+export function createFallbackAnalysis(prompt: string): ProductAnalysis {
+  const spec = analyzePromptToPrototype(prompt);
+
+  return {
+    category: spec.category,
+    productName: spec.name,
+    shape: spec.shape,
+    materials: spec.materials,
+    features: spec.features,
+    intendedUse: spec.intendedUse,
+    refinedMeshyPrompt: spec.refined3DPrompt,
+    fallbackCategory: spec.category,
+    visualDirection: "Use clear color contrast, material separation, readable brand/logo placement, and one visible hero feature.",
+    generationNotes: [
+      "Keep the object centered and isolated with no background scene.",
+      "Make visual details large enough to read from a three-quarter AR view.",
+    ],
+    source: "fallback",
+  };
+}
+
+export function createPrototypeFromAnalysis(prompt: string, analysis: ProductAnalysis): PrototypeSpec {
+  const fallbackCategory = analysis.fallbackCategory === "unknown" ? analysis.category : analysis.fallbackCategory;
+  const baseSpec = analyzePromptToPrototype(prompt);
+  const fallbackReason = getFallbackReason(fallbackCategory);
+  const usesValidatedAsset = categoryUsesValidatedAsset(fallbackCategory);
+
+  return {
+    ...baseSpec,
+    name: analysis.productName,
+    category: analysis.category,
+    shape: analysis.shape,
+    materials: analysis.materials,
+    features: analysis.features,
+    intendedUse: analysis.intendedUse,
+    refined3DPrompt: analysis.refinedMeshyPrompt,
+    model: getFallbackModel(fallbackCategory),
+    statuses: {
+      ...baseSpec.statuses,
+      analysis: { kind: "ready" },
+      asset: usesValidatedAsset
+        ? { kind: "ready" }
+        : {
+            kind: "fallback",
+            reason: fallbackReason,
+            message: "Using the validated bottle fallback until this category has a tested model.",
+          },
+    },
+    analysis,
   };
 }

@@ -1,3 +1,4 @@
+import { getIosModelSource, getPrimaryModelSource } from "./assets";
 import type { BuildPack, BuildPackFile, PrototypeSpec } from "./prototype-types";
 
 function stringifyJson(value: unknown): string {
@@ -7,7 +8,7 @@ function stringifyJson(value: unknown): string {
 function getWarnings(spec: PrototypeSpec): readonly string[] {
   const warnings: string[] = [];
 
-  if (spec.model.iosPath === undefined) {
+  if (getIosModelSource(spec.model) === undefined) {
     warnings.push("No USDZ path is configured yet; iOS Quick Look will use preview fallback copy.");
   }
 
@@ -19,6 +20,8 @@ function getWarnings(spec: PrototypeSpec): readonly string[] {
 }
 
 export function generateBuildPack(spec: PrototypeSpec): BuildPack {
+  const modelSource = getPrimaryModelSource(spec.model);
+  const iosModelSource = getIosModelSource(spec.model);
   const files: readonly BuildPackFile[] = [
     {
       path: "app/ar/[id]/page.tsx",
@@ -43,8 +46,9 @@ export default function ArPage({ params }: { params: { id: string } }) {
         name: spec.name,
         category: spec.category,
         prompt: spec.prompt,
-        modelUrl: spec.model.glbPath,
-        iosModelUrl: spec.model.iosPath ?? null,
+        modelUrl: modelSource,
+        fallbackModelUrl: spec.model.glbPath,
+        iosModelUrl: iosModelSource ?? null,
         modelSource: spec.model.source,
         arRoute: `/ar/${spec.id}`,
         refined3DPrompt: spec.refined3DPrompt,
@@ -86,7 +90,7 @@ ${spec.refined3DPrompt}`,
       content: `# Validation Plan
 
 - Open /result/${spec.id}.
-- Confirm ${spec.model.glbPath} loads in the 3D preview.
+- Confirm ${modelSource} loads in the 3D preview.
 - Open /ar/${spec.id} on the target phone.
 - Tap View in AR.
 - Confirm fallback AR still works if custom generation is disabled or fails.`,

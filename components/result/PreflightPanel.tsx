@@ -1,3 +1,4 @@
+import { getIosModelSource, getPrimaryModelSource, isSupportedModelAssetSource } from "@/lib/assets";
 import type { PrototypeSpec } from "@/lib/prototype-types";
 
 interface PreflightPanelProps {
@@ -11,14 +12,16 @@ interface PreflightItem {
 }
 
 export function PreflightPanel({ prototype }: PreflightPanelProps): React.JSX.Element {
+  const modelSource = getPrimaryModelSource(prototype.model);
+  const iosSource = getIosModelSource(prototype.model);
   const items: readonly PreflightItem[] = [
-    { label: "Seeded result route", detail: `/result/${prototype.id}`, ready: true },
+    { label: "Result route", detail: `/result/${prototype.id}`, ready: true },
     { label: "AR route", detail: `/ar/${prototype.id}`, ready: true },
-    { label: "Fallback GLB", detail: prototype.model.glbPath, ready: prototype.model.glbPath.endsWith(".glb") },
+    { label: "AR GLB", detail: modelSource, ready: isSupportedModelAssetSource(modelSource, "glb") },
     {
       label: "iOS Quick Look asset",
-      detail: prototype.model.iosPath ?? "USDZ not configured yet",
-      ready: prototype.model.iosPath !== undefined,
+      detail: iosSource ?? "USDZ not configured yet",
+      ready: iosSource !== undefined && isSupportedModelAssetSource(iosSource, "usdz"),
     },
     { label: "Build Pack", detail: `/build-pack/${prototype.id}`, ready: true },
   ];

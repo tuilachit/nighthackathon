@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CubeIcon } from "@/components/ui/Icon";
+import { getIosModelSource, getModelViewerAssetUrl, getPrimaryModelSource } from "@/lib/assets";
+import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeFromLocalStorage } from "@/lib/local-prototype-store";
 import type { ArCompatibilityStatus, PrototypeSpec } from "@/lib/prototype-types";
 
 interface ModelViewerClientProps {
@@ -33,6 +35,7 @@ function getCompatibilityStatus(): ArCompatibilityStatus {
 
 export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): React.JSX.Element {
   const modelViewerRef = useRef<HTMLElement & { activateAR?: () => Promise<void> }>(null);
+  const [activePrototype, setActivePrototype] = useState<PrototypeSpec>(prototype);
   const [compatibility, setCompatibility] = useState<ArCompatibilityStatus>(prototype.statuses.arCompatibility);
   const [modelLoaded, setModelLoaded] = useState<boolean>(false);
   const [modelFailed, setModelFailed] = useState<boolean>(false);
@@ -42,9 +45,30 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
     setCompatibility(getCompatibilityStatus());
   }, []);
 
+  useEffect(() => {
+    window.addEventListener(LOCAL_PROTOTYPE_UPDATED_EVENT, syncLocalPrototype);
+    window.addEventListener("storage", syncLocalPrototype);
+    syncLocalPrototype();
+    return () => {
+      window.removeEventListener(LOCAL_PROTOTYPE_UPDATED_EVENT, syncLocalPrototype);
+      window.removeEventListener("storage", syncLocalPrototype);
+    };
+
+    function syncLocalPrototype(): void {
+      const localPrototype = loadPrototypeFromLocalStorage(prototype.id);
+      if (localPrototype !== undefined) {
+        setActivePrototype(localPrototype);
+      }
+    }
+  }, [prototype.id]);
+
   const modelSource = useMemo<string>(
-    () => prototype.model.remoteModelUrl ?? prototype.model.glbPath,
-    [prototype.model.glbPath, prototype.model.remoteModelUrl],
+    () => getModelViewerAssetUrl(getPrimaryModelSource(activePrototype.model)) ?? activePrototype.model.glbPath,
+    [activePrototype.model],
+  );
+  const iosSource = useMemo<string | undefined>(
+    () => getModelViewerAssetUrl(getIosModelSource(activePrototype.model)),
+    [activePrototype.model],
   );
 
   function handleArLaunch(): void {
@@ -58,7 +82,7 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
         <model-viewer
           ref={modelViewerRef}
           src={modelSource}
-          ios-src={prototype.model.iosPath}
+          ios-src={iosSource}
           ar
           ar-modes="webxr scene-viewer quick-look"
           camera-controls
@@ -77,7 +101,7 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
           }}
         />
         <div className="mono pointer-events-none absolute left-3 top-3 text-[9px] uppercase tracking-wide text-slate-500">
-          {prototype.model.source} · {prototype.model.glbPath.split("/").pop()}
+          {activePrototype.model.source} · {getPrimaryModelSource(activePrototype.model).split("?")[0]?.split("/").pop()}
         </div>
         <div className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1 rounded border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700">
           <CubeIcon size={10} />
@@ -92,7 +116,7 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-100 px-6 text-center">
             <p className="text-sm font-semibold text-slate-900">Model preview needs a validated GLB.</p>
             <p className="text-xs leading-5 text-slate-600">
-              The route is wired. Replace `public/models/bottle.glb` with the final asset before phone preflight.
+              Check that the generated Meshy URL is HTTPS, points to a .glb file, and has not expired.
             </p>
           </div>
         ) : null}

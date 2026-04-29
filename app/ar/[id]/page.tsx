@@ -1,7 +1,5 @@
-import Link from "next/link";
-import { ModelViewerClient } from "@/components/ar/ModelViewerClient";
-import { getSeededPrototype } from "@/lib/prototype-registry";
-import { DotIcon } from "@/components/ui/Icon";
+import { getPrototypeForRoute } from "@/lib/prototype-registry";
+import { ModelViewerClient } from "./ModelViewerClient";
 
 interface ArPageProps {
   readonly params: Promise<{
@@ -11,50 +9,11 @@ interface ArPageProps {
 
 export default async function ArPage({ params }: ArPageProps): Promise<React.JSX.Element> {
   const { id } = await params;
-  const prototype = getSeededPrototype(id);
-
-  if (prototype === undefined) {
-    return (
-      <main className="min-h-screen bg-[#F8FAFC] px-4 py-6 text-[#0F172A]">
-        <section className="mx-auto max-w-xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-[#F59E0B]">AR route missing</p>
-          <h1 className="mt-2 text-2xl font-semibold">No seeded prototype exists for this URL.</h1>
-          <Link href="/" className="mt-5 inline-flex rounded-lg bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white">
-            Back to create
-          </Link>
-        </section>
-      </main>
-    );
-  }
+  const prototype = getPrototypeForRoute(id);
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#0F172A] px-4 py-5 text-white">
-      <section className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-        <div className="rounded-lg border border-white/10 bg-white/10 p-4 shadow-sm backdrop-blur">
-          <div className="flex items-start gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="mono text-[9px] uppercase tracking-[0.14em] text-white/50">webxr · scene-viewer · quick-look</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-normal text-white">{prototype.name}</h1>
-              <p className="mt-2 text-sm leading-6 text-white/70">{prototype.intendedUse}</p>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-full border border-emerald-300/40 bg-emerald-400/15 px-3 py-1.5 text-[10px] font-semibold text-emerald-200">
-              <DotIcon size={6} color="#10B981" />
-              AR READY
-            </div>
-          </div>
-        </div>
-
-        <ModelViewerClient prototype={prototype} mode="ar" />
-
-        <div className="grid gap-2">
-          {prototype.features.slice(0, 3).map((feature) => (
-            <div key={feature.label} className="rounded-lg border border-white/10 bg-white/10 p-3 shadow-sm backdrop-blur">
-              <p className="text-sm font-semibold text-white">{feature.label}</p>
-              <p className="mt-1 text-sm leading-5 text-white/65">{feature.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+    <main className="relative min-h-[100dvh] overflow-hidden bg-[#0F172A] text-white">
+      <ModelViewerClient prototype={prototype} />
     </main>
   );
 }

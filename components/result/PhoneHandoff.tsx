@@ -37,8 +37,8 @@ export function PhoneHandoff({ prototype }: PhoneHandoffProps): React.JSX.Elemen
         <div>
           <p className="text-sm font-semibold text-slate-900">Phone handoff</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Open this seeded AR route on the demo phone. The visual code is deterministic for the URL; use the link
-            below if your camera does not scan it.
+            Open this AR route on the demo phone. The visual code is deterministic for the URL; use the link below if
+            your camera does not scan it.
           </p>
           <a href={arPath} className="mt-3 inline-flex break-all text-sm font-semibold text-[#2563EB]">
             {arUrl}
