@@ -16,6 +16,9 @@ dist/
 # testing
 coverage/
 
+# TypeScript
+*.tsbuildinfo
+
 # OS
 .DS_Store
 Thumbs.db
