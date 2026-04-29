@@ -96,12 +96,18 @@ export function ResultClient({ prototype }: ResultClientProps): React.JSX.Elemen
             <div className="mt-3">
               <ModelViewerClient prototype={activePrototype} mode="preview" />
             </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
               <Link
                 href={`/ar/${activePrototype.id}`}
                 className="rounded-lg bg-[#0F172A] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_rgba(15,23,42,0.25)]"
               >
                 View in AR
+              </Link>
+              <Link
+                href={`/launch/${activePrototype.id}`}
+                className="rounded-lg bg-[#2563EB] px-4 py-3 text-center text-sm font-semibold text-white shadow-[0_6px_20px_rgba(37,99,235,0.22)]"
+              >
+                Open Launch Page
               </Link>
               <Link
                 href={`/build-pack/${activePrototype.id}`}
@@ -146,6 +152,7 @@ export function ResultClient({ prototype }: ResultClientProps): React.JSX.Elemen
                 title="Custom 3D"
                 body={activePrototype.statuses.meshy.message}
               />
+              <TimelineRow tone="success" title="Launch page ready" body={`Waitlist route and public page are ready at /launch/${activePrototype.id}.`} />
               <TimelineRow tone="primary" title="Build Pack ready" body="AR route, config, AGENTS.md, MVP spec, validation plan, and README content." />
             </div>
           </section>

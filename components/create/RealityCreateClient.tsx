@@ -252,7 +252,7 @@ export function RealityCreateClient(): React.JSX.Element {
             <div>
               <SectionLabel>3 · Founder context</SectionLabel>
               <p className="text-sm leading-6 text-slate-600">
-                Add the visual details that make the generated model specific: colors, logo placement, materials, and hero details.
+                Add the object details that make the generated model specific: shape, parts, materials, and hero functional details.
               </p>
             </div>
             <button

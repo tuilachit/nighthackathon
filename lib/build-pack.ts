@@ -38,6 +38,37 @@ export default function ArPage({ params }: { params: { id: string } }) {
 }`,
     },
     {
+      path: "app/launch/[id]/page.tsx",
+      language: "tsx",
+      warnings: [],
+      content: `import { getPrototypeForRoute } from "@/lib/prototype-registry";
+import { LaunchPageClient } from "@/components/launch/LaunchPageClient";
+
+export default async function LaunchPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const product = getPrototypeForRoute(id);
+
+  return <LaunchPageClient prototype={product} />;
+}`,
+    },
+    {
+      path: "app/api/waitlist/route.ts",
+      language: "ts",
+      warnings: [],
+      content: `import { NextResponse } from "next/server";
+import { createNotionWaitlistLead, parseWaitlistRequest } from "@/lib/waitlist";
+
+export async function POST(request: Request) {
+  const parsed = parseWaitlistRequest(await request.json().catch(() => undefined));
+  if ("ok" in parsed && parsed.ok === false) {
+    return NextResponse.json({ ok: false, error: parsed.error }, { status: parsed.status });
+  }
+
+  const result = await createNotionWaitlistLead(parsed);
+  return NextResponse.json(result, { status: result.ok ? 200 : result.status });
+}`,
+    },
+    {
       path: "product.config.json",
       language: "json",
       warnings: getWarnings(spec),
@@ -51,8 +82,23 @@ export default function ArPage({ params }: { params: { id: string } }) {
         iosModelUrl: iosModelSource ?? null,
         modelSource: spec.model.source,
         arRoute: `/ar/${spec.id}`,
+        launchRoute: `/launch/${spec.id}`,
         refined3DPrompt: spec.refined3DPrompt,
       }),
+    },
+    {
+      path: ".env.example",
+      language: "bash",
+      warnings: [],
+      content: `OPENAI_API_KEY=
+MESHY_API_KEY=
+ENABLE_MESHY=true
+OPENAI_VISION_MODEL=gpt-5.4-mini
+
+NOTION_TOKEN=
+NOTION_WAITLIST_DATABASE_ID=
+NOTION_WAITLIST_DATA_SOURCE_ID=
+ENABLE_NOTION=true`,
     },
     {
       path: "AGENTS.md",
@@ -61,8 +107,10 @@ export default function ArPage({ params }: { params: { id: string } }) {
       content: `# Reality MVP Agent Instructions
 
 - Build the runnable AR app layer around the product concept.
+- Build the launch page and waitlist route as part of the same product prototype.
 - Keep fallback AR working before optional Meshy generation.
 - Render generated content as escaped text only.
+- Do not pretend Notion sync succeeded when env vars or API calls fail.
 - Use TypeScript for every implementation file.`,
     },
     {
@@ -93,6 +141,9 @@ ${spec.refined3DPrompt}`,
 - Confirm ${modelSource} loads in the 3D preview.
 - Open /ar/${spec.id} on the target phone.
 - Tap View in AR.
+- Open /launch/${spec.id}.
+- Fill the waitlist preview and confirm the frontend/backend code package appears.
+- Configure Notion env vars only when the team is ready to connect the real launch workspace.
 - Confirm fallback AR still works if custom generation is disabled or fails.`,
     },
     {
@@ -101,9 +152,9 @@ ${spec.refined3DPrompt}`,
       warnings: [],
       content: `## Reality MVP Submission
 
-Reality MVP uses Codex to generate the runnable spatial prototype app layer around a product concept.
+Reality MVP uses Codex to generate the runnable spatial prototype and launch app layer around a product concept.
 
-Codex creates the AR page, product config, AGENTS.md, MVP spec, validation plan, and README submission content. The model is only one input; the app layer is the demo artifact.`,
+Codex creates the AR page, launch page, waitlist API, product config, AGENTS.md, MVP spec, validation plan, and README submission content. The model is only one input; the app layer is the demo artifact.`,
     },
   ];
 

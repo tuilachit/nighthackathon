@@ -14,11 +14,12 @@ export function GenerationTrace({ prototype }: GenerationTraceProps): React.JSX.
     { title: "Analyze product concept", detail: `${prototype.category} concept extracted from prompt and sketch input.` },
     { title: "Select fallback model", detail: `${prototype.model.glbPath} is ready before optional custom generation.` },
     { title: "Generate AR route", detail: `/ar/${prototype.id} renders the model through model-viewer.` },
+    { title: "Generate launch route", detail: `/launch/${prototype.id} renders the public waitlist page for the prototype.` },
     {
       title: "Write Build Pack files",
-      detail: "Codex outputs route code, product config, AGENTS.md, MVP spec, validation plan, and README content.",
+      detail: "Codex outputs route code, waitlist API, product config, AGENTS.md, MVP spec, validation plan, and README content.",
     },
-    { title: "Validate demo path", detail: "Result, AR, fallback model, and Build Pack routes are ready for phone preflight." },
+    { title: "Validate demo path", detail: "Result, AR, launch, fallback model, and Build Pack routes are ready for preflight." },
   ];
 
   return (

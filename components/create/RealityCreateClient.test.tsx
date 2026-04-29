@@ -45,12 +45,12 @@ describe("RealityCreateClient", () => {
               JSON.stringify({
                 refinement: {
                   source: "fallback",
-                  visualDirection: "Use a clear color palette.",
+                  visualDirection: "Use clear object details.",
                   generationBrief: "Founder wants a smart bottle.",
-                  promptAdditions: ["Add logo placement.", "Use material contrast.", "Make the LED visible."],
+                  promptAdditions: ["Define the silhouette.", "Use material contrast.", "Make the LED visible."],
                   questions: [
-                    { id: "brand", label: "Brand", placeholder: "OpenAI logo" },
-                    { id: "colors", label: "Colors", placeholder: "black and green" },
+                    { id: "shape", label: "Shape", placeholder: "tall cylinder" },
+                    { id: "parts", label: "Visible parts", placeholder: "cap and grip" },
                     { id: "materials", label: "Materials", placeholder: "metal and silicone" },
                     { id: "detail", label: "Detail", placeholder: "LED ring" },
                   ],
@@ -80,7 +80,7 @@ describe("RealityCreateClient", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Answer product questions" }));
 
-    await screen.findByText("Brand");
+    await screen.findByText("Shape");
     fireEvent.click(screen.getByRole("button", { name: "Generate Reality MVP" }));
 
     await waitFor(() => {

@@ -36,14 +36,14 @@ function createFallbackRefinement(prompt: string): ConceptRefinement {
   return {
     questions: [
       {
-        id: "brand",
-        label: "Brand or logo",
-        placeholder: "Example: OpenAI logo on the lid, small glowing wordmark on the front",
+        id: "shape",
+        label: "Overall shape",
+        placeholder: "Example: tall rounded bottle, compact cube, curved desk lamp",
       },
       {
-        id: "colors",
-        label: "Color palette",
-        placeholder: "Example: matte black body, neon green LED ring, brushed silver cap",
+        id: "parts",
+        label: "Visible parts",
+        placeholder: "Example: twist cap, side button, sensor window, handle, display strip",
       },
       {
         id: "materials",
@@ -56,11 +56,11 @@ function createFallbackRefinement(prompt: string): ConceptRefinement {
         placeholder: "Example: visible sensor window and app sync icon",
       },
     ],
-    visualDirection: "Make the object visually distinctive with explicit colors, material contrast, brand placement, and one hero feature.",
+    visualDirection: "Make the object specific through its silhouette, visible parts, material transitions, scale, and one hero functional detail.",
     generationBrief: `The founder wants: ${prompt}`,
     promptAdditions: [
-      "Use explicit color names and material finishes.",
-      "Add a visible brand mark or logo area if the founder names one.",
+      "Describe the object's shape, proportions, and physical components clearly.",
+      "Add visible seams, controls, openings, grips, or attachment points when relevant.",
       "Make the main feature readable from a three-quarter product view.",
     ],
     source: "fallback",
@@ -74,7 +74,8 @@ async function requestConceptRefinement(apiKey: string, input: RefineInput): Pro
       text: [
         "You are helping a founder give enough visual context for a text/image-to-3D product prototype.",
         "Ask only questions that materially improve the final 3D asset.",
-        "Focus on color, branding/logo placement, material finish, and one or two visible product details.",
+        "Do not ask about color, branding, logo placement, or visual identity.",
+        "Focus on the physical object: silhouette, proportions, visible parts, controls, materials, texture, and one or two functional details.",
         "Do not mention any vendor or implementation API.",
         `Initial founder prompt: ${input.prompt}`,
       ].join("\n"),
@@ -99,7 +100,8 @@ async function requestConceptRefinement(apiKey: string, input: RefineInput): Pro
       messages: [
         {
           role: "system",
-          content: "Return concise founder clarification questions and a high-level generation brief. Do not include hidden reasoning.",
+          content:
+            "Return concise founder clarification questions and a high-level generation brief. Ask about object details only, not color or logo. Do not include hidden reasoning.",
         },
         { role: "user", content },
       ],

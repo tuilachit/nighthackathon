@@ -170,7 +170,7 @@ export function createFallbackAnalysis(prompt: string): ProductAnalysis {
     intendedUse: spec.intendedUse,
     refinedMeshyPrompt: spec.refined3DPrompt,
     fallbackCategory: spec.category,
-    visualDirection: "Use clear color contrast, material separation, readable brand/logo placement, and one visible hero feature.",
+    visualDirection: "Use clear silhouette, material separation, readable physical parts, and one visible hero functional detail.",
     generationNotes: [
       "Keep the object centered and isolated with no background scene.",
       "Make visual details large enough to read from a three-quarter AR view.",

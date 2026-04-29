@@ -17,6 +17,7 @@ export function PreflightPanel({ prototype }: PreflightPanelProps): React.JSX.El
   const items: readonly PreflightItem[] = [
     { label: "Result route", detail: `/result/${prototype.id}`, ready: true },
     { label: "AR route", detail: `/ar/${prototype.id}`, ready: true },
+    { label: "Launch page", detail: `/launch/${prototype.id}`, ready: true },
     { label: "AR GLB", detail: modelSource, ready: isSupportedModelAssetSource(modelSource, "glb") },
     {
       label: "iOS Quick Look asset",
