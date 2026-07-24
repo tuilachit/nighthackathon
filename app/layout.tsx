@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ProjectNavigation } from "./ProjectNavigation";
+import { ProjectNavigation } from "./_components/ProjectNavigation";
 import "./globals.css";
 
 export const metadata: Metadata = {

@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { ModelViewerClient } from "@/components/ar/ModelViewerClient";
+import { ModelViewer } from "@/components/ar/ModelViewerClient";
+import { useActivePrototype } from "@/components/prototype/useActivePrototype";
 import { PhoneHandoff } from "@/components/result/PhoneHandoff";
 import { PreflightPanel } from "@/components/result/PreflightPanel";
 import { StatusPill } from "@/components/ui/StatusPill";
 import { CubeIcon, DotIcon, SparkleIcon } from "@/components/ui/Icon";
-import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeForRouteFromLocalStorage } from "@/lib/local-prototype-store";
 import type { PrototypeSpec } from "@/lib/prototype-types";
 
 interface ResultClientProps {
@@ -15,26 +14,9 @@ interface ResultClientProps {
 }
 
 export function ResultClient({ prototype }: ResultClientProps): React.JSX.Element {
-  const [activePrototype, setActivePrototype] = useState<PrototypeSpec>(prototype);
+  const activePrototype = useActivePrototype(prototype);
   const generationState = getGenerationState(activePrototype);
   const modelReadinessLabel = getModelReadinessLabel(activePrototype);
-
-  useEffect(() => {
-    window.addEventListener(LOCAL_PROTOTYPE_UPDATED_EVENT, syncLocalPrototype);
-    window.addEventListener("storage", syncLocalPrototype);
-    syncLocalPrototype();
-    return () => {
-      window.removeEventListener(LOCAL_PROTOTYPE_UPDATED_EVENT, syncLocalPrototype);
-      window.removeEventListener("storage", syncLocalPrototype);
-    };
-
-    function syncLocalPrototype(): void {
-      const localPrototype = loadPrototypeForRouteFromLocalStorage(prototype.id);
-      if (localPrototype !== undefined) {
-        setActivePrototype(localPrototype);
-      }
-    }
-  }, [prototype.id]);
 
   return (
     <main className="concept-page text-[#050505] safe-bottom">
@@ -96,7 +78,7 @@ export function ResultClient({ prototype }: ResultClientProps): React.JSX.Elemen
               </p>
             </div>
             <div className="mt-3">
-              <ModelViewerClient prototype={activePrototype} mode="preview" />
+              <ModelViewer prototype={activePrototype} mode="preview" />
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-3">
               <Link

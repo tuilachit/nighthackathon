@@ -1,13 +1,19 @@
 ---
-status: ACTIVE
+status: ARCHIVED
 review: plan-ceo-review
 date: 2026-04-29
 branch: main
 mode: SELECTIVE_EXPANSION
 repo: 34wizrd/chainbreaker-hackathon
+superseded_by: /AGENTS.md
 ---
 
 # CEO Plan: Reality MVP
+
+> **Archived historical plan.** This document describes the generic
+> sketch-to-spatial-MVP baseline that existed before Night Hack. It is retained
+> for disclosure and implementation history, but `AGENTS.md` now defines the
+> active fit-first furniture-search scope.
 
 Reality MVP is not a generic sketch-to-3D wrapper. The winning version is a runnable spatial MVP compiler: a founder opens a Vercel-hosted mobile PWA, captures or uploads a product sketch, describes the idea, gets an immediate fallback-ready spatial prototype, and can place the object on a real table through browser AR.
 

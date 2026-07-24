@@ -28,13 +28,13 @@ export function generateBuildPack(spec: PrototypeSpec): BuildPack {
       language: "tsx",
       warnings: [],
       content: `import { getSeededPrototype } from "@/lib/prototype-registry";
-import { ModelViewerClient } from "@/components/ar/ModelViewerClient";
+import { ActivePrototypeModelViewer } from "@/components/ar/ModelViewerClient";
 
 export default function ArPage({ params }: { params: { id: string } }) {
   const product = getSeededPrototype(params.id);
   if (!product) return <main>Prototype not found.</main>;
 
-  return <ModelViewerClient prototype={product} mode="ar" />;
+  return <ActivePrototypeModelViewer prototype={product} mode="ar" />;
 }`,
     },
     {

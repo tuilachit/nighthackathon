@@ -1,13 +1,19 @@
 ---
-status: ACTIVE
+status: ARCHIVED
 review: plan-eng-review
 date: 2026-04-29
 branch: main
-repo: 34wizrd/chain-broker-hackathon
+repo: 34wizrd/chainbreaker-hackathon
 supersedes: docs/designs/reality-mvp-ceo-plan.md
+superseded_by: /AGENTS.md
 ---
 
 # Engineering Plan: Reality MVP
+
+> **Archived historical plan.** This records how the original Reality MVP
+> baseline was assembled. Its architecture and completion claims are not the
+> active Night Hack plan. Follow `AGENTS.md` for the fit-first target and use the
+> current test suite and `npm run verify` for present-day status.
 
 This plan turns the existing `AR/` standalone prototype into a Vercel-ready,
 mobile-first Next.js PWA. The `AR/` folder is reference material only: it

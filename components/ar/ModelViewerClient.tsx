@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useActivePrototype } from "@/components/prototype/useActivePrototype";
 import { CubeIcon } from "@/components/ui/Icon";
 import { getIosModelSource, getModelViewerAssetUrl, getPrimaryModelSource, hasGeneratedModelAssetSource } from "@/lib/assets";
-import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeForRouteFromLocalStorage } from "@/lib/local-prototype-store";
 import type { ArCompatibilityStatus, PrototypeSpec } from "@/lib/prototype-types";
 
 interface ModelViewerClientProps {
@@ -33,9 +33,14 @@ function getCompatibilityStatus(): ArCompatibilityStatus {
   return { kind: "preview-only", message: "3D preview is available. Open on a phone for AR placement." };
 }
 
-export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): React.JSX.Element {
+export function ActivePrototypeModelViewer({ prototype, mode }: ModelViewerClientProps): React.JSX.Element {
+  const activePrototype = useActivePrototype(prototype);
+
+  return <ModelViewer prototype={activePrototype} mode={mode} />;
+}
+
+export function ModelViewer({ prototype, mode }: ModelViewerClientProps): React.JSX.Element {
   const modelViewerRef = useRef<HTMLElement & { activateAR?: () => Promise<void> }>(null);
-  const [activePrototype, setActivePrototype] = useState<PrototypeSpec>(prototype);
   const [compatibility, setCompatibility] = useState<ArCompatibilityStatus>(prototype.statuses.arCompatibility);
   const [modelLoaded, setModelLoaded] = useState<boolean>(false);
   const [modelFailed, setModelFailed] = useState<boolean>(false);
@@ -47,38 +52,21 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
     setCompatibility(getCompatibilityStatus());
   }, []);
 
-  useEffect(() => {
-    window.addEventListener(LOCAL_PROTOTYPE_UPDATED_EVENT, syncLocalPrototype);
-    window.addEventListener("storage", syncLocalPrototype);
-    syncLocalPrototype();
-    return () => {
-      window.removeEventListener(LOCAL_PROTOTYPE_UPDATED_EVENT, syncLocalPrototype);
-      window.removeEventListener("storage", syncLocalPrototype);
-    };
-
-    function syncLocalPrototype(): void {
-      const localPrototype = loadPrototypeForRouteFromLocalStorage(prototype.id);
-      if (localPrototype !== undefined) {
-        setActivePrototype(localPrototype);
-      }
-    }
-  }, [prototype.id]);
-
-  const hasGeneratedModel = useMemo<boolean>(() => hasGeneratedModelAssetSource(activePrototype.model), [activePrototype.model]);
+  const hasGeneratedModel = useMemo<boolean>(() => hasGeneratedModelAssetSource(prototype.model), [prototype.model]);
   const modelSource = useMemo<string | undefined>(
     () =>
       hasGeneratedModel
-        ? getModelViewerAssetUrl(getPrimaryModelSource(activePrototype.model)) ?? activePrototype.model.glbPath
+        ? getModelViewerAssetUrl(getPrimaryModelSource(prototype.model)) ?? prototype.model.glbPath
         : undefined,
-    [activePrototype.model, hasGeneratedModel],
+    [prototype.model, hasGeneratedModel],
   );
   const modelFileLabel = useMemo<string>(
-    () => (hasGeneratedModel ? getPrimaryModelSource(activePrototype.model).split("?")[0]?.split("/").pop() ?? "model.glb" : "generated GLB pending"),
-    [activePrototype.model, hasGeneratedModel],
+    () => (hasGeneratedModel ? getPrimaryModelSource(prototype.model).split("?")[0]?.split("/").pop() ?? "model.glb" : "generated GLB pending"),
+    [prototype.model, hasGeneratedModel],
   );
   const iosSource = useMemo<string | undefined>(
-    () => getModelViewerAssetUrl(getIosModelSource(activePrototype.model)),
-    [activePrototype.model],
+    () => getModelViewerAssetUrl(getIosModelSource(prototype.model)),
+    [prototype.model],
   );
 
   function handleArLaunch(): void {
@@ -99,6 +87,7 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
             ref={modelViewerRef}
             src={modelSource}
             ios-src={iosSource}
+            alt={prototype.name}
             ar
             ar-modes="webxr scene-viewer quick-look"
             camera-controls
@@ -122,7 +111,7 @@ export function ModelViewerClient({ prototype, mode }: ModelViewerClientProps): 
             mode === "ar" ? "bg-white/10 text-white/55 backdrop-blur" : "bg-white/70 text-slate-500 backdrop-blur"
           }`}
         >
-          {activePrototype.model.remoteModelUrl !== undefined ? "generated" : "model"} · {modelFileLabel}
+          {prototype.model.remoteModelUrl !== undefined ? "generated" : "model"} · {modelFileLabel}
         </div>
         <div
           className={`pointer-events-none absolute bottom-4 right-4 z-20 flex items-center gap-1 rounded-full border px-3 py-2 text-[10px] font-semibold ${
