@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useActivePrototype } from "@/components/prototype/useActivePrototype";
 import { CubeIcon, DotIcon, SparkleIcon } from "@/components/ui/Icon";
 import { getIosModelSource, getModelViewerAssetUrl, getPrimaryModelSource, hasGeneratedModelAssetSource } from "@/lib/assets";
-import { LOCAL_PROTOTYPE_UPDATED_EVENT, loadPrototypeForRouteFromLocalStorage } from "@/lib/local-prototype-store";
 import type { PrototypeSpec } from "@/lib/prototype-types";
 
 interface LaunchPageClientProps {
@@ -16,28 +16,11 @@ type SubmitState =
   | { readonly kind: "ready"; readonly email: string; readonly name?: string; readonly role?: string };
 
 export function LaunchPageClient({ prototype }: LaunchPageClientProps): React.JSX.Element {
-  const [activePrototype, setActivePrototype] = useState<PrototypeSpec>(prototype);
+  const activePrototype = useActivePrototype(prototype);
   const [name, setName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [role, setRole] = useState<string>("");
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "idle" });
-
-  useEffect(() => {
-    window.addEventListener(LOCAL_PROTOTYPE_UPDATED_EVENT, syncLocalPrototype);
-    window.addEventListener("storage", syncLocalPrototype);
-    syncLocalPrototype();
-    return () => {
-      window.removeEventListener(LOCAL_PROTOTYPE_UPDATED_EVENT, syncLocalPrototype);
-      window.removeEventListener("storage", syncLocalPrototype);
-    };
-
-    function syncLocalPrototype(): void {
-      const localPrototype = loadPrototypeForRouteFromLocalStorage(prototype.id);
-      if (localPrototype !== undefined) {
-        setActivePrototype(localPrototype);
-      }
-    }
-  }, [prototype.id]);
 
   const launchCopy = useMemo(() => createLaunchCopy(activePrototype), [activePrototype]);
 

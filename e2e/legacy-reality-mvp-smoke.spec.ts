@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test("creates the default prototype and opens the AR route", async ({ page }) => {
+// Browser-only regression coverage for the pre-fit Reality MVP baseline.
+// Pixel emulation does not validate WebXR, camera permissions, physical
+// measurement accuracy, or a native AR handoff on a real phone.
+test("legacy browser smoke: creates the default prototype and opens the AR route", async ({ page }) => {
   await page.route("**/api/refine-concept", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -58,7 +61,7 @@ test("creates the default prototype and opens the AR route", async ({ page }) =>
   await expect(page.getByTestId("view-in-ar-button")).toBeVisible();
 });
 
-test("shows the Codex Build Pack generated files", async ({ page }) => {
+test("legacy browser smoke: shows the Codex Build Pack generated files", async ({ page }) => {
   await page.goto("/build-pack/smart-hydration-bottle");
 
   await expect(page.getByRole("heading", { name: "Smart Hydration Bottle" })).toBeVisible();

@@ -346,6 +346,8 @@ app/
 ├── page.tsx
 └── api/parse-query/route.ts
 components/
+├── prototype/
+│   └── useActivePrototype.ts
 ├── fit/
 │   ├── FitFlowClient.tsx
 │   ├── MeasurementConfirm.tsx
@@ -399,6 +401,17 @@ Build Pack routes. Reuse useful infrastructure, but the Night Hack demo should
 lead with fit-first furniture search rather than the generic concept-generation
 flow.
 
+Operational collaboration files:
+
+- `README.md` distinguishes the disclosed baseline from the Night Hack target.
+- `TODOS.md` is the owner/status/blocker board.
+- `docs/collaboration/handoff.md` is the handoff template.
+- `docs/assets/asset-inventory.md` records model provenance and scale readiness.
+- `docs/testing/real-device-deployment-preflight.md` is the required phone and
+  deployed-origin test matrix.
+- `.github/workflows/quality.yml` runs `npm run verify` for pushes and pull
+  requests.
+
 Known baseline risks to avoid carrying into the new critical path:
 
 - Mixed ARchitect and Reality MVP branding.
@@ -407,7 +420,6 @@ Known baseline risks to avoid carrying into the new critical path:
 - The existing QR-like graphic is not a real QR code.
 - Cross-device state cannot rely on same-device `localStorage`.
 - Launch UI may preview a request instead of performing it.
-- Duplicate AR components.
 - A production URL is not documented in the repository.
 
 Do not spend the hackathon fixing unrelated baseline features unless they block

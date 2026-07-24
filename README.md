@@ -1,166 +1,173 @@
-# ARchitect
+# Night Hack: Fit-First Furniture Search
 
-Turn a rough product sketch into a spatial MVP you can inspect, share, and open in AR.
+Measure an awkward space, find furniture that physically fits, compare the
+remaining clearance across retailers, and preview a chosen item at true scale.
 
-ARchitect is a mobile-first Next.js PWA for hackathon demos: upload or capture a product sketch, describe the idea, answer a few product questions, and get an instant fallback-ready 3D prototype with an optional custom Meshy generation lane.
+> **Collaboration source of truth:** Read [`AGENTS.md`](./AGENTS.md) before
+> changing scope, shared contracts, or the demo path.
 
-The app is designed so the demo never depends on a slow model generation request. A validated fallback model is ready immediately; OpenAI and Meshy can enhance the result when API keys are configured.
+## Baseline and Night Hack Target
 
-## What It Does
+This repository contains two deliberately separate layers:
 
-- Captures or uploads a product sketch/photo.
-- Refines the concept with focused founder questions.
-- Builds a typed `PrototypeSpec` from prompt, image, and answers.
-- Shows a result page with model preview, AR handoff, generation status, and product details.
-- Opens an AR route powered by `<model-viewer>`.
-- Generates an inspectable Build Pack with route/config/docs/checklist artifacts.
-- Falls back safely when OpenAI, Meshy, local storage, or AR support is unavailable.
+### Disclosed pre-event baseline
 
-## Demo Flow
+The current Next.js app is **ARchitect**, a mobile-first sketch-to-spatial-MVP
+prototype. It can:
 
-```text
-Sketch or photo + prompt
-  -> product questions
-  -> fallback PrototypeSpec
-  -> result page
-  -> AR reveal
-  -> Build Pack proof
-```
+- capture a sketch and product prompt;
+- create a typed fallback `PrototypeSpec`;
+- optionally refine concepts with OpenAI and generate models with Meshy;
+- show result, AR, launch, and Build Pack routes; and
+- recover to deterministic local behavior when optional integrations fail.
 
-Optional enhancement path:
+This generic sketch-to-3D AR experience existed before Night Hack. The annotated
+tag `night-hack-baseline-2026-07-24` records an earlier disclosed baseline. The
+team must create another commit or tag at the actual kickoff to record the exact
+starting state.
 
-```text
-OpenAI analysis/refinement
-  -> Meshy Image-to-3D when an image exists
-  -> Meshy Text-to-3D fallback
-  -> generated GLB/USDZ replaces fallback model when valid
-```
+### Night Hack target
 
-## Tech Stack
+The new capability is fit-first, cross-retailer furniture search:
 
-- Next.js App Router
-- React 19
-- TypeScript
-- Tailwind CSS
-- Vitest + Testing Library
-- Playwright
-- `<model-viewer>` for web AR
+1. Capture width and depth with Android WebXR, or enter dimensions manually.
+2. Confirm width, depth, height, and measurement uncertainty.
+3. Describe the desired furniture.
+4. Apply a conservative physical-fit predicate before preference ranking.
+5. Compare valid products by retailer, dimensions, price, and clearance.
+6. Keep near misses separate and explain the exact shortfall.
+7. Place selected hero products at true scale and swap without remeasuring.
+8. Open the retailer product page.
 
-## Getting Started
+The room is the query, not the catalog. AR is the final proof, not the product
+claim. See [`AGENTS.md`](./AGENTS.md) for the binding scope, fit semantics,
+device strategy, and five-hour build order.
 
-Install dependencies:
+## Run Locally
+
+Requirements:
+
+- Node `22.23.1` (see [`.nvmrc`](./.nvmrc))
+- npm `10.9.8`
+
+Install exactly from the committed lockfile:
 
 ```bash
-npm install
+npm ci
 ```
 
-Run the development server:
+Start the development server:
 
 ```bash
 npm run dev
 ```
 
-Open:
+Open [http://localhost:3000](http://localhost:3000).
 
-```text
-http://localhost:3000
-```
-
-## Environment
-
-The app works without API keys by using deterministic fallback generation.
-
-Create `.env.local` only if you want the enhanced paths:
+The deterministic baseline works without API keys. Copy `.env.example` to
+`.env.local` only when testing an optional integration:
 
 ```bash
-OPENAI_API_KEY=
-OPENAI_VISION_MODEL=gpt-5.4-mini
-
-ENABLE_MESHY=true
-MESHY_API_KEY=
-
-ENABLE_NOTION=false
-NOTION_TOKEN=
-NOTION_WAITLIST_DATA_SOURCE_ID=
-NOTION_WAITLIST_DATABASE_ID=
+cp .env.example .env.local
 ```
 
-Notes:
+All optional integrations are disabled by default. Do not commit `.env.local`
+or real credentials.
 
-- `OPENAI_API_KEY` enables concept refinement and product analysis.
-- `ENABLE_MESHY=true` plus `MESHY_API_KEY` enables custom model generation.
-- Meshy is non-blocking; fallback AR remains the primary demo path.
-- Notion variables are only needed for the optional waitlist integration.
+| Variable | Purpose |
+| --- | --- |
+| `OPENAI_API_KEY` | Optional server-side concept refinement and analysis |
+| `OPENAI_VISION_MODEL` | Model used by the optional OpenAI path |
+| `ENABLE_MESHY` | Enables optional custom model generation when set to `true` |
+| `MESHY_API_KEY` | Server-side credential for Meshy |
+| `ENABLE_NOTION` | Enables the optional waitlist integration when set to `true` |
+| `NOTION_TOKEN` | Server-side Notion credential |
+| `NOTION_WAITLIST_DATABASE_ID` | Optional Notion database identifier |
+| `NOTION_WAITLIST_DATA_SOURCE_ID` | Optional Notion data-source identifier |
 
-## Scripts
+## Quality Gate
+
+Run the same reproducible gate used by CI:
 
 ```bash
-npm run dev        # Start local Next.js dev server
-npm run build      # Build for production
-npm run start      # Start production server
-npm run lint       # Run ESLint
-npm run typecheck  # Run TypeScript checks
-npm run test       # Run unit/component tests
-npm run test:watch # Run Vitest in watch mode
-npm run e2e        # Run Playwright smoke tests
+npm run verify
 ```
 
-## Project Structure
-
-```text
-app/
-  page.tsx                         Create flow shell
-  result/[id]/page.tsx             Generated prototype result
-  ar/[id]/page.tsx                 AR viewer route
-  build-pack/[id]/page.tsx         Generated artifact viewer
-  api/                             OpenAI, Meshy, waitlist routes
-
-components/
-  create/                          Sketch/prompt/question flow
-  result/                          Result, preflight, handoff UI
-  ar/                              model-viewer client component
-  build-pack/                      Build Pack renderer
-  ui/                              Small typed primitives
-
-lib/
-  analyzer.ts                      Deterministic product analysis
-  concept-refinement.ts            Optional OpenAI question generation
-  openai-analysis.ts               Optional OpenAI product analysis
-  meshy-client.ts                  Optional Meshy API boundary
-  model-generation.ts              Generation state transitions
-  prototype-registry.ts            Seeded prototype routes
-  local-prototype-store.ts         Browser persistence boundary
-  build-pack.ts                    Generated artifacts
-  prototype-types.ts               Shared domain model
-```
-
-## Core Design Principle
-
-The demo must always reach AR.
-
-That means every external dependency is treated as an upgrade lane, not the critical path. If OpenAI is missing, the app uses local analysis. If Meshy is disabled or slow, the fallback model stays ready. If custom GLB validation fails, the user still lands on a working prototype.
-
-## Testing
-
-Run the full local check before shipping:
+It runs TypeScript checks, ESLint, Vitest, and a production build. Playwright is
+kept separate because browser binaries and a running app may be required:
 
 ```bash
-npm run typecheck
-npm run lint
-npm run test
 npm run e2e
 ```
 
-For phone demos, also verify:
+Before a phone-demo handoff, also verify the deployed HTTPS origin on the actual
+Android and iPhone devices. Automated checks do not validate camera permission,
+plane detection, Scene Viewer, or Quick Look behavior.
 
-- The Vercel preview URL loads on the target phone.
-- `/result/smart-hydration-bottle` opens cleanly.
-- `/ar/smart-hydration-bottle` loads the model.
-- The fallback model renders before custom generation finishes.
-- iOS/Android AR degrades to preview instead of blank UI when unsupported.
+## Code Boundaries
 
-## Reference Material
+The existing baseline remains organized as follows:
 
-- `docs/designs/reality-mvp-ceo-plan.md` explains the product strategy.
-- `docs/designs/reality-mvp-engineering-plan.md` explains the implementation plan.
-- `AR/` contains the original standalone prototype reference. The production app lives in typed Next.js files under `app/`, `components/`, and `lib/`.
+```text
+app/
+  page.tsx                         Existing create-flow shell
+  result/[id]/page.tsx             Existing generated prototype result
+  ar/[id]/page.tsx                 Existing model-viewer AR route
+  launch/[id]/page.tsx             Existing launch/waitlist surface
+  build-pack/[id]/page.tsx         Existing generated artifact viewer
+  api/                             Optional OpenAI, Meshy, and waitlist routes
+
+components/
+  create/ result/ ar/ launch/      Existing baseline UI
+  build-pack/ ui/                  Existing artifact and UI primitives
+
+lib/
+  prototype-*.ts                   Existing baseline domain and registry
+  analyzer.ts                      Existing deterministic analysis
+  model-generation.ts             Existing generation state transitions
+  meshy-client.ts                  Existing optional Meshy boundary
+```
+
+New fit-first work should use the boundaries defined in `AGENTS.md`:
+
+```text
+components/fit/                    Measurement confirmation and comparison UI
+components/xr/                     WebXR measurement and placement clients
+lib/catalog-*.ts                   Static catalog schema and loading
+lib/fit-engine.ts                  Pure conservative fit predicate
+lib/measurement-geometry.ts        Pure point-to-dimensions geometry
+lib/product-ranker.ts              Deterministic ranking after hard fit
+public/data/                       Verified catalog and cached queries
+public/models/{glb,usdz}/          Optimized local hero assets
+scripts/catalog/                   Catalog validation and verification tools
+```
+
+Do not duplicate a working abstraction just to match this suggested layout.
+Coordinate changes to shared types, the fit engine, measurement state, and the
+top-level flow before editing them.
+
+## Collaboration
+
+- [`AGENTS.md`](./AGENTS.md) — canonical product, engineering, and demo rules.
+- [`TODOS.md`](./TODOS.md) — current owner/status/blocker board.
+- [`docs/collaboration/handoff.md`](./docs/collaboration/handoff.md) — small
+  handoff checklist and paste-ready template.
+- [`docs/designs/`](./docs/designs/) — archived historical plans for the older
+  Reality MVP direction; useful context, not active scope.
+
+Keep commits small, mark pre-event work truthfully, and never commit credentials,
+private attendee links, Wi-Fi details, or other event-only information.
+
+## Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the local Next.js server |
+| `npm run build` | Create a production build |
+| `npm run start` | Serve a production build |
+| `npm run typecheck` | Run TypeScript checks |
+| `npm run lint` | Run ESLint |
+| `npm run test` | Run Vitest once |
+| `npm run test:watch` | Run Vitest in watch mode |
+| `npm run e2e` | Run Playwright tests |
+| `npm run verify` | Run the CI quality gate |

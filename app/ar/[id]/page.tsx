@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ModelViewerClient } from "@/components/ar/ModelViewerClient";
+import { ActivePrototypeModelViewer } from "@/components/ar/ModelViewerClient";
 import { getPrototypeForRoute } from "@/lib/prototype-registry";
 import { CodeIcon, DotIcon } from "@/components/ui/Icon";
 
@@ -39,7 +39,7 @@ export default async function ArPage({ params }: ArPageProps): Promise<React.JSX
           <p className="mt-3 text-sm leading-6 text-slate-600">{prototype.intendedUse}</p>
         </div>
 
-        <ModelViewerClient prototype={prototype} mode="ar" />
+        <ActivePrototypeModelViewer prototype={prototype} mode="ar" />
 
         <div className="grid gap-1 rounded-[28px] bg-white">
           {prototype.features.slice(0, 3).map((feature) => (
