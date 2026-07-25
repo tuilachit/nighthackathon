@@ -1531,6 +1531,15 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/6-cube-book-decorative-book-shelf-white-brightroom-8482/-/A-93209258",
       "verifiedAt": "2026-07-25T05:47:46.459Z"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-target-93209258.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 610,
+        "heightMm": 913,
+        "depthMm": 298
+      }
     }
   },
   {
