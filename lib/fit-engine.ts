@@ -8,6 +8,14 @@ import type {
   ProductOrientation,
   SpaceMeasurement,
 } from "./catalog-types";
+import { DEFAULT_CLEARANCE_POLICY } from "./fit-config";
+import type {
+  ProductDimensions as MeasurementProductDimensions,
+  SpaceMeasurement as MeasurementSpaceMeasurement,
+} from "./measurement-geometry";
+
+export { DEFAULT_CLEARANCE_POLICY } from "./fit-config";
+export type { ClearancePolicy, FitEvaluation } from "./catalog-types";
 
 interface OrientationDimensions {
   readonly orientation: ProductOrientation;
@@ -46,6 +54,27 @@ export function evaluateProductFit(
   );
 
   return [...candidates].sort(compareFitCandidates)[0];
+}
+
+/**
+ * Compatibility entry point for the XR lane. Both measurement contracts share
+ * the same dimensional shape; the search engine remains the single fit policy.
+ */
+export function evaluateFit(
+  measurement: MeasurementSpaceMeasurement,
+  dimensions: MeasurementProductDimensions,
+  policy: ClearancePolicy = DEFAULT_CLEARANCE_POLICY,
+): FitEvaluation {
+  return evaluateProductFit(dimensions, measurement, policy);
+}
+
+/** Formats a compact result for the XR placement view. */
+export function formatFitLabel(evaluation: FitEvaluation): string {
+  if (evaluation.fits) {
+    return `Fits · ${evaluation.minimumClearanceMm} mm clear`;
+  }
+  const reason = evaluation.reasons[0]?.replace(" after safety allowance.", "");
+  return reason === undefined ? "Doesn't fit" : `Near miss · ${reason}`;
 }
 
 export function evaluateProductAccess(
