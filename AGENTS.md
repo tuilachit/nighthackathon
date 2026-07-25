@@ -102,8 +102,9 @@ to the repository.
 ### Explicit Non-Goals
 
 - Runtime retailer scraping.
-- Accounts, authentication, user persistence, or database writes.
-- Postgres, a vector database, a data warehouse, or Docker.
+- Scraping in a user request or putting a retailer fetch on the search path.
+- Accounts, authentication, or user-profile persistence.
+- General-purpose databases, a vector database, a data warehouse, or Docker.
 - Runtime 3D model generation.
 - Native mobile applications.
 - Custom furniture generation, parametric furniture, or cut lists.
@@ -263,28 +264,41 @@ interface FurnitureQuery {
 
 ## Catalog and Asset Rules
 
-Use a curated static catalog in `public/data/catalog.json`.
+Use the verified Supabase catalog when its all-or-nothing publication gate is
+green, with `public/data/catalog.json` as the deterministic offline fallback.
+The approved database scope is catalog snapshots and attributed asset metadata
+only; it does not authorize user accounts, XR persistence, or runtime scraping.
 
-- Target 30-50 verified products.
+- Maintain at least 100 active verified products across IKEA, Target, and
+  Wayfair in the online snapshot.
+- Keep at least 18 curated fallback products across the same retailers.
 - Use at least three retailers.
 - Keep one currency for the demo.
 - Verify dimensions, price, image, and live product URL for every hero item.
-- Spot-check the remaining catalog and record verification metadata.
+- Reject every record that lacks exact dimensions or verification metadata.
 - Include six to ten hero products with cached GLB assets.
 - Include USDZ for the small iPhone Quick Look hero set.
 - Use exact-dimension placeholder boxes for products without a 3D model; label
   them honestly.
-- Optimize and locally cache images and 3D assets used in the demo.
+- Cache retailer product images in the public `product-images` bucket and retain
+  their retailer source URL and attribution.
 - Never invent product dimensions.
 - Never scrape retailers at runtime.
+- Run bounded scheduled ingestion only; the app reads Supabase during search.
+- Keep the online-catalog gate at 100 products and three retailers so a partial
+  refresh cannot appear as a finished catalog.
+- Treat the adapters as a hackathon ingestion path. Review retailer terms and
+  move to authorized feeds before commercial production use.
 
 Catalog records should include a stable ID, retailer, name, category, price,
 currency, canonical URL, image, exact dimensions, material/color/style tags,
 verification source/date, and optional GLB/USDZ paths.
 
-The catalog validation script should reject duplicate IDs, missing dimensions,
-invalid URLs, negative prices, unsupported units, and model records without
-matching scale metadata.
+The catalog validation and ingestion scripts should reject duplicate IDs,
+missing dimensions, missing verification or attribution, invalid URLs,
+negative prices, unsupported units, and model records without matching scale
+metadata. Public clients may read active catalog rows and assets through RLS;
+only the scheduled server/CI job may write them.
 
 ## Device and AR Strategy
 

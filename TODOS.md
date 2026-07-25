@@ -6,7 +6,8 @@ off; do not use it to expand scope.
 | Priority | Workstream | Owner | Status | Blocker / next smallest action |
 | --- | --- | --- | --- | --- |
 | P0 | Reproducible install and quality gate | Codex (pre-event) | Done | Keep `npm run verify` green |
-| P0 | Static catalog schema, fixtures, and validator | Codex | Done | 18 all-or-nothing verified records; keep catalog validation green |
+| P0 | Static fallback catalog schema, fixtures, and validator | Codex | Done | 18 all-or-nothing verified records; keep catalog validation green |
+| P0 | Supabase online catalog and scheduled ingestion | Codex | In progress | Dry run passed 36 IKEA / 56 Target / 35 Wayfair; add `SUPABASE_SECRET_KEY`, publish, and run the 100-product live gate |
 | P0 | WebXR three-point footprint feasibility spike | Unassigned | Ready | Test hit-test and `local-floor` on both demo Android phones |
 | P0 | Conservative fit-engine semantics and tests | Codex | Done | Space and advisory access predicates are pure and covered by unit tests |
 | P0 | Manual measurement fallback | Unassigned | Hold for kickoff | Reuse the agreed `SpaceMeasurement` contract |
