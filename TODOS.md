@@ -6,14 +6,14 @@ off; do not use it to expand scope.
 | Priority | Workstream | Owner | Status | Blocker / next smallest action |
 | --- | --- | --- | --- | --- |
 | P0 | Reproducible install and quality gate | Codex (pre-event) | Done | Keep `npm run verify` green |
-| P0 | Static catalog schema, fixtures, and validator | Unassigned | Ready | Agree on shared catalog and dimension types before parallel work |
+| P0 | Static catalog schema, fixtures, and validator | Codex | Done | 18 all-or-nothing verified records; keep catalog validation green |
 | P0 | WebXR three-point footprint feasibility spike | Unassigned | Ready | Test hit-test and `local-floor` on both demo Android phones |
-| P0 | Conservative fit-engine semantics and tests | Unassigned | Ready | Centralize uncertainty and clearance policy; do not couple to UI |
+| P0 | Conservative fit-engine semantics and tests | Codex | Done | Space and advisory access predicates are pure and covered by unit tests |
 | P0 | Manual measurement fallback | Unassigned | Hold for kickoff | Reuse the agreed `SpaceMeasurement` contract |
-| P0 | Fit and near-miss comparison UI | Unassigned | Hold for kickoff | Needs validated catalog records and fit-engine output |
+| P0 | Fit and near-miss comparison UI | Codex | Done | `/fit` separates passing, access-failing, and space near-miss products |
 | P0 | Public HTTPS deployment and device preflight | Unassigned | Ready | Confirm camera permission on deployed origin; record device/browser results |
-| P1 | Hero GLB/USDZ asset set | Unassigned | Ready | Select verified products, optimize assets, and record scale metadata |
-| P1 | Cached demo query and measurement | Unassigned | Ready | Choose one awkward-space story and deterministic fallback |
+| P1 | Hero GLB/USDZ asset set | Codex | Done | Six cached GLB references and three USDZ references use scale-verified procedural assets |
+| P1 | Cached demo query and measurement | Codex | Done | Three deterministic queries use the 900 × 1800 × 350 mm / 820 mm fallback |
 | P1 | True-scale placement and product swap | Unassigned | Hold for kickoff | Preserve the measurement coordinate frame; needs hero assets |
 | P1 | 90-second demo and recovery rehearsal | Unassigned | Blocked | Run after the final deployed path and device preflight |
 | Deferred | Old Build Pack export and prototype persistence | Unassigned | Superseded | Not part of the fit-first Night Hack demo |

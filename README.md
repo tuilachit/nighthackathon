@@ -34,10 +34,12 @@ The new capability is fit-first, cross-retailer furniture search:
 2. Confirm width, depth, height, and measurement uncertainty.
 3. Describe the desired furniture.
 4. Apply a conservative physical-fit predicate before preference ranking.
-5. Compare valid products by retailer, dimensions, price, and clearance.
-6. Keep near misses separate and explain the exact shortfall.
-7. Place selected hero products at true scale and swap without remeasuring.
-8. Open the retailer product page.
+5. When supplied, apply an advisory narrowest-access check and keep failures
+   separate from destination-space near misses.
+6. Compare valid products by retailer, dimensions, price, and clearance.
+7. Keep near misses separate and explain the exact shortfall.
+8. Place selected hero products at true scale and swap without remeasuring.
+9. Open the retailer product page.
 
 The room is the query, not the catalog. AR is the final proof, not the product
 claim. See [`AGENTS.md`](./AGENTS.md) for the binding scope, fit semantics,
@@ -76,8 +78,10 @@ or real credentials.
 
 | Variable | Purpose |
 | --- | --- |
-| `OPENAI_API_KEY` | Optional server-side concept refinement and analysis |
+| `OPENAI_API_KEY` | Optional server-side concept refinement, query parsing, and voice transcription |
 | `OPENAI_VISION_MODEL` | Model used by the optional OpenAI path |
+| `OPENAI_QUERY_MODEL` | Optional override for the furniture-query extraction model |
+| `OPENAI_TRANSCRIPTION_MODEL` | Optional override for the voice transcription model |
 | `ENABLE_MESHY` | Enables optional custom model generation when set to `true` |
 | `MESHY_API_KEY` | Server-side credential for Meshy |
 | `ENABLE_NOTION` | Enables the optional waitlist integration when set to `true` |

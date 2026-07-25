@@ -10,6 +10,7 @@ const NAV_ITEMS: ReadonlyArray<{
   readonly label: string;
 }> = [
   { href: "/", label: "Create" },
+  { href: "/fit", label: "Fit Search" },
   { href: `/result/${DEFAULT_ID}`, label: "Result" },
   { href: `/ar/${DEFAULT_ID}`, label: "AR" },
   { href: `/build-pack/${DEFAULT_ID}`, label: "Build Pack" },
