@@ -1,0 +1,1441 @@
+[
+  {
+    "id": "ikea-20522046",
+    "name": "BILLY Bookcase - white 31 1/2x11x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 79,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 2019,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "white",
+      "2x11x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0625599_pe692385_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0625599_pe692385_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-20522046/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-20522046/",
+      "verifiedAt": "2026-07-25T05:12:14.912Z"
+    }
+  },
+  {
+    "id": "ikea-40594928",
+    "name": "BILLY Bookcase - blue 15 3/4x11x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 59,
+    "dimensions": {
+      "widthMm": 400,
+      "heightMm": 2019,
+      "depthMm": 279
+    },
+    "materials": [],
+    "colors": [
+      "blue"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "blue",
+      "4x11x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-blue__1471385_pe997200_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-blue__1471385_pe997200_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-blue-40594928/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-blue-40594928/",
+      "verifiedAt": "2026-07-25T05:12:18.575Z"
+    }
+  },
+  {
+    "id": "ikea-90522043",
+    "name": "BILLY Bookcase - white 31 1/2x11x41 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 49,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 1060,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "white",
+      "2x11x41"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644780_pe702956_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644780_pe702956_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
+      "verifiedAt": "2026-07-25T05:12:22.068Z"
+    }
+  },
+  {
+    "id": "ikea-60413502",
+    "name": "HEMNES Bookcase - white stain/light brown 35 3/8x77 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 329,
+    "dimensions": {
+      "widthMm": 899,
+      "heightMm": 1969,
+      "depthMm": 371
+    },
+    "materials": [
+      "solid wood"
+    ],
+    "colors": [
+      "brown",
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "hemnes",
+      "bookcase",
+      "white",
+      "stain",
+      "light",
+      "brown",
+      "8x77"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/hemnes-bookcase-white-stain-light-brown__0980092_pe814822_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/hemnes-bookcase-white-stain-light-brown__0980092_pe814822_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/hemnes-bookcase-white-stain-light-brown-60413502/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/hemnes-bookcase-white-stain-light-brown-60413502/",
+      "verifiedAt": "2026-07-25T05:12:24.815Z"
+    }
+  },
+  {
+    "id": "ikea-40301223",
+    "name": "BRIMNES Bookcase - black 23 5/8x74 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 149,
+    "dimensions": {
+      "widthMm": 600,
+      "heightMm": 1899,
+      "depthMm": 349
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "black"
+    ],
+    "styles": [],
+    "keywords": [
+      "brimnes",
+      "bookcase",
+      "black",
+      "8x74"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/brimnes-bookcase-black__0427999_pe583197_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/brimnes-bookcase-black__0427999_pe583197_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/brimnes-bookcase-black-40301223/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/brimnes-bookcase-black-40301223/",
+      "verifiedAt": "2026-07-25T05:12:27.464Z"
+    }
+  },
+  {
+    "id": "ikea-89581514",
+    "name": "BILLY Bookcase - white 63x11x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 158,
+    "dimensions": {
+      "widthMm": 1600,
+      "heightMm": 2019,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "white",
+      "63x11x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644156_pe702452_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644156_pe702452_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s89581514/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s89581514/",
+      "verifiedAt": "2026-07-25T05:12:30.292Z"
+    }
+  },
+  {
+    "id": "ikea-59638673",
+    "name": "BILLY Bookcase with height extension unit - white 31 1/2x11x93 1/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 109,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 2369,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "with",
+      "height",
+      "extension",
+      "unit",
+      "white",
+      "2x11x93"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-height-extension-unit-white__0934889_pe792600_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-height-extension-unit-white__0934889_pe792600_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-white-s59638673/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-white-s59638673/",
+      "verifiedAt": "2026-07-25T05:12:33.623Z"
+    }
+  },
+  {
+    "id": "ikea-09483367",
+    "name": "BILLY / OXBERG Bookcase with doors - oak effect 31 1/2x11 3/4x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 159,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 2019,
+      "depthMm": 298
+    },
+    "materials": [],
+    "colors": [
+      "oak"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "oxberg",
+      "bookcase",
+      "with",
+      "doors",
+      "oak",
+      "effect",
+      "2x11",
+      "4x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-oxberg-bookcase-with-doors-oak-effect__1097018_pe864668_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-oxberg-bookcase-with-doors-oak-effect__1097018_pe864668_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-oak-effect-s09483367/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-oak-effect-s09483367/",
+      "verifiedAt": "2026-07-25T05:12:36.997Z"
+    }
+  },
+  {
+    "id": "ikea-19581517",
+    "name": "BILLY Bookcase combination - white 94 1/2x11x41 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 147,
+    "dimensions": {
+      "widthMm": 2400,
+      "heightMm": 1060,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "combination",
+      "white",
+      "2x11x41"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-combination-white__0644497_pe702733_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-combination-white__0644497_pe702733_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-combination-white-s19581517/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-combination-white-s19581517/",
+      "verifiedAt": "2026-07-25T05:12:41.128Z"
+    }
+  },
+  {
+    "id": "ikea-20436713",
+    "name": "BAGGEBO Bookcase - white 19 5/8x9 7/8x63 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 32.99,
+    "dimensions": {
+      "widthMm": 498,
+      "heightMm": 1600,
+      "depthMm": 251
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "baggebo",
+      "bookcase",
+      "white",
+      "8x9",
+      "8x63"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/baggebo-bookcase-white__0981552_pe815388_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/baggebo-bookcase-white__0981552_pe815388_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-20436713/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-20436713/",
+      "verifiedAt": "2026-07-25T05:12:44.322Z"
+    }
+  },
+  {
+    "id": "ikea-10522037",
+    "name": "BILLY Bookcase - white 15 3/4x11x41 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 39,
+    "dimensions": {
+      "widthMm": 400,
+      "heightMm": 1060,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "white",
+      "4x11x41"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0627110_pe693186_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0627110_pe693186_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-10522037/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-10522037/",
+      "verifiedAt": "2026-07-25T05:12:53.881Z"
+    }
+  },
+  {
+    "id": "ikea-20323805",
+    "name": "BILLY Bookcase with glass doors - dark blue 31 1/2x11 3/4x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 199,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 2019,
+      "depthMm": 298
+    },
+    "materials": [
+      "wood (including board)",
+      "glass"
+    ],
+    "colors": [
+      "blue"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "with",
+      "glass",
+      "doors",
+      "dark",
+      "blue",
+      "2x11",
+      "4x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-glass-doors-dark-blue__0429309_pe584188_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-glass-doors-dark-blue__0429309_pe584188_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-glass-doors-dark-blue-20323805/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-glass-doors-dark-blue-20323805/",
+      "verifiedAt": "2026-07-25T05:12:56.554Z"
+    }
+  },
+  {
+    "id": "ikea-70261131",
+    "name": "GERSBY Bookcase - white 23 5/8x70 7/8 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 59,
+    "dimensions": {
+      "widthMm": 600,
+      "heightMm": 1800,
+      "depthMm": 241
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "gersby",
+      "bookcase",
+      "white",
+      "8x70"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/gersby-bookcase-white__0251910_pe390723_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/gersby-bookcase-white__0251910_pe390723_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/gersby-bookcase-white-70261131/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/gersby-bookcase-white-70261131/",
+      "verifiedAt": "2026-07-25T05:13:02.377Z"
+    }
+  },
+  {
+    "id": "ikea-09581891",
+    "name": "BILLY Bookcase with height extension unit - brown walnut effect 15 3/4x11x93 1/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 99,
+    "dimensions": {
+      "widthMm": 400,
+      "heightMm": 2369,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "brown",
+      "walnut"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "with",
+      "height",
+      "extension",
+      "unit",
+      "brown",
+      "walnut",
+      "effect",
+      "4x11x93"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-height-extension-unit-brown-walnut-effect__1269125_pe929015_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-height-extension-unit-brown-walnut-effect__1269125_pe929015_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-brown-walnut-effect-s09581891/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-brown-walnut-effect-s09581891/",
+      "verifiedAt": "2026-07-25T05:13:13.853Z"
+    }
+  },
+  {
+    "id": "ikea-19217721",
+    "name": "BILLY Bookcase - dark blue 63x11 3/4x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 398,
+    "dimensions": {
+      "widthMm": 1600,
+      "heightMm": 2019,
+      "depthMm": 298
+    },
+    "materials": [],
+    "colors": [
+      "blue"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "dark",
+      "blue",
+      "63x11",
+      "4x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-dark-blue__0503878_pe632961_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-dark-blue__0503878_pe632961_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-dark-blue-s19217721/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-dark-blue-s19217721/",
+      "verifiedAt": "2026-07-25T05:13:22.284Z"
+    }
+  },
+  {
+    "id": "ikea-59581515",
+    "name": "BILLY Bookcase - white 78 3/4x11x93 1/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 302,
+    "dimensions": {
+      "widthMm": 2000,
+      "heightMm": 2369,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "white",
+      "4x11x93"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644159_pe702455_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644159_pe702455_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s59581515/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s59581515/",
+      "verifiedAt": "2026-07-25T05:13:26.508Z"
+    }
+  },
+  {
+    "id": "ikea-70481171",
+    "name": "BAGGEBO Bookcase - white 19 5/8x11 3/4x31 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 24.99,
+    "dimensions": {
+      "widthMm": 498,
+      "heightMm": 800,
+      "depthMm": 298
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "baggebo",
+      "bookcase",
+      "white",
+      "8x11",
+      "4x31"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/baggebo-bookcase-white__1018918_pe831218_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/baggebo-bookcase-white__1018918_pe831218_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-70481171/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-70481171/",
+      "verifiedAt": "2026-07-25T05:13:30.225Z"
+    }
+  },
+  {
+    "id": "ikea-20415046",
+    "name": "HAUGA High cabinet with 2 doors - white 27 1/2x78 3/8 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 199,
+    "dimensions": {
+      "widthMm": 699,
+      "heightMm": 1991,
+      "depthMm": 460
+    },
+    "materials": [],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "hauga",
+      "high",
+      "cabinet",
+      "with",
+      "doors",
+      "white",
+      "2x78"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/hauga-high-cabinet-with-2-doors-white__0914112_pe783851_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/hauga-high-cabinet-with-2-doors-white__0914112_pe783851_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/hauga-high-cabinet-with-2-doors-white-20415046/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/hauga-high-cabinet-with-2-doors-white-20415046/",
+      "verifiedAt": "2026-07-25T05:13:34.378Z"
+    }
+  },
+  {
+    "id": "ikea-80525278",
+    "name": "BILLY Height extension unit - white 31x11x14 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 30,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 349,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "height",
+      "extension",
+      "unit",
+      "white",
+      "31x11x14"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-height-extension-unit-white__0720622_pe732722_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-height-extension-unit-white__0720622_pe732722_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-white-80525278/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-white-80525278/",
+      "verifiedAt": "2026-07-25T05:13:37.687Z"
+    }
+  },
+  {
+    "id": "ikea-40178591",
+    "name": "LAIVA Bookcase - black-brown 24 3/8x65 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 39.99,
+    "dimensions": {
+      "widthMm": 619,
+      "heightMm": 1651,
+      "depthMm": 241
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "black",
+      "brown"
+    ],
+    "styles": [],
+    "keywords": [
+      "laiva",
+      "bookcase",
+      "black-brown",
+      "8x65"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/laiva-bookcase-black-brown__0644278_pe702556_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/laiva-bookcase-black-brown__0644278_pe702556_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/laiva-bookcase-black-brown-40178591/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/laiva-bookcase-black-brown-40178591/",
+      "verifiedAt": "2026-07-25T05:13:41.692Z"
+    }
+  },
+  {
+    "id": "ikea-59581558",
+    "name": "BILLY / OXBERG Bookcase with doors - white 31 1/2x11 3/4x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 169,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 2019,
+      "depthMm": 298
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "oxberg",
+      "bookcase",
+      "with",
+      "doors",
+      "white",
+      "2x11",
+      "4x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-oxberg-bookcase-with-doors-white__0669128_pe714860_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-oxberg-bookcase-with-doors-white__0669128_pe714860_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-white-s59581558/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-white-s59581558/",
+      "verifiedAt": "2026-07-25T05:13:45.212Z"
+    }
+  },
+  {
+    "id": "ikea-20520354",
+    "name": "SKRUVBY Bookcase - black-blue 23 5/8x55 1/8 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 99,
+    "dimensions": {
+      "widthMm": 600,
+      "heightMm": 1400,
+      "depthMm": 375
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "black",
+      "blue"
+    ],
+    "styles": [],
+    "keywords": [
+      "skruvby",
+      "bookcase",
+      "black-blue",
+      "8x55"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/skruvby-bookcase-black-blue__1128172_pe876451_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/skruvby-bookcase-black-blue__1128172_pe876451_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/skruvby-bookcase-black-blue-20520354/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/skruvby-bookcase-black-blue-20520354/",
+      "verifiedAt": "2026-07-25T05:13:48.015Z"
+    }
+  },
+  {
+    "id": "ikea-40409935",
+    "name": "KALLAX Shelf unit - white stained oak effect 43 7/8x57 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 129.99,
+    "dimensions": {
+      "widthMm": 1114,
+      "heightMm": 1464,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "beige",
+      "oak",
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "white",
+      "stained",
+      "oak",
+      "effect",
+      "8x57"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white-stained-oak-effect__0601752_pe681622_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white-stained-oak-effect__0601752_pe681622_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-40409935/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-40409935/",
+      "verifiedAt": "2026-07-25T05:14:00.792Z"
+    }
+  },
+  {
+    "id": "ikea-50481172",
+    "name": "BAGGEBO Shelf unit - metal/white 23 5/8x9 7/8x45 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 24.99,
+    "dimensions": {
+      "widthMm": 600,
+      "heightMm": 1159,
+      "depthMm": 251
+    },
+    "materials": [
+      "metal"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "baggebo",
+      "shelf",
+      "unit",
+      "metal",
+      "white",
+      "8x9",
+      "8x45"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/baggebo-shelf-unit-metal-white__0981562_pe815396_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/baggebo-shelf-unit-metal-white__0981562_pe815396_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/baggebo-shelf-unit-metal-white-50481172/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-shelf-unit-metal-white-50481172/",
+      "verifiedAt": "2026-07-25T05:14:04.524Z"
+    }
+  },
+  {
+    "id": "ikea-70339291",
+    "name": "FJÄLLBO Shelf unit - black 39 3/8x53 1/2 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 149,
+    "dimensions": {
+      "widthMm": 1000,
+      "heightMm": 1359,
+      "depthMm": 359
+    },
+    "materials": [
+      "metal",
+      "solid wood"
+    ],
+    "colors": [
+      "black",
+      "brown"
+    ],
+    "styles": [
+      "rustic"
+    ],
+    "keywords": [
+      "llbo",
+      "shelf",
+      "unit",
+      "black",
+      "8x53"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/fjaellbo-shelf-unit-black__0473388_pe614539_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/fjaellbo-shelf-unit-black__0473388_pe614539_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/fjaellbo-shelf-unit-black-70339291/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/fjaellbo-shelf-unit-black-70339291/",
+      "verifiedAt": "2026-07-25T05:14:16.862Z"
+    }
+  },
+  {
+    "id": "ikea-40275846",
+    "name": "KALLAX Shelf unit - black-brown 16 3/8x57 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 49.99,
+    "dimensions": {
+      "widthMm": 416,
+      "heightMm": 1464,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "black",
+      "brown"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "black-brown",
+      "8x57"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-black-brown__0625059_pe692080_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-black-brown__0625059_pe692080_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-40275846/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-40275846/",
+      "verifiedAt": "2026-07-25T05:14:24.250Z"
+    }
+  },
+  {
+    "id": "ikea-20213312",
+    "name": "VITTSJÖ Shelf unit - black-brown/glass 39 3/8x68 7/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 129,
+    "dimensions": {
+      "widthMm": 1000,
+      "heightMm": 1749,
+      "depthMm": 359
+    },
+    "materials": [
+      "wood (including board)",
+      "metal"
+    ],
+    "colors": [
+      "black",
+      "brown"
+    ],
+    "styles": [],
+    "keywords": [
+      "vittsj",
+      "shelf",
+      "unit",
+      "black-brown",
+      "glass",
+      "8x68"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/vittsjoe-shelf-unit-black-brown-glass__0644373_pe702638_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/vittsjoe-shelf-unit-black-brown-glass__0644373_pe702638_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-black-brown-glass-20213312/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-black-brown-glass-20213312/",
+      "verifiedAt": "2026-07-25T05:14:27.676Z"
+    }
+  },
+  {
+    "id": "ikea-60282186",
+    "name": "LACK Wall shelf unit - white 11 3/4x74 3/4 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 99.99,
+    "dimensions": {
+      "widthMm": 298,
+      "heightMm": 1899,
+      "depthMm": 279
+    },
+    "materials": [],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "lack",
+      "wall",
+      "shelf",
+      "unit",
+      "white",
+      "4x74"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/lack-wall-shelf-unit-white__0246565_pe385541_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/lack-wall-shelf-unit-white__0246565_pe385541_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/lack-wall-shelf-unit-white-60282186/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/lack-wall-shelf-unit-white-60282186/",
+      "verifiedAt": "2026-07-25T05:14:42.757Z"
+    }
+  },
+  {
+    "id": "ikea-70301542",
+    "name": "KALLAX Shelf unit - black-brown 71 5/8x71 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 249.99,
+    "dimensions": {
+      "widthMm": 1819,
+      "heightMm": 1819,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "black",
+      "brown"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "black-brown",
+      "8x71"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-black-brown__0644183_pe702465_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-black-brown__0644183_pe702465_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-70301542/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-70301542/",
+      "verifiedAt": "2026-07-25T05:14:50.228Z"
+    }
+  },
+  {
+    "id": "ikea-50419972",
+    "name": "JONAXEL Shelf unit - white 31 1/2x15x63 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 69.99,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 1600,
+      "depthMm": 381
+    },
+    "materials": [
+      "metal"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "jonaxel",
+      "shelf",
+      "unit",
+      "white",
+      "2x15x63"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/jonaxel-shelf-unit-white__0678052_pe719167_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/jonaxel-shelf-unit-white__0678052_pe719167_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/jonaxel-shelf-unit-white-50419972/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/jonaxel-shelf-unit-white-50419972/",
+      "verifiedAt": "2026-07-25T05:14:54.932Z"
+    }
+  },
+  {
+    "id": "ikea-40631638",
+    "name": "KALLAX Shelf unit - white 16 3/8x57 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 49.99,
+    "dimensions": {
+      "widthMm": 416,
+      "heightMm": 1464,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "white",
+      "8x57"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white__0627095_pe693171_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white__0627095_pe693171_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-40631638/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-40631638/",
+      "verifiedAt": "2026-07-25T05:14:57.802Z"
+    }
+  },
+  {
+    "id": "ikea-90301555",
+    "name": "KALLAX Shelf unit - white 30 1/8x16 1/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 34.99,
+    "dimensions": {
+      "widthMm": 765,
+      "heightMm": 410,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "white",
+      "8x16"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white__0383004_pe557240_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white__0383004_pe557240_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-90301555/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-90301555/",
+      "verifiedAt": "2026-07-25T05:15:01.613Z"
+    }
+  },
+  {
+    "id": "ikea-50214678",
+    "name": "VITTSJÖ Shelf unit - black-brown/glass 20 1/8x68 7/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 79,
+    "dimensions": {
+      "widthMm": 511,
+      "heightMm": 1749,
+      "depthMm": 359
+    },
+    "materials": [
+      "wood (including board)",
+      "metal"
+    ],
+    "colors": [
+      "black",
+      "brown"
+    ],
+    "styles": [],
+    "keywords": [
+      "vittsj",
+      "shelf",
+      "unit",
+      "black-brown",
+      "glass",
+      "8x68"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/vittsjoe-shelf-unit-black-brown-glass__0644374_pe702640_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/vittsjoe-shelf-unit-black-brown-glass__0644374_pe702640_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-black-brown-glass-50214678/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-black-brown-glass-50214678/",
+      "verifiedAt": "2026-07-25T05:15:05.128Z"
+    }
+  },
+  {
+    "id": "ikea-00415599",
+    "name": "KALLAX Shelf unit - white 43 7/8x43 7/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 99.99,
+    "dimensions": {
+      "widthMm": 1114,
+      "heightMm": 1114,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "white",
+      "8x43"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white__1509637_pe1009773_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white__1509637_pe1009773_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-00415599/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-00415599/",
+      "verifiedAt": "2026-07-25T05:15:08.246Z"
+    }
+  },
+  {
+    "id": "ikea-10324513",
+    "name": "KALLAX Shelf unit - white stained oak effect 57 7/8x57 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 179.99,
+    "dimensions": {
+      "widthMm": 1470,
+      "heightMm": 1464,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "beige",
+      "oak",
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "white",
+      "stained",
+      "oak",
+      "effect",
+      "8x57"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white-stained-oak-effect__0459244_pe606045_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white-stained-oak-effect__0459244_pe606045_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-10324513/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-10324513/",
+      "verifiedAt": "2026-07-25T05:15:12.610Z"
+    }
+  },
+  {
+    "id": "ikea-20423720",
+    "name": "KALLAX Insert with 1 shelf - white 13x13 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 15,
+    "dimensions": {
+      "widthMm": 330,
+      "heightMm": 330,
+      "depthMm": 359
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "insert",
+      "with",
+      "shelf",
+      "white",
+      "13x13"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-insert-with-1-shelf-white__0627487_pe693406_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-insert-with-1-shelf-white__0627487_pe693406_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-1-shelf-white-20423720/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-1-shelf-white-20423720/",
+      "verifiedAt": "2026-07-25T05:15:15.602Z"
+    }
+  },
+  {
+    "id": "ikea-50616816",
+    "name": "IKEA PS 2026 Shelf unit - pine 63x13 3/4x63 1/4 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 299,
+    "dimensions": {
+      "widthMm": 1600,
+      "heightMm": 1607,
+      "depthMm": 349
+    },
+    "materials": [],
+    "colors": [
+      "pine"
+    ],
+    "styles": [],
+    "keywords": [
+      "ikea",
+      "2026",
+      "shelf",
+      "unit",
+      "pine",
+      "63x13",
+      "4x63"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/ikea-ps-2026-shelf-unit-pine__1479132_pe999932_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/ikea-ps-2026-shelf-unit-pine__1479132_pe999932_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/ikea-ps-2026-shelf-unit-pine-50616816/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/ikea-ps-2026-shelf-unit-pine-50616816/",
+      "verifiedAt": "2026-07-25T05:15:19.276Z"
+    }
+  },
+  {
+    "id": "ikea-20278167",
+    "name": "KALLAX Insert with door - white 13x13 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 15,
+    "dimensions": {
+      "widthMm": 330,
+      "heightMm": 330,
+      "depthMm": 371
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "insert",
+      "with",
+      "door",
+      "white",
+      "13x13"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-insert-with-door-white__0640668_pe699973_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-insert-with-door-white__0640668_pe699973_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-door-white-20278167/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-door-white-20278167/",
+      "verifiedAt": "2026-07-25T05:15:22.064Z"
+    }
+  },
+  {
+    "id": "ikea-39407070",
+    "name": "IVAR Shelf unit - pine 35x19 5/8x70 1/2 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 155,
+    "dimensions": {
+      "widthMm": 889,
+      "heightMm": 1791,
+      "depthMm": 498
+    },
+    "materials": [],
+    "colors": [
+      "pine"
+    ],
+    "styles": [],
+    "keywords": [
+      "ivar",
+      "shelf",
+      "unit",
+      "pine",
+      "35x19",
+      "8x70"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/ivar-shelf-unit-pine__0578810_pe669773_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/ivar-shelf-unit-pine__0578810_pe669773_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/ivar-shelf-unit-pine-s39407070/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/ivar-shelf-unit-pine-s39407070/",
+      "verifiedAt": "2026-07-25T05:15:29.041Z"
+    }
+  },
+  {
+    "id": "ikea-10305802",
+    "name": "VITTSJÖ Shelf unit - white/glass 39 3/8x36 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 59,
+    "dimensions": {
+      "widthMm": 1000,
+      "heightMm": 930,
+      "depthMm": 359
+    },
+    "materials": [
+      "wood (including board)",
+      "metal"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "vittsj",
+      "shelf",
+      "unit",
+      "white",
+      "glass",
+      "8x36"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/vittsjoe-shelf-unit-white-glass__0767559_pe754141_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/vittsjoe-shelf-unit-white-glass__0767559_pe754141_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-white-glass-10305802/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-white-glass-10305802/",
+      "verifiedAt": "2026-07-25T05:15:31.850Z"
+    }
+  },
+  {
+    "id": "ikea-69563988",
+    "name": "LÅDMAKARE Storage combination w sliding doors - with 9 shelves/oak effect 93 3/4x13 3/4x83 5/8 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 415,
+    "dimensions": {
+      "widthMm": 2381,
+      "heightMm": 2124,
+      "depthMm": 349
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "beige",
+      "oak"
+    ],
+    "styles": [],
+    "keywords": [
+      "dmakare",
+      "storage",
+      "combination",
+      "sliding",
+      "doors",
+      "with",
+      "shelves",
+      "oak",
+      "effect",
+      "4x13",
+      "4x83"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/ladmakare-storage-combination-w-sliding-doors-with-9-shelves-oak-effect__1377065_pe960730_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/ladmakare-storage-combination-w-sliding-doors-with-9-shelves-oak-effect__1377065_pe960730_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/ladmakare-storage-combination-w-sliding-doors-with-9-shelves-oak-effect-s69563988/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/ladmakare-storage-combination-w-sliding-doors-with-9-shelves-oak-effect-s69563988/",
+      "verifiedAt": "2026-07-25T05:15:35.151Z"
+    }
+  }
+]

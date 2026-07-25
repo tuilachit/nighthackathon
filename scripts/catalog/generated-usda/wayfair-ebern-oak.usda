@@ -1,0 +1,74 @@
+#usda 1.0
+(
+    defaultPrim = "wayfair_ebern_oak"
+    metersPerUnit = 1
+    upAxis = "Y"
+)
+
+def Xform "wayfair_ebern_oak"
+{
+    def Cube "Part1"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.55, 0.32, 0.16)]
+        double3 xformOp:translate = (-0.28669999999999995, 0.8765000000000001, 0)
+        float3 xformOp:scale = (0.0366, 1.7530000000000001, 0.231)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+    def Cube "Part2"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.55, 0.32, 0.16)]
+        double3 xformOp:translate = (0.28669999999999995, 0.8765000000000001, 0)
+        float3 xformOp:scale = (0.0366, 1.7530000000000001, 0.231)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+    def Cube "Part3"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.55, 0.32, 0.16)]
+        double3 xformOp:translate = (0, 0.052590000000000005, 0)
+        float3 xformOp:scale = (0.5367999999999999, 0.10518000000000001, 0.231)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+    def Cube "Part4"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.55, 0.32, 0.16)]
+        double3 xformOp:translate = (0, 1.70041, 0)
+        float3 xformOp:scale = (0.5367999999999999, 0.10518000000000001, 0.231)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+    def Cube "Part5"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.55, 0.32, 0.16)]
+        double3 xformOp:translate = (0, 0.46454500000000004, 0)
+        float3 xformOp:scale = (0.5367999999999999, 0.07012, 0.231)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+    def Cube "Part6"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.55, 0.32, 0.16)]
+        double3 xformOp:translate = (0, 0.8765000000000001, 0)
+        float3 xformOp:scale = (0.5367999999999999, 0.07012, 0.231)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+    def Cube "Part7"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.55, 0.32, 0.16)]
+        double3 xformOp:translate = (0, 1.2884550000000001, 0)
+        float3 xformOp:scale = (0.5367999999999999, 0.07012, 0.231)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+    def Cube "Part8"
+    {
+        double size = 1
+        color3f[] primvars:displayColor = [(0.55, 0.32, 0.16)]
+        double3 xformOp:translate = (0, 0.8765000000000001, 0.10857)
+        float3 xformOp:scale = (0.5367999999999999, 1.54264, 0.01386)
+        uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+    }
+}

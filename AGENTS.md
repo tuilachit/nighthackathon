@@ -41,9 +41,10 @@ correct claim is:
 
 Real installation can still be affected by skirting boards, radiators, uneven
 walls, plugs, drawer and door operation, assembly requirements, and the delivery
-path. Show this limitation clearly but concisely. Do not implement doorway-path
-validation during the hackathon; rotational access geometry is a separate
-problem.
+path. Show this limitation clearly but concisely. The fit/search lane may apply
+one advisory `accessWidthMm` predicate to the smallest transport cross-section.
+Do not claim this single-width check simulates turns, diagonals, packaging,
+disassembly, ceiling height, or multi-segment route geometry.
 
 ## Hackathon Context
 
@@ -87,6 +88,7 @@ to the repository.
 - Manual width, depth, and height entry that works on every device.
 - Android WebXR floor-footprint measurement.
 - Conservative fit filtering with measurement uncertainty.
+- Advisory narrowest-access filtering when `accessWidthMm` is supplied.
 - Support for width/depth orientation swapping while keeping height upright.
 - A comparison view across multiple retailers.
 - Exact product dimensions and remaining clearance on every result.
@@ -100,14 +102,15 @@ to the repository.
 ### Explicit Non-Goals
 
 - Runtime retailer scraping.
-- Accounts, authentication, user persistence, or database writes.
-- Postgres, a vector database, a data warehouse, or Docker.
+- Scraping in a user request or putting a retailer fetch on the search path.
+- Accounts, authentication, or user-profile persistence.
+- General-purpose databases, a vector database, a data warehouse, or Docker.
 - Runtime 3D model generation.
 - Native mobile applications.
 - Custom furniture generation, parametric furniture, or cut lists.
 - Checkout or payments.
 - Whole-room scanning.
-- Doorway/delivery-path fit guarantees.
+- Full doorway/delivery-path geometry or fit guarantees.
 - Supporting every furniture category or retailer.
 
 When time is tight, cut breadth, animation, and AI sophistication before cutting
@@ -162,6 +165,7 @@ interface SpaceMeasurement {
   heightMm: number;
   depthMm: number;
   uncertaintyMm: number;
+  accessWidthMm?: number;
   source: "webxr" | "manual" | "demo";
 }
 
@@ -211,6 +215,14 @@ Keep these values centralized and visible in tests. A smaller positive clearance
 is not automatically "better"; rank it after category, budget, and preference
 matching. Never mix failing products into the "Fits" list.
 
+For access evaluation, sort width, depth, and height from smallest to largest,
+using width, depth, then height as the fixed tie order. The two smallest axes
+form the transport cross-section. Apply measurement uncertainty and two side
+clearances to the supplied opening. Boundary equality passes. Keep products
+that fit the destination space but fail this advisory access check in a distinct
+`fitsSpaceButFailsAccess` collection. When `accessWidthMm` is absent, skip the
+predicate and remove all access language from the UI.
+
 Required fit-engine tests:
 
 - Exact boundary behavior.
@@ -252,28 +264,42 @@ interface FurnitureQuery {
 
 ## Catalog and Asset Rules
 
-Use a curated static catalog in `public/data/catalog.json`.
+Use the verified Supabase catalog only when its all-or-nothing publication gate
+is green. The old `public/data/catalog.json` fixture may support deterministic
+unit tests but must never render as a runtime product fallback. The approved
+database scope is catalog snapshots and attributed asset metadata only; it does
+not authorize user accounts, XR persistence, or runtime scraping.
 
-- Target 30-50 verified products.
+- Maintain at least 100 active verified products across IKEA, Target, and
+  Wayfair in the online snapshot.
 - Use at least three retailers.
 - Keep one currency for the demo.
 - Verify dimensions, price, image, and live product URL for every hero item.
-- Spot-check the remaining catalog and record verification metadata.
+- Reject every record that lacks exact dimensions or verification metadata.
 - Include six to ten hero products with cached GLB assets.
 - Include USDZ for the small iPhone Quick Look hero set.
 - Use exact-dimension placeholder boxes for products without a 3D model; label
   them honestly.
-- Optimize and locally cache images and 3D assets used in the demo.
+- Cache retailer product images in the public `product-images` bucket and retain
+  their retailer source URL and attribution.
 - Never invent product dimensions.
 - Never scrape retailers at runtime.
+- Run bounded scheduled ingestion only; the app reads Supabase during search.
+- Keep the online-catalog gate at 100 products and three retailers so a partial
+  refresh cannot appear as a finished catalog.
+- Show a clear catalog-unavailable state with no products when that gate fails.
+- Treat the adapters as a hackathon ingestion path. Review retailer terms and
+  move to authorized feeds before commercial production use.
 
 Catalog records should include a stable ID, retailer, name, category, price,
 currency, canonical URL, image, exact dimensions, material/color/style tags,
 verification source/date, and optional GLB/USDZ paths.
 
-The catalog validation script should reject duplicate IDs, missing dimensions,
-invalid URLs, negative prices, unsupported units, and model records without
-matching scale metadata.
+The catalog validation and ingestion scripts should reject duplicate IDs,
+missing dimensions, missing verification or attribution, invalid URLs,
+negative prices, unsupported units, and model records without matching scale
+metadata. Public clients may read active catalog rows and assets through RLS;
+only the scheduled server/CI job may write them.
 
 ## Device and AR Strategy
 

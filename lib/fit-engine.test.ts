@@ -1,150 +1,113 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_CLEARANCE_POLICY, evaluateFit, formatFitLabel } from "./fit-engine";
-import type { ProductDimensions } from "./measurement-geometry";
-import type { SpaceMeasurement } from "./measurement-geometry";
+import type { ProductDimensions, SpaceMeasurement } from "./catalog-types";
+import { evaluateProductAccess, evaluateProductFit, getSmallestCrossSection } from "./fit-engine";
+import { DEFAULT_CLEARANCE_POLICY } from "./fit-config";
 
-function space(overrides: Partial<SpaceMeasurement> = {}): SpaceMeasurement {
-  return { widthMm: 800, depthMm: 400, heightMm: 900, uncertaintyMm: 0, source: "manual", ...overrides };
-}
+const measurement: SpaceMeasurement = {
+  widthMm: 900,
+  heightMm: 1800,
+  depthMm: 350,
+  uncertaintyMm: 25,
+  accessWidthMm: 820,
+  source: "demo",
+};
 
-function product(overrides: Partial<ProductDimensions> = {}): ProductDimensions {
-  return { widthMm: 760, depthMm: 380, heightMm: 890, ...overrides };
-}
-
-describe("evaluateFit — boundary behavior", () => {
-  it("fits exactly when every clearance lands on zero", () => {
-    const result = evaluateFit(space(), product(), DEFAULT_CLEARANCE_POLICY);
-
+describe("evaluateProductFit", () => {
+  it("passes an exact safety boundary", () => {
+    const result = evaluateProductFit(
+      { widthMm: 835, heightMm: 1765, depthMm: 305 },
+      measurement,
+      DEFAULT_CLEARANCE_POLICY,
+    );
     expect(result.fits).toBe(true);
-    expect(result.widthClearanceMm).toBe(0);
-    expect(result.depthClearanceMm).toBe(0);
-    expect(result.heightClearanceMm).toBe(0);
     expect(result.minimumClearanceMm).toBe(0);
   });
-});
 
-describe("evaluateFit — orientation selection", () => {
-  it("fits by default orientation when the rotated orientation cannot work", () => {
-    const result = evaluateFit(space({ uncertaintyMm: 0 }), product({ widthMm: 700, depthMm: 300, heightMm: 850 }));
-
-    expect(result.fits).toBe(true);
-    expect(result.orientation).toBe("default");
-    expect(result.minimumClearanceMm).toBe(40);
-  });
-
-  it("fits only when rotated 90 degrees", () => {
-    const narrowDeepSpace = space({ widthMm: 400, depthMm: 800, heightMm: 900, uncertaintyMm: 0 });
-    const result = evaluateFit(narrowDeepSpace, product({ widthMm: 380, depthMm: 200, heightMm: 850 }));
-
+  it("chooses a rotated orientation when only it fits", () => {
+    const result = evaluateProductFit(
+      { widthMm: 300, heightMm: 1200, depthMm: 700 },
+      { ...measurement, widthMm: 800, depthMm: 380 },
+      DEFAULT_CLEARANCE_POLICY,
+    );
     expect(result.fits).toBe(true);
     expect(result.orientation).toBe("rotated-90");
-    expect(result.minimumClearanceMm).toBe(40);
   });
-});
 
-describe("evaluateFit — height never rotates", () => {
-  it("fails on height regardless of orientation", () => {
-    const squareSpace = space({ widthMm: 800, depthMm: 800, heightMm: 900, uncertaintyMm: 0 });
-    const tallProduct = product({ widthMm: 200, depthMm: 200, heightMm: 895 });
-    const result = evaluateFit(squareSpace, tallProduct);
-
+  it("reports a stable height failure", () => {
+    const result = evaluateProductFit(
+      { widthMm: 400, heightMm: 1800, depthMm: 250 },
+      measurement,
+      DEFAULT_CLEARANCE_POLICY,
+    );
     expect(result.fits).toBe(false);
-    expect(result.orientation).toBe("default");
-    expect(result.heightClearanceMm).toBe(-5);
-    expect(result.reasons).toEqual(["5 mm too tall"]);
-  });
-});
-
-describe("evaluateFit — uncertainty and clearance policy can flip a nominal fit", () => {
-  it("turns a zero-margin fit into a near miss once scan uncertainty is applied", () => {
-    const nominal = evaluateFit(space({ uncertaintyMm: 0 }), product());
-    const withUncertainty = evaluateFit(space({ uncertaintyMm: 10 }), product());
-
-    expect(nominal.fits).toBe(true);
-    expect(withUncertainty.fits).toBe(false);
-    expect(withUncertainty.widthClearanceMm).toBe(-10);
+    expect(result.reasons).toContain("35 mm too tall after safety allowance.");
   });
 
-  it("turns a zero-margin fit into a near miss under a stricter clearance policy", () => {
-    const nominal = evaluateFit(space({ uncertaintyMm: 0 }), product(), DEFAULT_CLEARANCE_POLICY);
-    const stricter = evaluateFit(space({ uncertaintyMm: 0 }), product(), { ...DEFAULT_CLEARANCE_POLICY, sideMm: 30 });
-
-    expect(nominal.fits).toBe(true);
-    expect(stricter.fits).toBe(false);
-    expect(stricter.reasons).toEqual(["20 mm too wide"]);
-  });
-});
-
-describe("evaluateFit — invalid input", () => {
-  it("rejects a zero-width space instead of dividing by an empty envelope", () => {
-    const result = evaluateFit(space({ widthMm: 0 }), product());
+  it("allows uncertainty to turn a nominal fit into a near miss", () => {
+    const result = evaluateProductFit(
+      { widthMm: 850, heightMm: 1200, depthMm: 250 },
+      measurement,
+      DEFAULT_CLEARANCE_POLICY,
+    );
     expect(result.fits).toBe(false);
-    expect(result.confidence).toBe("low");
-    expect(result.reasons).toEqual(["Measurement or product dimensions are invalid."]);
+    expect(result.reasons[0]).toBe("15 mm too wide after safety allowance.");
   });
 
-  it("rejects negative product dimensions", () => {
-    const result = evaluateFit(space(), product({ depthMm: -10 }));
+  it("rejects invalid dimensions", () => {
+    const result = evaluateProductFit(
+      { widthMm: 0, heightMm: 100, depthMm: 100 },
+      measurement,
+      DEFAULT_CLEARANCE_POLICY,
+    );
     expect(result.fits).toBe(false);
-    expect(result.reasons).toEqual(["Measurement or product dimensions are invalid."]);
-  });
-
-  it("rejects non-finite (missing/NaN) measurements", () => {
-    const result = evaluateFit(space({ heightMm: Number.NaN }), product());
-    expect(result.fits).toBe(false);
-    expect(result.reasons).toEqual(["Measurement or product dimensions are invalid."]);
+    expect(result.reasons[0]).toBe("Product and space dimensions must be positive numbers.");
   });
 });
 
-describe("evaluateFit — stable reasons and minimum clearance", () => {
-  it("reports every failing dimension with a stable, human-readable reason", () => {
-    const tightSpace = space({ widthMm: 700, depthMm: 350, heightMm: 850, uncertaintyMm: 0 });
-    const result = evaluateFit(tightSpace, product());
+describe("evaluateProductAccess", () => {
+  const product: ProductDimensions = { widthMm: 700, heightMm: 1600, depthMm: 280 };
 
-    expect(result.fits).toBe(false);
-    expect(result.reasons.length).toBeGreaterThan(0);
-    expect(result.minimumClearanceMm).toBe(Math.min(result.widthClearanceMm, result.depthClearanceMm, result.heightClearanceMm));
+  it.each([null, undefined])("skips a missing access width", (accessWidthMm) => {
+    expect(
+      evaluateProductAccess(product, accessWidthMm, 25, DEFAULT_CLEARANCE_POLICY),
+    ).toEqual({ status: "skipped", passes: true });
   });
 
-  it("returns no reasons when the product fits", () => {
-    const result = evaluateFit(space({ uncertaintyMm: 0 }), product({ widthMm: 700, depthMm: 300, heightMm: 850 }));
-    expect(result.fits).toBe(true);
-    expect(result.reasons).toEqual([]);
-  });
-});
-
-describe("evaluateFit — confidence tiers relative to measurement uncertainty", () => {
-  const roomySpace = space({ widthMm: 900, depthMm: 500, heightMm: 1000, uncertaintyMm: 25 });
-
-  it("is high confidence when the margin is at least twice the uncertainty", () => {
-    const result = evaluateFit(roomySpace, product({ widthMm: 700, depthMm: 300, heightMm: 800 }));
-    expect(result.minimumClearanceMm).toBeGreaterThanOrEqual(50);
-    expect(result.confidence).toBe("high");
+  it("passes with positive access clearance", () => {
+    const result = evaluateProductAccess(product, 820, 25, DEFAULT_CLEARANCE_POLICY);
+    expect(result.status).toBe("passed");
+    if (result.status === "passed") {
+      expect(result.clearanceMm).toBe(55);
+    }
   });
 
-  it("is medium confidence when the margin sits between one and two times the uncertainty", () => {
-    const result = evaluateFit(roomySpace, product({ widthMm: 805, depthMm: 300, heightMm: 800 }));
-    expect(result.minimumClearanceMm).toBe(30);
-    expect(result.confidence).toBe("medium");
+  it("passes at the exact boundary", () => {
+    const result = evaluateProductAccess(product, 765, 25, DEFAULT_CLEARANCE_POLICY);
+    expect(result.status).toBe("passed");
+    if (result.status === "passed") {
+      expect(result.clearanceMm).toBe(0);
+    }
   });
 
-  it("is low confidence when the margin is inside the uncertainty band, even if it still fits", () => {
-    const result = evaluateFit(roomySpace, product({ widthMm: 825, depthMm: 300, heightMm: 800 }));
-    expect(result.minimumClearanceMm).toBe(10);
-    expect(result.fits).toBe(true);
-    expect(result.confidence).toBe("low");
-  });
-});
-
-describe("formatFitLabel", () => {
-  it("summarizes a fit with its minimum clearance", () => {
-    const result = evaluateFit(space({ uncertaintyMm: 0 }), product({ widthMm: 700, depthMm: 300, heightMm: 850 }));
-    expect(formatFitLabel(result)).toBe("Fits · 40 mm clear");
+  it("fails with a stable deficit reason", () => {
+    const result = evaluateProductAccess(product, 730, 25, DEFAULT_CLEARANCE_POLICY);
+    expect(result.status).toBe("failed");
+    if (result.status === "failed") {
+      expect(result.deficitMm).toBe(35);
+      expect(result.reason).toBe(
+        "Fits the space, but 35 mm too wide for the 730 mm access opening.",
+      );
+    }
   });
 
-  it("summarizes a near miss with the first stable reason", () => {
-    const squareSpace = space({ widthMm: 800, depthMm: 800, heightMm: 900, uncertaintyMm: 0 });
-    const result = evaluateFit(squareSpace, product({ widthMm: 200, depthMm: 200, heightMm: 895 }));
-    expect(formatFitLabel(result)).toBe("Near miss · 5 mm too tall");
+  it("selects the two smallest dimensions with deterministic ties", () => {
+    expect(getSmallestCrossSection({ widthMm: 300, heightMm: 900, depthMm: 300 })).toEqual([
+      { axis: "width", sizeMm: 300 },
+      { axis: "depth", sizeMm: 300 },
+    ]);
+    expect(getSmallestCrossSection({ widthMm: 700, heightMm: 1600, depthMm: 280 })).toEqual([
+      { axis: "depth", sizeMm: 280 },
+      { axis: "width", sizeMm: 700 },
+    ]);
   });
 });

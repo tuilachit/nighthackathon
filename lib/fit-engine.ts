@@ -1,170 +1,236 @@
-import { roundMm } from "./measurement-geometry";
-import type { ProductDimensions, SpaceMeasurement } from "./measurement-geometry";
+import type {
+  AccessCrossSectionDimension,
+  AccessEvaluation,
+  ClearancePolicy,
+  FitEvaluation,
+  ProductAxis,
+  ProductDimensions,
+  ProductOrientation,
+  SpaceMeasurement,
+} from "./catalog-types";
+import { DEFAULT_CLEARANCE_POLICY } from "./fit-config";
+import type {
+  ProductDimensions as MeasurementProductDimensions,
+  SpaceMeasurement as MeasurementSpaceMeasurement,
+} from "./measurement-geometry";
 
-export type FitOrientation = "default" | "rotated-90";
-export type FitConfidence = "high" | "medium" | "low";
+export { DEFAULT_CLEARANCE_POLICY } from "./fit-config";
+export type { ClearancePolicy, FitEvaluation } from "./catalog-types";
 
-export interface ClearancePolicy {
-  readonly sideMm: number;
-  readonly backMm: number;
-  readonly topMm: number;
+interface OrientationDimensions {
+  readonly orientation: ProductOrientation;
+  readonly widthMm: number;
+  readonly heightMm: number;
+  readonly depthMm: number;
 }
 
-export interface FitEvaluation {
-  readonly fits: boolean;
-  readonly orientation: FitOrientation;
-  readonly widthClearanceMm: number;
-  readonly heightClearanceMm: number;
-  readonly depthClearanceMm: number;
-  readonly minimumClearanceMm: number;
-  readonly confidence: FitConfidence;
-  readonly reasons: readonly string[];
-}
-
-export const DEFAULT_CLEARANCE_POLICY: ClearancePolicy = {
-  sideMm: 20,
-  backMm: 20,
-  topMm: 10,
+const AXIS_TIE_ORDER: Record<ProductAxis, number> = {
+  width: 0,
+  depth: 1,
+  height: 2,
 };
 
-const INVALID_MEASUREMENT_REASON = "Measurement or product dimensions are invalid.";
-
-interface OrientationResult {
-  readonly orientation: FitOrientation;
-  readonly widthClearanceMm: number;
-  readonly depthClearanceMm: number;
-  readonly heightClearanceMm: number;
-  readonly minimumClearanceMm: number;
-}
-
-function isPositiveFiniteNumber(value: number): boolean {
-  return Number.isFinite(value) && value > 0;
-}
-
-function isValidSpaceMeasurement(space: SpaceMeasurement): boolean {
-  return (
-    isPositiveFiniteNumber(space.widthMm) &&
-    isPositiveFiniteNumber(space.depthMm) &&
-    isPositiveFiniteNumber(space.heightMm) &&
-    Number.isFinite(space.uncertaintyMm) &&
-    space.uncertaintyMm >= 0
-  );
-}
-
-function isValidProductDimensions(product: ProductDimensions): boolean {
-  return (
-    isPositiveFiniteNumber(product.widthMm) &&
-    isPositiveFiniteNumber(product.depthMm) &&
-    isPositiveFiniteNumber(product.heightMm)
-  );
-}
-
-function evaluateOrientation(
-  space: SpaceMeasurement,
-  product: ProductDimensions,
+export function evaluateProductFit(
+  dimensions: ProductDimensions,
+  measurement: SpaceMeasurement,
   policy: ClearancePolicy,
-  orientation: FitOrientation,
-): OrientationResult {
-  const availableWidthMm = space.widthMm - space.uncertaintyMm;
-  const availableDepthMm = space.depthMm - space.uncertaintyMm;
-  const availableHeightMm = space.heightMm - space.uncertaintyMm;
+): FitEvaluation {
+  const validationReason = getValidationReason(dimensions, measurement, policy);
+  if (validationReason !== undefined) {
+    return {
+      fits: false,
+      orientation: "default",
+      widthClearanceMm: Number.NEGATIVE_INFINITY,
+      heightClearanceMm: Number.NEGATIVE_INFINITY,
+      depthClearanceMm: Number.NEGATIVE_INFINITY,
+      minimumClearanceMm: Number.NEGATIVE_INFINITY,
+      confidence: "low",
+      reasons: [validationReason],
+    };
+  }
 
-  const footprintWidthMm = orientation === "default" ? product.widthMm : product.depthMm;
-  const footprintDepthMm = orientation === "default" ? product.depthMm : product.widthMm;
+  const candidates = getOrientations(dimensions).map((candidate) =>
+    evaluateOrientation(candidate, measurement, policy),
+  );
 
-  const requiredWidthMm = footprintWidthMm + 2 * policy.sideMm;
-  const requiredDepthMm = footprintDepthMm + policy.backMm;
-  const requiredHeightMm = product.heightMm + policy.topMm;
+  return [...candidates].sort(compareFitCandidates)[0];
+}
 
-  const widthClearanceMm = roundMm(availableWidthMm - requiredWidthMm);
-  const depthClearanceMm = roundMm(availableDepthMm - requiredDepthMm);
-  const heightClearanceMm = roundMm(availableHeightMm - requiredHeightMm);
+/**
+ * Compatibility entry point for the XR lane. Both measurement contracts share
+ * the same dimensional shape; the search engine remains the single fit policy.
+ */
+export function evaluateFit(
+  measurement: MeasurementSpaceMeasurement,
+  dimensions: MeasurementProductDimensions,
+  policy: ClearancePolicy = DEFAULT_CLEARANCE_POLICY,
+): FitEvaluation {
+  return evaluateProductFit(dimensions, measurement, policy);
+}
 
+/** Formats a compact result for the XR placement view. */
+export function formatFitLabel(evaluation: FitEvaluation): string {
+  if (evaluation.fits) {
+    return `Fits · ${evaluation.minimumClearanceMm} mm clear`;
+  }
+  const reason = evaluation.reasons[0]?.replace(" after safety allowance.", "");
+  return reason === undefined ? "Doesn't fit" : `Near miss · ${reason}`;
+}
+
+export function evaluateProductAccess(
+  dimensions: ProductDimensions,
+  accessWidthMm: number | null | undefined,
+  uncertaintyMm: number,
+  policy: ClearancePolicy,
+): AccessEvaluation {
+  if (accessWidthMm === null || accessWidthMm === undefined) {
+    return { status: "skipped", passes: true };
+  }
+
+  const crossSection = getSmallestCrossSection(dimensions);
+  const controllingDimensionMm = Math.max(crossSection[0].sizeMm, crossSection[1].sizeMm);
+  const requiredWidthMm = controllingDimensionMm + uncertaintyMm + policy.sideMm * 2;
+  const clearanceMm = Math.round(accessWidthMm - requiredWidthMm);
+
+  if (clearanceMm >= 0) {
+    return {
+      status: "passed",
+      passes: true,
+      accessWidthMm,
+      crossSection,
+      clearanceMm,
+    };
+  }
+
+  const deficitMm = Math.abs(clearanceMm);
   return {
-    orientation,
-    widthClearanceMm,
-    depthClearanceMm,
-    heightClearanceMm,
-    minimumClearanceMm: Math.min(widthClearanceMm, depthClearanceMm, heightClearanceMm),
+    status: "failed",
+    passes: false,
+    accessWidthMm,
+    crossSection,
+    deficitMm,
+    reason: `Fits the space, but ${deficitMm} mm too wide for the ${Math.round(accessWidthMm)} mm access opening.`,
   };
 }
 
-function reasonsForOrientation(result: OrientationResult): readonly string[] {
+export function getSmallestCrossSection(
+  dimensions: ProductDimensions,
+): readonly [AccessCrossSectionDimension, AccessCrossSectionDimension] {
+  const axes: AccessCrossSectionDimension[] = [
+    { axis: "width", sizeMm: dimensions.widthMm },
+    { axis: "depth", sizeMm: dimensions.depthMm },
+    { axis: "height", sizeMm: dimensions.heightMm },
+  ];
+
+  axes.sort((left, right) => left.sizeMm - right.sizeMm || AXIS_TIE_ORDER[left.axis] - AXIS_TIE_ORDER[right.axis]);
+  return [axes[0], axes[1]];
+}
+
+function getOrientations(dimensions: ProductDimensions): readonly OrientationDimensions[] {
+  return [
+    {
+      orientation: "default",
+      widthMm: dimensions.widthMm,
+      heightMm: dimensions.heightMm,
+      depthMm: dimensions.depthMm,
+    },
+    {
+      orientation: "rotated-90",
+      widthMm: dimensions.depthMm,
+      heightMm: dimensions.heightMm,
+      depthMm: dimensions.widthMm,
+    },
+  ];
+}
+
+function evaluateOrientation(
+  dimensions: OrientationDimensions,
+  measurement: SpaceMeasurement,
+  policy: ClearancePolicy,
+): FitEvaluation {
+  const widthClearanceMm = Math.round(
+    measurement.widthMm - measurement.uncertaintyMm - dimensions.widthMm - policy.sideMm * 2,
+  );
+  const heightClearanceMm = Math.round(
+    measurement.heightMm - measurement.uncertaintyMm - dimensions.heightMm - policy.topMm,
+  );
+  const depthClearanceMm = Math.round(
+    measurement.depthMm - measurement.uncertaintyMm - dimensions.depthMm - policy.backMm,
+  );
+  const minimumClearanceMm = Math.min(widthClearanceMm, heightClearanceMm, depthClearanceMm);
+  const reasons = getFailureReasons(widthClearanceMm, heightClearanceMm, depthClearanceMm);
+
+  return {
+    fits: reasons.length === 0,
+    orientation: dimensions.orientation,
+    widthClearanceMm,
+    heightClearanceMm,
+    depthClearanceMm,
+    minimumClearanceMm,
+    confidence: getConfidence(minimumClearanceMm),
+    reasons,
+  };
+}
+
+function getFailureReasons(
+  widthClearanceMm: number,
+  heightClearanceMm: number,
+  depthClearanceMm: number,
+): readonly string[] {
   const reasons: string[] = [];
-
-  if (result.widthClearanceMm < 0) {
-    reasons.push(`${Math.abs(result.widthClearanceMm)} mm too wide`);
+  if (widthClearanceMm < 0) {
+    reasons.push(`${Math.abs(widthClearanceMm)} mm too wide after safety allowance.`);
   }
-  if (result.depthClearanceMm < 0) {
-    reasons.push(`${Math.abs(result.depthClearanceMm)} mm too deep`);
+  if (heightClearanceMm < 0) {
+    reasons.push(`${Math.abs(heightClearanceMm)} mm too tall after safety allowance.`);
   }
-  if (result.heightClearanceMm < 0) {
-    reasons.push(`${Math.abs(result.heightClearanceMm)} mm too tall`);
+  if (depthClearanceMm < 0) {
+    reasons.push(`${Math.abs(depthClearanceMm)} mm too deep after safety allowance.`);
   }
-
   return reasons;
 }
 
-function confidenceFor(minimumClearanceMm: number, uncertaintyMm: number): FitConfidence {
-  if (uncertaintyMm <= 0) {
-    return minimumClearanceMm >= 0 ? "high" : "low";
-  }
-  if (minimumClearanceMm >= 2 * uncertaintyMm) {
+function getConfidence(minimumClearanceMm: number): FitEvaluation["confidence"] {
+  if (minimumClearanceMm >= 50) {
     return "high";
   }
-  if (minimumClearanceMm >= uncertaintyMm) {
+  if (minimumClearanceMm >= 20) {
     return "medium";
   }
   return "low";
 }
 
-/**
- * Evaluates whether a product fits a measured space. Uncertainty is subtracted from
- * the available envelope and clearance is added to the product footprint *before*
- * comparing — never the other way around — so a "Fits" result is always conservative.
- * Height never rotates; only width/depth are tested in both orientations, and the
- * orientation with the larger minimum clearance wins (ties favor "default").
- */
-export function evaluateFit(
-  space: SpaceMeasurement,
-  product: ProductDimensions,
-  policy: ClearancePolicy = DEFAULT_CLEARANCE_POLICY,
-): FitEvaluation {
-  if (!isValidSpaceMeasurement(space) || !isValidProductDimensions(product)) {
-    return {
-      fits: false,
-      orientation: "default",
-      widthClearanceMm: 0,
-      depthClearanceMm: 0,
-      heightClearanceMm: 0,
-      minimumClearanceMm: 0,
-      confidence: "low",
-      reasons: [INVALID_MEASUREMENT_REASON],
-    };
+function compareFitCandidates(left: FitEvaluation, right: FitEvaluation): number {
+  if (left.fits !== right.fits) {
+    return left.fits ? -1 : 1;
   }
-
-  const defaultResult = evaluateOrientation(space, product, policy, "default");
-  const rotatedResult = evaluateOrientation(space, product, policy, "rotated-90");
-
-  const chosen =
-    rotatedResult.minimumClearanceMm > defaultResult.minimumClearanceMm ? rotatedResult : defaultResult;
-
-  return {
-    fits: chosen.minimumClearanceMm >= 0,
-    orientation: chosen.orientation,
-    widthClearanceMm: chosen.widthClearanceMm,
-    depthClearanceMm: chosen.depthClearanceMm,
-    heightClearanceMm: chosen.heightClearanceMm,
-    minimumClearanceMm: chosen.minimumClearanceMm,
-    confidence: confidenceFor(chosen.minimumClearanceMm, space.uncertaintyMm),
-    reasons: reasonsForOrientation(chosen),
-  };
+  if (left.minimumClearanceMm !== right.minimumClearanceMm) {
+    return right.minimumClearanceMm - left.minimumClearanceMm;
+  }
+  return left.orientation === "default" ? -1 : 1;
 }
 
-/** Formats a stable, human-readable summary for comparison lists and AR overlays. */
-export function formatFitLabel(evaluation: FitEvaluation): string {
-  if (evaluation.fits) {
-    return `Fits · ${evaluation.minimumClearanceMm} mm clear`;
+function getValidationReason(
+  dimensions: ProductDimensions,
+  measurement: SpaceMeasurement,
+  policy: ClearancePolicy,
+): string | undefined {
+  const values = [
+    dimensions.widthMm,
+    dimensions.heightMm,
+    dimensions.depthMm,
+    measurement.widthMm,
+    measurement.heightMm,
+    measurement.depthMm,
+  ];
+  if (values.some((value) => !Number.isFinite(value) || value <= 0)) {
+    return "Product and space dimensions must be positive numbers.";
   }
-  return evaluation.reasons.length > 0 ? `Near miss · ${evaluation.reasons[0]}` : "Doesn't fit";
+  if (!Number.isFinite(measurement.uncertaintyMm) || measurement.uncertaintyMm < 0) {
+    return "Measurement uncertainty must be zero or greater.";
+  }
+  if ([policy.sideMm, policy.backMm, policy.topMm].some((value) => !Number.isFinite(value) || value < 0)) {
+    return "Clearance policy values must be zero or greater.";
+  }
+  return undefined;
 }
