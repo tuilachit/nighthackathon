@@ -30,11 +30,11 @@ test("fit-first mobile route is honest with AI disabled", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Near misses" })).toBeVisible();
   await expect(page.getByText("Dimensions verified").first()).toBeVisible();
 
-  await page.getByRole("button", { name: "white shelving unit under $200" }).click();
+  await page.getByRole("button", { name: "white metal shelving unit under $30" }).click();
   await expect(page.getByLabel("Describe the furniture you want")).toHaveValue(
-    "white shelving unit under $200",
+    "white metal shelving unit under $30",
   );
-  await expect(page.getByText("Under $200", { exact: true })).toBeVisible();
+  await expect(page.getByText("Under $30", { exact: true })).toBeVisible();
 
   const compareButtons = page.getByRole("button", { name: "Compare" });
   await compareButtons.nth(0).click();

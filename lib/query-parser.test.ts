@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { mergeFurnitureQueries, parseFurnitureQuery, parseFurnitureQueryValue } from "./query-parser";
 
 describe("parseFurnitureQuery", () => {
-  it("extracts the cached warm oak query", () => {
-    expect(parseFurnitureQuery("warm oak narrow bookshelf under $300")).toMatchObject({
+  it("extracts the cached white wood query", () => {
+    expect(parseFurnitureQuery("white wood bookcase under $50")).toMatchObject({
       category: "bookcase",
-      maxPrice: 300,
-      materials: ["oak"],
-      styles: ["warm", "narrow"],
+      maxPrice: 50,
+      materials: ["wood"],
+      colors: ["white"],
+      styles: [],
     });
   });
 
