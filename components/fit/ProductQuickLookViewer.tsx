@@ -8,7 +8,6 @@ import {
   getPlacementScale,
   getPlacementSource,
   iosTrueScaleAvailable,
-  isHeroModel,
   needsRuntimeScaleMeasurement,
 } from "@/lib/model-scaling";
 import type { PlacementModel } from "@/lib/model-scaling";
@@ -83,9 +82,6 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
           class="relative z-10 h-[320px] w-full bg-transparent sm:h-[380px]"
           onLoad={handleLoad}
         />
-        <div className="mono pointer-events-none absolute left-3 top-3 rounded-full bg-white/70 px-2 py-1 text-[9px] uppercase tracking-wide text-slate-500 backdrop-blur">
-          {isHeroModel(model) ? "hero model" : "exact-dimension box"}
-        </div>
         {!modelLoaded ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-500">
             Loading 3D preview
@@ -94,11 +90,8 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
       </div>
 
       <div className="rounded-[24px] border border-black/10 bg-white p-3">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">True-scale AR</p>
-        <p className="mt-1 text-sm leading-5 text-slate-600">
-          {trustsIosScale
-            ? "Placed at exact real-world size on Android and iPhone."
-            : "Exact size on Android. iPhone Quick Look may let you resize until a verified USDZ is added."}
+        <p className="text-sm leading-5 text-slate-600">
+          {trustsIosScale ? "Placed at true real-world size." : "True size on Android; may be resizable on iPhone."}
         </p>
         <button
           type="button"

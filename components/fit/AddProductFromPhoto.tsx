@@ -2,36 +2,13 @@
 
 import { useRef, useState } from "react";
 import { getModelViewerAssetUrl } from "@/lib/assets";
+import { generateModelViaMeshy } from "@/lib/meshy-generation-client";
 import { validateImageUpload } from "@/lib/upload-validation";
 import type { PlacementCandidate } from "@/components/xr/XRPlacementClient";
 
 export interface AddProductFromPhotoProps {
   readonly onGenerated: (candidate: PlacementCandidate) => void;
   readonly onCancel: () => void;
-}
-
-const POLL_INTERVAL_MS = 3000;
-const MAX_POLLS = 40;
-
-interface StartGenerationResponse {
-  readonly generation?: {
-    readonly status: "pending" | "succeeded" | "failed" | "timeout";
-    readonly taskId?: string;
-    readonly mode: "image-to-3d" | "text-to-3d";
-    readonly refinedMeshyPrompt: string;
-    readonly error?: string;
-  };
-  readonly error?: string;
-}
-
-interface StatusResponse {
-  readonly generation?: {
-    readonly status: "pending" | "succeeded" | "failed" | "timeout";
-    readonly taskId?: string;
-    readonly glbUrl?: string;
-    readonly usdzUrl?: string;
-    readonly error?: string;
-  };
 }
 
 type Phase = "form" | "generating" | "error";
@@ -79,97 +56,30 @@ export function AddProductFromPhoto({ onGenerated, onCancel }: AddProductFromPho
 
     setPhase("generating");
     setErrorMessage(undefined);
-    setStatusMessage("Starting generation…");
+    setStatusMessage("Generating the 3D model…");
 
-    try {
-      const startResponse = await fetch("/api/generate-model/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: name, imageDataUrl, founderContext: "" }),
-      });
-      const startData = (await startResponse.json()) as StartGenerationResponse;
-      const generation = startData.generation;
+    const result = await generateModelViaMeshy({ prompt: name, imageDataUrl });
 
-      if (!startResponse.ok || generation === undefined) {
-        setErrorMessage(startData.error ?? generation?.error ?? "Could not start generation.");
-        setPhase("error");
-        return;
-      }
-
-      if (generation.status === "failed") {
-        setErrorMessage(generation.error ?? "Generation failed.");
-        setPhase("error");
-        return;
-      }
-
-      if (generation.taskId === undefined) {
-        setErrorMessage("Generation did not return a task id.");
-        setPhase("error");
-        return;
-      }
-
-      await pollUntilDone(generation.taskId, generation.mode, generation.refinedMeshyPrompt);
-    } catch {
-      setErrorMessage("Could not reach the generation service.");
+    if (result.status === "failed") {
+      setErrorMessage(result.error);
       setPhase("error");
-    }
-  }
-
-  async function pollUntilDone(taskId: string, mode: string, refinedPrompt: string): Promise<void> {
-    for (let attempt = 0; attempt < MAX_POLLS; attempt += 1) {
-      await delay(POLL_INTERVAL_MS);
-
-      const params = new URLSearchParams({
-        taskId,
-        mode,
-        refinedPrompt,
-        fallbackModelPath: "/models/unit-box.glb",
-        allowTextFallback: mode === "image-to-3d" ? "true" : "false",
-      });
-
-      const statusResponse = await fetch(`/api/generate-model/status?${params.toString()}`);
-      const statusData = (await statusResponse.json()) as StatusResponse;
-      const generation = statusData.generation;
-
-      if (!statusResponse.ok || generation === undefined) {
-        setErrorMessage("Lost track of the generation task.");
-        setPhase("error");
-        return;
-      }
-
-      if (generation.status === "succeeded" && generation.glbUrl !== undefined) {
-        onGenerated({
-          id: `generated-${generation.taskId ?? taskId}`,
-          name: name.trim(),
-          retailer: retailer.trim().length > 0 ? retailer.trim() : "Generated",
-          priceLabel: priceLabel.trim().length > 0 ? priceLabel.trim() : "—",
-          fitLabel: "",
-          model: {
-            dimensions: { widthMm, depthMm, heightMm },
-            glbUrl: getModelViewerAssetUrl(generation.glbUrl),
-            iosUsdzUrl: getModelViewerAssetUrl(generation.usdzUrl),
-            placeholderBoxGlbUrl: "/models/unit-box.glb",
-            scaleSource: "generated",
-          },
-        });
-        return;
-      }
-
-      if (generation.status === "failed" || generation.status === "timeout") {
-        setErrorMessage(generation.error ?? "Generation failed.");
-        setPhase("error");
-        return;
-      }
-
-      // Keep polling; taskId can change once (image-to-3d falling back to text-to-3d).
-      if (generation.taskId !== undefined && generation.taskId !== taskId) {
-        taskId = generation.taskId;
-      }
-      setStatusMessage("Generating the 3D model…");
+      return;
     }
 
-    setErrorMessage("Generation took too long.");
-    setPhase("error");
+    onGenerated({
+      id: `generated-${name.trim().toLowerCase().replace(/\s+/g, "-")}-${Date.now()}`,
+      name: name.trim(),
+      retailer: retailer.trim().length > 0 ? retailer.trim() : "Generated",
+      priceLabel: priceLabel.trim().length > 0 ? priceLabel.trim() : "—",
+      fitLabel: "",
+      model: {
+        dimensions: { widthMm, depthMm, heightMm },
+        glbUrl: getModelViewerAssetUrl(result.glbUrl),
+        iosUsdzUrl: getModelViewerAssetUrl(result.usdzUrl),
+        placeholderBoxGlbUrl: "/models/unit-box.glb",
+        scaleSource: "generated",
+      },
+    });
   }
 
   if (phase === "generating") {
@@ -294,8 +204,4 @@ function NumberField({
       />
     </label>
   );
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }

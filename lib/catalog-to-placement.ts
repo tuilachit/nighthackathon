@@ -9,6 +9,13 @@ import { formatFitLabel } from "./fit-engine";
  * itself marked it `scaleVerified: true` — everything else falls back to the
  * shared placeholder box stretched to the product's verified dimensions.
  */
+/** Descriptive text-to-3d prompt built from the catalog's own verified attributes. */
+export function buildMeshyPromptForProduct(product: CatalogProduct): string {
+  return [product.name, product.category.replace("-", " "), ...product.materials, ...product.colors, ...product.styles]
+    .filter((value) => value.trim().length > 0)
+    .join(", ");
+}
+
 export function catalogProductToPlacementCandidate(
   product: CatalogProduct,
   fit: FitEvaluation,

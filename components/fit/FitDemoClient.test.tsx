@@ -63,4 +63,51 @@ describe("FitDemoClient", () => {
     expect(pushedUrl).toContain("widthMm=900");
     expect(pushedUrl).toContain("source=demo");
   });
+
+  it("generates a 3D preview from the catalog's own attributes when there is no verified model yet", async () => {
+    const productWithoutModel: CatalogProduct = { ...product, model: undefined };
+
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url === "/api/generate-model/start") {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              generation: { status: "pending", taskId: "task-9", mode: "text-to-3d", refinedMeshyPrompt: "LAIVA Bookcase" },
+            }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            generation: {
+              status: "succeeded",
+              taskId: "task-9",
+              glbUrl: "https://assets.meshy.ai/task-9/output/model.glb",
+              usdzUrl: "https://assets.meshy.ai/task-9/output/model.usdz",
+            },
+          }),
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    render(<FitDemoClient measurement={measurement} products={[productWithoutModel]} catalogSource="bundled" />);
+    fireEvent.click(screen.getByRole("button", { name: "View in room" }));
+
+    expect(await screen.findByText(/Generating a 3D preview of LAIVA Bookcase/)).toBeInTheDocument();
+
+    await vi.advanceTimersByTimeAsync(3000);
+    await vi.waitFor(() => expect(pushMock).toHaveBeenCalledTimes(1));
+
+    const stored = window.sessionStorage.getItem(SPACE_HANDOFF_STORAGE_KEY);
+    const candidate = JSON.parse(stored ?? "{}");
+    expect(candidate.model.scaleSource).toBe("generated");
+    expect(candidate.model.dimensions).toEqual(product.dimensions);
+    expect(candidate.model.glbUrl).toBe("/api/model-asset?url=https%3A%2F%2Fassets.meshy.ai%2Ftask-9%2Foutput%2Fmodel.glb");
+
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 });

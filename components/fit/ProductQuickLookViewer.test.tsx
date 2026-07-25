@@ -16,8 +16,7 @@ describe("ProductQuickLookViewer", () => {
     expect(viewer).toHaveAttribute("src", "/models/unit-box.glb");
     expect(viewer).toHaveAttribute("scale", "0.778 0.84 0.28");
     expect(viewer).toHaveAttribute("ar-scale", "fixed");
-    expect(screen.getByText("exact-dimension box")).toBeInTheDocument();
-    expect(screen.getByText(/iPhone Quick Look may let you resize/)).toBeInTheDocument();
+    expect(screen.getByText(/may be resizable on iPhone/)).toBeInTheDocument();
   });
 
   it("uses the hero GLB at identity scale and trusts iOS true scale when a USDZ exists", () => {
@@ -34,7 +33,6 @@ describe("ProductQuickLookViewer", () => {
     expect(viewer).toHaveAttribute("src", "/models/oakridge-3-shelf.glb");
     expect(viewer).toHaveAttribute("ios-src", "/models/oakridge-3-shelf.usdz");
     expect(viewer).toHaveAttribute("scale", "1 1 1");
-    expect(screen.getByText("hero model")).toBeInTheDocument();
-    expect(screen.getByText(/exact real-world size on Android and iPhone/)).toBeInTheDocument();
+    expect(screen.getByText("Placed at true real-world size.")).toBeInTheDocument();
   });
 });

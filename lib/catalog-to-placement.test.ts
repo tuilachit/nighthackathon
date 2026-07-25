@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { catalogProductToPlacementCandidate } from "./catalog-to-placement";
+import { buildMeshyPromptForProduct, catalogProductToPlacementCandidate } from "./catalog-to-placement";
 import type { CatalogProduct, FitEvaluation } from "./catalog-types";
 
 const fits: FitEvaluation = {
@@ -59,5 +59,19 @@ describe("catalogProductToPlacementCandidate", () => {
     expect(candidate.model.glbUrl).toBeUndefined();
     expect(candidate.model.placeholderBoxGlbUrl).toBe("/models/unit-box.glb");
     expect(candidate.model.dimensions).toEqual(product.dimensions);
+  });
+});
+
+describe("buildMeshyPromptForProduct", () => {
+  it("builds a descriptive prompt from the catalog's own verified attributes", () => {
+    const product = buildProduct({
+      materials: ["particleboard", "wood"],
+      colors: ["black", "brown"],
+      styles: ["slim", "minimalist"],
+    });
+
+    expect(buildMeshyPromptForProduct(product)).toBe(
+      "LAIVA Bookcase, bookcase, particleboard, wood, black, brown, slim, minimalist",
+    );
   });
 });

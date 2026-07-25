@@ -13,6 +13,7 @@ import type { PlacementModel } from "@/lib/model-scaling";
 import { manualSpaceMeasurement } from "@/lib/measurement-geometry";
 import type { SpaceMeasurement } from "@/lib/measurement-geometry";
 import { parseSpaceMeasurementSearchParams } from "@/lib/space-measurement-params";
+import { isImmersiveArSupported } from "@/lib/webxr-support";
 
 const DEMO_SPACE_MEASUREMENT: SpaceMeasurement = manualSpaceMeasurement(
   { widthMm: 812, depthMm: 405, heightMm: 900 },
@@ -122,6 +123,12 @@ function takeHandoffCandidate(): PlacementCandidate | undefined {
   }
 }
 
+/** Synchronous peek (no removal) so the initial render never flashes the browse hub. */
+function hasHandoffCandidatePending(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.sessionStorage.getItem(SPACE_HANDOFF_STORAGE_KEY) !== null;
+}
+
 export default function SpacePlacePage(): React.JSX.Element {
   return (
     <Suspense fallback={null}>
@@ -130,11 +137,16 @@ export default function SpacePlacePage(): React.JSX.Element {
   );
 }
 
-type Mode = "browse" | "generate" | "auto" | "quicklook";
+type Mode = "checking" | "browse" | "generate" | "auto" | "quicklook";
 
 function SpacePlaceContent(): React.JSX.Element {
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<Mode>("browse");
+  // Only wait (blank screen) when a "View in room" handoff is pending — a plain
+  // /space/scan visit has nothing to check for and can show the hub immediately.
+  const [mode, setMode] = useState<Mode>(() => (hasHandoffCandidatePending() ? "checking" : "browse"));
+  // Conservative default: never show the live-AR path until the device has
+  // actually confirmed it, so nobody sees a dead-end "AR isn't available" screen.
+  const [arSupported, setArSupported] = useState<boolean>(false);
   const [customCandidates, setCustomCandidates] = useState<readonly PlacementCandidate[]>([]);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
 
@@ -144,23 +156,35 @@ function SpacePlaceContent(): React.JSX.Element {
   );
 
   useEffect(() => {
-    const stored = loadStoredCandidates();
-    const handoffCandidate = takeHandoffCandidate();
+    let cancelled = false;
 
-    if (handoffCandidate === undefined) {
-      setCustomCandidates(stored);
-      return;
-    }
+    void isImmersiveArSupported().then((supported) => {
+      if (cancelled) return;
+      setArSupported(supported);
 
-    const merged = [handoffCandidate, ...stored.filter((candidate) => candidate.id !== handoffCandidate.id)];
-    setCustomCandidates(merged);
-    try {
-      window.sessionStorage.setItem(CUSTOM_CANDIDATES_STORAGE_KEY, JSON.stringify(merged));
-    } catch {
-      // Session persistence is a nicety; the handoff candidate still works for this render.
-    }
-    setSelectedId(handoffCandidate.id);
-    setMode("auto");
+      const stored = loadStoredCandidates();
+      const handoffCandidate = takeHandoffCandidate();
+
+      if (handoffCandidate === undefined) {
+        setCustomCandidates(stored);
+        setMode("browse");
+        return;
+      }
+
+      const merged = [handoffCandidate, ...stored.filter((candidate) => candidate.id !== handoffCandidate.id)];
+      setCustomCandidates(merged);
+      try {
+        window.sessionStorage.setItem(CUSTOM_CANDIDATES_STORAGE_KEY, JSON.stringify(merged));
+      } catch {
+        // Session persistence is a nicety; the handoff candidate still works for this render.
+      }
+      setSelectedId(handoffCandidate.id);
+      setMode(supported ? "auto" : "quicklook");
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const candidates = useMemo<readonly PlacementCandidate[]>(
@@ -177,12 +201,16 @@ function SpacePlaceContent(): React.JSX.Element {
       // Session persistence is a nicety; the candidate still works for this render.
     }
     setSelectedId(candidate.id);
-    setMode("auto");
+    setMode(arSupported ? "auto" : "quicklook");
   }
 
   function handleSelect(candidateId: string): void {
     setSelectedId(candidateId);
-    setMode("auto");
+    setMode(arSupported ? "auto" : "quicklook");
+  }
+
+  if (mode === "checking") {
+    return <div className="fixed inset-0 bg-white" />;
   }
 
   if (mode === "generate") {
@@ -201,17 +229,15 @@ function SpacePlaceContent(): React.JSX.Element {
         <Link href="/space/scan" className="mb-4 inline-block text-sm font-bold text-slate-500">
           ‹ Re-measure
         </Link>
-        <p className="mono mb-1 text-xs text-slate-400">
-          Space: {space.widthMm} × {space.depthMm} × {space.heightMm} mm (± {space.uncertaintyMm} mm, {space.source})
-        </p>
-        <h1 className="mb-4 text-xl font-black text-slate-950">Pick a product to place</h1>
+        <h1 className="mb-1 text-xl font-black text-slate-950">Pick a product to place</h1>
+        <p className="mb-4 text-sm text-slate-500">Fitting your {space.widthMm} × {space.depthMm} mm space.</p>
 
         <button
           type="button"
           onClick={() => setMode("generate")}
           className="mb-4 w-full rounded-2xl border border-dashed border-black/20 p-4 text-left text-sm font-bold text-slate-700"
         >
-          + Add a product from a photo (Meshy)
+          + Add a product from a photo
         </button>
 
         <div className="flex flex-col gap-2.5">
@@ -244,9 +270,6 @@ function SpacePlaceContent(): React.JSX.Element {
         <button type="button" onClick={() => setMode("browse")} className="mb-4 inline-block text-sm font-bold text-slate-500">
           ‹ Back to products
         </button>
-        <p className="mono mb-4 text-xs text-slate-400">
-          Space: {space.widthMm} × {space.depthMm} × {space.heightMm} mm (± {space.uncertaintyMm} mm, {space.source})
-        </p>
         <ProductQuickLookViewer name={activeCandidate.name} model={activeCandidate.model} />
       </main>
     );
