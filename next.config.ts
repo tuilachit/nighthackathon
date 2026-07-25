@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
         hostname: "www.ikea.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "target.scene7.com",
+        pathname: "/**",
+      },
     ],
   },
   eslint: {
