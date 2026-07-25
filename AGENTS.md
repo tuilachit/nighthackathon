@@ -41,9 +41,10 @@ correct claim is:
 
 Real installation can still be affected by skirting boards, radiators, uneven
 walls, plugs, drawer and door operation, assembly requirements, and the delivery
-path. Show this limitation clearly but concisely. Do not implement doorway-path
-validation during the hackathon; rotational access geometry is a separate
-problem.
+path. Show this limitation clearly but concisely. The fit/search lane may apply
+one advisory `accessWidthMm` predicate to the smallest transport cross-section.
+Do not claim this single-width check simulates turns, diagonals, packaging,
+disassembly, ceiling height, or multi-segment route geometry.
 
 ## Hackathon Context
 
@@ -87,6 +88,7 @@ to the repository.
 - Manual width, depth, and height entry that works on every device.
 - Android WebXR floor-footprint measurement.
 - Conservative fit filtering with measurement uncertainty.
+- Advisory narrowest-access filtering when `accessWidthMm` is supplied.
 - Support for width/depth orientation swapping while keeping height upright.
 - A comparison view across multiple retailers.
 - Exact product dimensions and remaining clearance on every result.
@@ -107,7 +109,7 @@ to the repository.
 - Custom furniture generation, parametric furniture, or cut lists.
 - Checkout or payments.
 - Whole-room scanning.
-- Doorway/delivery-path fit guarantees.
+- Full doorway/delivery-path geometry or fit guarantees.
 - Supporting every furniture category or retailer.
 
 When time is tight, cut breadth, animation, and AI sophistication before cutting
@@ -162,6 +164,7 @@ interface SpaceMeasurement {
   heightMm: number;
   depthMm: number;
   uncertaintyMm: number;
+  accessWidthMm?: number;
   source: "webxr" | "manual" | "demo";
 }
 
@@ -210,6 +213,14 @@ A reasonable demo default is:
 Keep these values centralized and visible in tests. A smaller positive clearance
 is not automatically "better"; rank it after category, budget, and preference
 matching. Never mix failing products into the "Fits" list.
+
+For access evaluation, sort width, depth, and height from smallest to largest,
+using width, depth, then height as the fixed tie order. The two smallest axes
+form the transport cross-section. Apply measurement uncertainty and two side
+clearances to the supplied opening. Boundary equality passes. Keep products
+that fit the destination space but fail this advisory access check in a distinct
+`fitsSpaceButFailsAccess` collection. When `accessWidthMm` is absent, skip the
+predicate and remove all access language from the UI.
 
 Required fit-engine tests:
 
