@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AddProductFromPhoto } from "@/components/fit/AddProductFromPhoto";
+import { SPACE_HANDOFF_STORAGE_KEY } from "@/components/fit/FitDemoClient";
 import { ProductQuickLookViewer } from "@/components/fit/ProductQuickLookViewer";
 import { XRPlacementClient } from "@/components/xr/XRPlacementClient";
 import type { PlacementCandidate } from "@/components/xr/XRPlacementClient";
@@ -108,6 +109,19 @@ function loadStoredCandidates(): readonly PlacementCandidate[] {
   }
 }
 
+/** One-time handoff from the /fit search results' "View in room" button. */
+function takeHandoffCandidate(): PlacementCandidate | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(SPACE_HANDOFF_STORAGE_KEY);
+    if (raw === null) return undefined;
+    window.sessionStorage.removeItem(SPACE_HANDOFF_STORAGE_KEY);
+    return JSON.parse(raw) as PlacementCandidate;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function SpacePlacePage(): React.JSX.Element {
   return (
     <Suspense fallback={null}>
@@ -130,7 +144,23 @@ function SpacePlaceContent(): React.JSX.Element {
   );
 
   useEffect(() => {
-    setCustomCandidates(loadStoredCandidates());
+    const stored = loadStoredCandidates();
+    const handoffCandidate = takeHandoffCandidate();
+
+    if (handoffCandidate === undefined) {
+      setCustomCandidates(stored);
+      return;
+    }
+
+    const merged = [handoffCandidate, ...stored.filter((candidate) => candidate.id !== handoffCandidate.id)];
+    setCustomCandidates(merged);
+    try {
+      window.sessionStorage.setItem(CUSTOM_CANDIDATES_STORAGE_KEY, JSON.stringify(merged));
+    } catch {
+      // Session persistence is a nicety; the handoff candidate still works for this render.
+    }
+    setSelectedId(handoffCandidate.id);
+    setMode("auto");
   }, []);
 
   const candidates = useMemo<readonly PlacementCandidate[]>(
