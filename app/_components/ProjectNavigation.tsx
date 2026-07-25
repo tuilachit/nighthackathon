@@ -14,10 +14,17 @@ const NAV_ITEMS: ReadonlyArray<{
   { href: `/result/${DEFAULT_ID}`, label: "Result" },
   { href: `/ar/${DEFAULT_ID}`, label: "AR" },
   { href: `/build-pack/${DEFAULT_ID}`, label: "Build Pack" },
+  { href: "/space/scan", label: "Space (fit-first)" },
 ];
 
-export function ProjectNavigation(): React.JSX.Element {
+export function ProjectNavigation(): React.JSX.Element | null {
   const pathname = usePathname();
+
+  // The fit-first flow is a full-screen/AR experience; a floating dev nav bar
+  // on top of it fights the camera overlay and doesn't belong in the demo.
+  if (pathname.startsWith("/space")) {
+    return null;
+  }
 
   return (
     <nav
