@@ -1839,6 +1839,15 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/3-shelf-bookcase-white-room-essentials-8482/-/A-54358443",
       "verifiedAt": "2026-07-25T05:47:52.664Z"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-target-54358443.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 622,
+        "heightMm": 914,
+        "depthMm": 240
+      }
     }
   },
   {
