@@ -1464,5 +1464,595 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/ladmakare-storage-combination-w-sliding-doors-with-9-shelves-oak-effect-s69563988/",
       "verifiedAt": "2026-07-25T05:15:35.151Z"
     }
+  },
+  {
+    "id": "target-83499970",
+    "name": "13'' 2 Cube Organizer White - Brightroom™",
+    "retailer": "Target",
+    "category": "bookcase",
+    "priceUsd": 35,
+    "dimensions": {
+      "widthMm": 404,
+      "heightMm": 762,
+      "depthMm": 371
+    },
+    "materials": [
+      "mdf (medium-density fiberboard), particle board (frame)",
+      "paper laminate"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "cube",
+      "organizer",
+      "white",
+      "brightroom"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_85b125a3-7d06-45d3-8af2-eb0a10b5e92e",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_85b125a3-7d06-45d3-8af2-eb0a10b5e92e",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/2-cube-organizer-white-brightroom-8482/-/A-83499970",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/2-cube-organizer-white-brightroom-8482/-/A-83499970",
+      "verifiedAt": "2026-07-25T05:47:45.529Z"
+    }
+  },
+  {
+    "id": "target-93209258",
+    "name": "11\" 6 Cube Organizer White - Brightroom™",
+    "retailer": "Target",
+    "category": "bookcase",
+    "priceUsd": 35,
+    "dimensions": {
+      "widthMm": 610,
+      "heightMm": 913,
+      "depthMm": 298
+    },
+    "materials": [
+      "particle board (frame)",
+      "paper laminate"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "cube",
+      "organizer",
+      "white",
+      "brightroom"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_c47efc2b-5764-4d33-93c5-5651fec18c1c",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_c47efc2b-5764-4d33-93c5-5651fec18c1c",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/6-cube-book-decorative-book-shelf-white-brightroom-8482/-/A-93209258",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/6-cube-book-decorative-book-shelf-white-brightroom-8482/-/A-93209258",
+      "verifiedAt": "2026-07-25T05:47:46.459Z"
+    }
+  },
+  {
+    "id": "target-83499981",
+    "name": "13\" 4 Cube Organizer White - Brightroom™",
+    "retailer": "Target",
+    "category": "bookcase",
+    "priceUsd": 45,
+    "dimensions": {
+      "widthMm": 758,
+      "heightMm": 762,
+      "depthMm": 371
+    },
+    "materials": [
+      "mdf (medium-density fiberboard), particle board (frame)",
+      "paper laminate"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "cube",
+      "organizer",
+      "white",
+      "brightroom"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_7c788b65-7cad-4338-8cf3-62ab8d58ae33",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_7c788b65-7cad-4338-8cf3-62ab8d58ae33",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/4-cube-organizer-white-brightroom-8482/-/A-83499981",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/4-cube-organizer-white-brightroom-8482/-/A-83499981",
+      "verifiedAt": "2026-07-25T05:47:47.207Z"
+    }
+  },
+  {
+    "id": "target-93209259",
+    "name": "11\" 3-2-1 Cube Organizer White - Brightroom™",
+    "retailer": "Target",
+    "category": "bookcase",
+    "priceUsd": 55,
+    "dimensions": {
+      "widthMm": 909,
+      "heightMm": 913,
+      "depthMm": 298
+    },
+    "materials": [
+      "particle board (frame)",
+      "paper laminate"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "3-2-1",
+      "cube",
+      "organizer",
+      "white",
+      "brightroom"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_08947ea9-2ff1-412b-bb92-d5afeaf4974a",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_08947ea9-2ff1-412b-bb92-d5afeaf4974a",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/3-2-1-cube-book-shelf-white-brightroom-8482/-/A-93209259",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/3-2-1-cube-book-shelf-white-brightroom-8482/-/A-93209259",
+      "verifiedAt": "2026-07-25T05:47:47.953Z"
+    }
+  },
+  {
+    "id": "target-83686521",
+    "name": "13'' 4 Cube Vertical Organizer White - Brightroom™",
+    "retailer": "Target",
+    "category": "bookcase",
+    "priceUsd": 50,
+    "dimensions": {
+      "widthMm": 406,
+      "heightMm": 1468,
+      "depthMm": 371
+    },
+    "materials": [
+      "mdf (medium-density fiberboard), particle board (frame)",
+      "paper laminate"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "cube",
+      "vertical",
+      "organizer",
+      "white",
+      "brightroom"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_ee9cb9da-cf66-4bb2-9aa2-8aa15f6cef54",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_ee9cb9da-cf66-4bb2-9aa2-8aa15f6cef54",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/4-cube-vertical-organizer-white-brightroom-8482/-/A-83686521",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/4-cube-vertical-organizer-white-brightroom-8482/-/A-83686521",
+      "verifiedAt": "2026-07-25T05:47:48.605Z"
+    }
+  },
+  {
+    "id": "target-83500015",
+    "name": "13\" 8 Cube Organizer White - Brightroom™",
+    "retailer": "Target",
+    "category": "bookcase",
+    "priceUsd": 80,
+    "dimensions": {
+      "widthMm": 762,
+      "heightMm": 1468,
+      "depthMm": 371
+    },
+    "materials": [
+      "mdf (medium-density fiberboard), particle board (frame)",
+      "paper laminate"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "cube",
+      "organizer",
+      "white",
+      "brightroom"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_fabc4f1f-b35f-4ccd-9f8b-8d01ebe4ee7b",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_fabc4f1f-b35f-4ccd-9f8b-8d01ebe4ee7b",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/8-cube-organizer-white-brightroom-8482/-/A-83500015",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/8-cube-organizer-white-brightroom-8482/-/A-83500015",
+      "verifiedAt": "2026-07-25T05:47:49.406Z"
+    }
+  },
+  {
+    "id": "target-1002500159",
+    "name": "Costway 70\" Tall 6-Tier Bookcase with 6 Open Shelves Anti-Toppling Kits for Living Room Black",
+    "retailer": "Target",
+    "category": "bookcase",
+    "priceUsd": 79.99,
+    "dimensions": {
+      "widthMm": 241,
+      "heightMm": 1778,
+      "depthMm": 597
+    },
+    "materials": [
+      "wood (frame)",
+      "wood"
+    ],
+    "colors": [
+      "black"
+    ],
+    "styles": [],
+    "keywords": [
+      "costway",
+      "tall",
+      "6-tier",
+      "bookcase",
+      "with",
+      "open",
+      "shelves",
+      "anti-toppling",
+      "kits",
+      "for",
+      "living",
+      "room",
+      "black"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_bf074f94-c6a3-47de-b2fe-d2f1ad435782",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_bf074f94-c6a3-47de-b2fe-d2f1ad435782",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/costway-70-tall-6-tier-bookcase-with-6-open-shelves-anti-toppling-kits-for-living-room-black/-/A-1002500159",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/costway-70-tall-6-tier-bookcase-with-6-open-shelves-anti-toppling-kits-for-living-room-black/-/A-1002500159",
+      "verifiedAt": "2026-07-25T05:47:50.261Z"
+    }
+  },
+  {
+    "id": "target-92038473",
+    "name": "Mixed Material Library Bookcase with Doors Natural Wood - Room Essentials™",
+    "retailer": "Target",
+    "category": "bookcase",
+    "priceUsd": 80,
+    "dimensions": {
+      "widthMm": 622,
+      "heightMm": 1788,
+      "depthMm": 292
+    },
+    "materials": [
+      "mdf (medium-density fiberboard) (frame)",
+      "paper laminate"
+    ],
+    "colors": [
+      "black",
+      "natural"
+    ],
+    "styles": [],
+    "keywords": [
+      "mixed",
+      "material",
+      "library",
+      "bookcase",
+      "with",
+      "doors",
+      "natural",
+      "wood",
+      "room",
+      "essentials"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_1949a27b-43eb-40da-8552-f41ed49cc654",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_1949a27b-43eb-40da-8552-f41ed49cc654",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/mixed-material-library-bookcase-with-doors-natural-wood-room-essentials-8482/-/A-92038473",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/mixed-material-library-bookcase-with-doors-natural-wood-room-essentials-8482/-/A-92038473",
+      "verifiedAt": "2026-07-25T05:47:51.090Z"
+    }
+  },
+  {
+    "id": "target-83817772",
+    "name": "Costway 3 Tier Open Shelf Bookcase Multi-functional Storage Display Cabinet Furni White",
+    "retailer": "Target",
+    "category": "shelving-unit",
+    "priceUsd": 47.99,
+    "dimensions": {
+      "widthMm": 292,
+      "heightMm": 800,
+      "depthMm": 419
+    },
+    "materials": [
+      "mdf (medium-density fiberboard) (frame)",
+      "mdf (medium-density fiberboard)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "costway",
+      "tier",
+      "open",
+      "shelf",
+      "bookcase",
+      "multi-functional",
+      "storage",
+      "display",
+      "cabinet",
+      "furni",
+      "white"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_517c0ed5-e484-4067-b3a2-0d0407b0b83a",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_517c0ed5-e484-4067-b3a2-0d0407b0b83a",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/costway-3-tier-open-shelf-bookcase-multi-functional-storage-display-cabinet-furni-white/-/A-83817772",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/costway-3-tier-open-shelf-bookcase-multi-functional-storage-display-cabinet-furni-white/-/A-83817772",
+      "verifiedAt": "2026-07-25T05:47:51.878Z"
+    }
+  },
+  {
+    "id": "target-54358443",
+    "name": "3 Shelf Dorm Bookcase White - Room Essentials™",
+    "retailer": "Target",
+    "category": "shelving-unit",
+    "priceUsd": 28,
+    "dimensions": {
+      "widthMm": 622,
+      "heightMm": 914,
+      "depthMm": 240
+    },
+    "materials": [
+      "wood composite (frame)",
+      "paper laminate"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "shelf",
+      "dorm",
+      "bookcase",
+      "white",
+      "room",
+      "essentials"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_9c553c76-b29c-4891-b780-ebc1418c83bc",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_9c553c76-b29c-4891-b780-ebc1418c83bc",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/3-shelf-bookcase-white-room-essentials-8482/-/A-54358443",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/3-shelf-bookcase-white-room-essentials-8482/-/A-54358443",
+      "verifiedAt": "2026-07-25T05:47:52.664Z"
+    }
+  },
+  {
+    "id": "target-1001300709",
+    "name": "3-Tier Bookshelf, 31.5 Inches Wide,Open Bookcase with Adjustable Storage Shelves, Floor Standing Unit, Cloud White",
+    "retailer": "Target",
+    "category": "shelving-unit",
+    "priceUsd": 54.99,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 810,
+      "depthMm": 239
+    },
+    "materials": [
+      "particle board (frame)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "3-tier",
+      "bookshelf",
+      "inches",
+      "wide",
+      "open",
+      "bookcase",
+      "with",
+      "adjustable",
+      "storage",
+      "shelves",
+      "floor",
+      "standing",
+      "unit",
+      "cloud",
+      "white",
+      "songmics",
+      "home"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_9fbcb9f7-dfef-4eca-8e30-c81e9add0744",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_9fbcb9f7-dfef-4eca-8e30-c81e9add0744",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/3-tier-bookshelf-31-5-inches-wide-open-bookcase-with-adjustable-storage-shelves-floor-standing-unit-cloud-white/-/A-1001300709",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/3-tier-bookshelf-31-5-inches-wide-open-bookcase-with-adjustable-storage-shelves-floor-standing-unit-cloud-white/-/A-1001300709",
+      "verifiedAt": "2026-07-25T05:47:53.723Z"
+    }
+  },
+  {
+    "id": "target-1010820888",
+    "name": "Costway Tree Bookshelf 9-Tier Freestanding Bookcase Corner Narrow Display Shelf for Home Rustic Brown & Black",
+    "retailer": "Target",
+    "category": "shelving-unit",
+    "priceUsd": 49.99,
+    "dimensions": {
+      "widthMm": 254,
+      "heightMm": 1067,
+      "depthMm": 381
+    },
+    "materials": [
+      "metal (frame)",
+      "wood"
+    ],
+    "colors": [
+      "black",
+      "brown"
+    ],
+    "styles": [
+      "rustic"
+    ],
+    "keywords": [
+      "costway",
+      "tree",
+      "bookshelf",
+      "9-tier",
+      "freestanding",
+      "bookcase",
+      "corner",
+      "narrow",
+      "display",
+      "shelf",
+      "for",
+      "home",
+      "rustic",
+      "brown",
+      "black"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_c0c8ed08-d051-43a6-9cc9-0dd0a1e1e46b",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_c0c8ed08-d051-43a6-9cc9-0dd0a1e1e46b",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/costway-tree-bookshelf-9-tier-freestanding-bookcase-corner-narrow-display-shelf-for-home-rustic-brown-black/-/A-1010820888",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/costway-tree-bookshelf-9-tier-freestanding-bookcase-corner-narrow-display-shelf-for-home-rustic-brown-black/-/A-1010820888",
+      "verifiedAt": "2026-07-25T05:47:54.633Z"
+    }
+  },
+  {
+    "id": "target-1001317520",
+    "name": "5-Tier Tall Bookshelf, Bookcase with Steel Frame, Book Shelf for Living Room, Home Office, Study, 11.8 x 26 x 60 Inches, Industrial Style",
+    "retailer": "Target",
+    "category": "shelving-unit",
+    "priceUsd": 69.99,
+    "dimensions": {
+      "widthMm": 660,
+      "heightMm": 1524,
+      "depthMm": 300
+    },
+    "materials": [
+      "steel (frame)"
+    ],
+    "colors": [
+      "black"
+    ],
+    "styles": [
+      "industrial"
+    ],
+    "keywords": [
+      "5-tier",
+      "tall",
+      "bookshelf",
+      "bookcase",
+      "with",
+      "steel",
+      "frame",
+      "book",
+      "shelf",
+      "for",
+      "living",
+      "room",
+      "home",
+      "office",
+      "study",
+      "inches",
+      "industrial",
+      "style"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_37cfd45a-67d5-4a53-a2c9-8f2625a43aab",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_37cfd45a-67d5-4a53-a2c9-8f2625a43aab",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/5-tier-tall-bookshelf-bookcase-with-steel-frame-book-shelf-for-living-room-home-office-study-11-8-x-26-x-60-inches-industrial-style/-/A-1001317520",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/5-tier-tall-bookshelf-bookcase-with-steel-frame-book-shelf-for-living-room-home-office-study-11-8-x-26-x-60-inches-industrial-style/-/A-1001317520",
+      "verifiedAt": "2026-07-25T05:47:55.323Z"
+    }
+  },
+  {
+    "id": "target-54360637",
+    "name": "5 Shelf Dorm Bookcase White - Room Essentials™",
+    "retailer": "Target",
+    "category": "shelving-unit",
+    "priceUsd": 40,
+    "dimensions": {
+      "widthMm": 622,
+      "heightMm": 1808,
+      "depthMm": 294
+    },
+    "materials": [
+      "wood composite (frame)",
+      "paper laminate"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "shelf",
+      "dorm",
+      "bookcase",
+      "white",
+      "room",
+      "essentials"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_f61e3212-9eb4-4862-84a1-63156ecac59c",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_f61e3212-9eb4-4862-84a1-63156ecac59c",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/5-shelf-bookcase-white-room-essentials-8482/-/A-54360637",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/5-shelf-bookcase-white-room-essentials-8482/-/A-54360637",
+      "verifiedAt": "2026-07-25T05:47:56.048Z"
+    }
+  },
+  {
+    "id": "target-86806503",
+    "name": "72\" Loring 5 Shelf Ladder Bookshelf Walnut - Threshold™: Metal Frame, Open Back Design, Fixed Shelves",
+    "retailer": "Target",
+    "category": "shelving-unit",
+    "priceUsd": 120,
+    "dimensions": {
+      "widthMm": 775,
+      "heightMm": 1829,
+      "depthMm": 343
+    },
+    "materials": [
+      "metal (frame)"
+    ],
+    "colors": [
+      "black",
+      "brown",
+      "walnut"
+    ],
+    "styles": [],
+    "keywords": [
+      "loring",
+      "shelf",
+      "ladder",
+      "bookshelf",
+      "walnut",
+      "threshold",
+      "metal",
+      "frame",
+      "open",
+      "back",
+      "design",
+      "fixed",
+      "shelves"
+    ],
+    "imagePath": "https://target.scene7.com/is/image/Target/GUEST_8ef36599-1ad7-4940-8aa1-c430eeeab238",
+    "imageSourceUrl": "https://target.scene7.com/is/image/Target/GUEST_8ef36599-1ad7-4940-8aa1-c430eeeab238",
+    "imageAttribution": "Target product photo",
+    "productUrl": "https://www.target.com/p/72-34-loring-5-shelf-ladder-bookshelf-walnut-threshold-8482/-/A-86806503",
+    "verification": {
+      "sourceUrl": "https://www.target.com/p/72-34-loring-5-shelf-ladder-bookshelf-walnut-threshold-8482/-/A-86806503",
+      "verifiedAt": "2026-07-25T05:47:56.859Z"
+    }
   }
 ]
