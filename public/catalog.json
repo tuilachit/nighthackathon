@@ -1942,6 +1942,15 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/costway-tree-bookshelf-9-tier-freestanding-bookcase-corner-narrow-display-shelf-for-home-rustic-brown-black/-/A-1010820888",
       "verifiedAt": "2026-07-25T05:47:54.633Z"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-target-1010820888.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 254,
+        "heightMm": 1067,
+        "depthMm": 381
+      }
     }
   },
   {
