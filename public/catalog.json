@@ -1803,6 +1803,15 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/costway-3-tier-open-shelf-bookcase-multi-functional-storage-display-cabinet-furni-white/-/A-83817772",
       "verifiedAt": "2026-07-25T05:47:51.878Z"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-target-83817772.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 292,
+        "heightMm": 800,
+        "depthMm": 419
+      }
     }
   },
   {
