@@ -26,38 +26,54 @@ interface CatalogSeed {
   readonly model: PlacementModel;
 }
 
+// Stand-in hero models (CC0, kenney.nl — see public/models/furniture/SOURCE.md)
+// used until a Meshy-generated or verified retailer GLB exists for these products.
 const CATALOG_SEED: readonly CatalogSeed[] = [
   {
-    id: "hero-bottle",
-    name: "Demo Hero Model",
-    retailer: "Sample Co.",
-    priceLabel: "$249",
-    retailerUrl: "https://example.com/demo-hero",
+    id: "bookcase-open",
+    name: "Oakridge Open Bookcase",
+    retailer: "Wallside & Co.",
+    priceLabel: "$189",
+    retailerUrl: "https://example.com/demo-bookcase-open",
     model: {
-      dimensions: { widthMm: 90, depthMm: 90, heightMm: 240 },
-      glbUrl: "/models/bottle.glb",
+      dimensions: { widthMm: 400, depthMm: 250, heightMm: 880 },
+      glbUrl: "/models/furniture/bookcase-open.glb",
       placeholderBoxGlbUrl: "/models/unit-box.glb",
     },
   },
   {
-    id: "placeholder-shelf",
-    name: "Oakridge 3-Shelf",
+    id: "bookcase-closed-wide",
+    name: "Oakridge Wide Cabinet",
     retailer: "Wallside & Co.",
     priceLabel: "$249",
-    retailerUrl: "https://example.com/demo-placeholder",
+    retailerUrl: "https://example.com/demo-bookcase-wide",
     model: {
-      dimensions: { widthMm: 778, depthMm: 280, heightMm: 840 },
+      dimensions: { widthMm: 800, depthMm: 250, heightMm: 790 },
+      glbUrl: "/models/furniture/bookcase-closed-wide.glb",
       placeholderBoxGlbUrl: "/models/unit-box.glb",
     },
   },
   {
-    id: "near-miss-console",
-    name: "Kessler Record Console",
+    id: "drawer-unit",
+    name: "Kessler Drawer Unit",
     retailer: "Homeplane",
     priceLabel: "$329",
-    retailerUrl: "https://example.com/demo-near-miss",
+    retailerUrl: "https://example.com/demo-drawer-unit",
     model: {
-      dimensions: { widthMm: 830, depthMm: 300, heightMm: 780 },
+      dimensions: { widthMm: 430, depthMm: 450, heightMm: 450 },
+      glbUrl: "/models/furniture/drawer-unit.glb",
+      placeholderBoxGlbUrl: "/models/unit-box.glb",
+    },
+  },
+  {
+    id: "sideboard",
+    name: "Homeplane Sideboard",
+    retailer: "Homeplane",
+    priceLabel: "$279",
+    retailerUrl: "https://example.com/demo-sideboard",
+    model: {
+      dimensions: { widthMm: 534, depthMm: 222, heightMm: 384 },
+      glbUrl: "/models/furniture/sideboard.glb",
       placeholderBoxGlbUrl: "/models/unit-box.glb",
     },
   },
