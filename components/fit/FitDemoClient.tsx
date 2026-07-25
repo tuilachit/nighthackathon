@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type {
   CatalogProduct,
   ProductSelection,
@@ -11,11 +10,10 @@ import type { CatalogSource } from "@/lib/supabase/catalog-source";
 import { getModelViewerAssetUrl } from "@/lib/assets";
 import { buildMeshyPromptForProduct, catalogProductToPlacementCandidate } from "@/lib/catalog-to-placement";
 import { generateModelViaMeshy } from "@/lib/meshy-generation-client";
-import { toSpaceMeasurementSearchParams } from "@/lib/space-measurement-params";
-import type { PlacementCandidate } from "@/components/xr/XRPlacementClient";
+import type { PlacementCandidate } from "@/lib/model-scaling";
+import { ProductQuickLookViewer } from "./ProductQuickLookViewer";
 import { FitSearchExperience } from "./FitSearchExperience";
 
-export const SPACE_HANDOFF_STORAGE_KEY = "space-handoff-candidate";
 const GENERATED_MODEL_CACHE_KEY = "space-generated-model-cache";
 
 interface FitDemoClientProps {
@@ -47,39 +45,40 @@ function writeModelCache(cache: Record<string, CachedModel>): void {
   }
 }
 
+function withGeneratedModel(candidate: PlacementCandidate, generated: CachedModel): PlacementCandidate {
+  return {
+    ...candidate,
+    model: {
+      ...candidate.model,
+      glbUrl: getModelViewerAssetUrl(generated.glbUrl),
+      iosUsdzUrl: getModelViewerAssetUrl(generated.usdzUrl),
+      scaleSource: "generated",
+    },
+  };
+}
+
 export function FitDemoClient({
   measurement,
   products,
   catalogSource,
   retailerCount = new Set(products.map((product) => product.retailer)).size,
 }: FitDemoClientProps): React.JSX.Element {
-  const router = useRouter();
   const [generatingProductName, setGeneratingProductName] = useState<string | undefined>(undefined);
-
-  function goToPlacement(candidate: PlacementCandidate): void {
-    try {
-      window.sessionStorage.setItem(SPACE_HANDOFF_STORAGE_KEY, JSON.stringify(candidate));
-    } catch {
-      // Best effort — /space/place still has its own demo catalog if this is unavailable.
-    }
-
-    const params = toSpaceMeasurementSearchParams(measurement);
-    router.push(`/space/place?${params.toString()}`);
-  }
+  const [activeCandidate, setActiveCandidate] = useState<PlacementCandidate | undefined>(undefined);
 
   async function handleSelectProduct(selection: ProductSelection): Promise<void> {
     const candidate = catalogProductToPlacementCandidate(selection.product, selection.fit);
 
     // A verified catalog model is the real thing — never worth regenerating.
     if (selection.product.model !== undefined) {
-      goToPlacement(candidate);
+      setActiveCandidate(candidate);
       return;
     }
 
     const cache = readModelCache();
     const cached = cache[selection.product.id];
     if (cached !== undefined) {
-      goToPlacement(withGeneratedModel(candidate, cached));
+      setActiveCandidate(withGeneratedModel(candidate, cached));
       return;
     }
 
@@ -89,13 +88,13 @@ export function FitDemoClient({
 
     if (result.status === "failed") {
       // Keep the demo moving with the verified-dimension placeholder box rather than getting stuck.
-      goToPlacement(candidate);
+      setActiveCandidate(candidate);
       return;
     }
 
     const generated: CachedModel = { glbUrl: result.glbUrl, usdzUrl: result.usdzUrl };
     writeModelCache({ ...cache, [selection.product.id]: generated });
-    goToPlacement(withGeneratedModel(candidate, generated));
+    setActiveCandidate(withGeneratedModel(candidate, generated));
   }
 
   return (
@@ -115,18 +114,35 @@ export function FitDemoClient({
           <p className="text-xs text-[#726a5e]">The verified dimensions stay exact — only the shape is generated.</p>
         </div>
       ) : null}
+
+      {activeCandidate !== undefined ? (
+        <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-[#f7f5f0] px-4 py-6 sm:px-6">
+          <button
+            type="button"
+            onClick={() => setActiveCandidate(undefined)}
+            className="mb-4 inline-flex w-fit items-center rounded-full border border-[#d9d3c7] bg-white px-4 py-2 text-sm font-bold"
+          >
+            ‹ Back to results
+          </button>
+          <div className="mx-auto w-full max-w-xl">
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#81796c]">
+              {activeCandidate.retailer} · {activeCandidate.fitLabel}
+            </p>
+            <h2 className="mb-4 text-2xl font-black tracking-[-0.03em]">{activeCandidate.name}</h2>
+            <ProductQuickLookViewer name={activeCandidate.name} model={activeCandidate.model} />
+            {activeCandidate.retailerUrl !== undefined ? (
+              <a
+                href={activeCandidate.retailerUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 flex min-h-11 items-center justify-center rounded-2xl border border-[#d8d1c5] bg-white text-sm font-bold"
+              >
+                View on {activeCandidate.retailer} ↗
+              </a>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
-}
-
-function withGeneratedModel(candidate: PlacementCandidate, generated: CachedModel): PlacementCandidate {
-  return {
-    ...candidate,
-    model: {
-      ...candidate.model,
-      glbUrl: getModelViewerAssetUrl(generated.glbUrl),
-      iosUsdzUrl: getModelViewerAssetUrl(generated.usdzUrl),
-      scaleSource: "generated",
-    },
-  };
 }

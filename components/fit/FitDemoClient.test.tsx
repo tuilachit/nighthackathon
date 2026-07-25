@@ -1,13 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { FitDemoClient, SPACE_HANDOFF_STORAGE_KEY } from "./FitDemoClient";
+import { FitDemoClient } from "./FitDemoClient";
 import type { CatalogProduct, SpaceMeasurement } from "@/lib/catalog-types";
-
-const pushMock = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: pushMock }),
-}));
 
 const measurement: SpaceMeasurement = {
   widthMm: 900,
@@ -41,27 +35,23 @@ const product: CatalogProduct = {
 
 describe("FitDemoClient", () => {
   afterEach(() => {
-    pushMock.mockClear();
     window.sessionStorage.clear();
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
-  it("hands the selected product off to the /space/place flow instead of a dead-end card", () => {
+  it("shows the AR viewer inline for a verified product instead of navigating away", () => {
     render(<FitDemoClient measurement={measurement} products={[product]} catalogSource="bundled" />);
 
     fireEvent.click(screen.getByRole("button", { name: "View in room" }));
 
-    const stored = window.sessionStorage.getItem(SPACE_HANDOFF_STORAGE_KEY);
-    expect(stored).not.toBeNull();
-    const candidate = JSON.parse(stored ?? "{}");
-    expect(candidate.id).toBe("ikea-laiva-40178591");
-    expect(candidate.model.glbUrl).toBe("/models/glb/ikea-laiva.glb");
-    expect(candidate.model.scaleSource).toBe("verified");
+    expect(screen.getByRole("heading", { name: "LAIVA Bookcase", level: 2 })).toBeInTheDocument();
+    const viewer = document.querySelector("model-viewer");
+    expect(viewer).toHaveAttribute("src", "/models/glb/ikea-laiva.glb");
+    expect(viewer).toHaveAttribute("scale", "1 1 1");
 
-    expect(pushMock).toHaveBeenCalledTimes(1);
-    const [pushedUrl] = pushMock.mock.calls[0];
-    expect(pushedUrl).toMatch(/^\/space\/place\?/);
-    expect(pushedUrl).toContain("widthMm=900");
-    expect(pushedUrl).toContain("source=demo");
+    fireEvent.click(screen.getByRole("button", { name: "‹ Back to results" }));
+    expect(screen.queryByRole("heading", { name: "LAIVA Bookcase", level: 2 })).not.toBeInTheDocument();
   });
 
   it("generates a 3D preview from the catalog's own attributes when there is no verified model yet", async () => {
@@ -99,15 +89,11 @@ describe("FitDemoClient", () => {
     expect(await screen.findByText(/Generating a 3D preview of LAIVA Bookcase/)).toBeInTheDocument();
 
     await vi.advanceTimersByTimeAsync(3000);
-    await vi.waitFor(() => expect(pushMock).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() =>
+      expect(screen.getByRole("heading", { name: "LAIVA Bookcase", level: 2 })).toBeInTheDocument(),
+    );
 
-    const stored = window.sessionStorage.getItem(SPACE_HANDOFF_STORAGE_KEY);
-    const candidate = JSON.parse(stored ?? "{}");
-    expect(candidate.model.scaleSource).toBe("generated");
-    expect(candidate.model.dimensions).toEqual(product.dimensions);
-    expect(candidate.model.glbUrl).toBe("/api/model-asset?url=https%3A%2F%2Fassets.meshy.ai%2Ftask-9%2Foutput%2Fmodel.glb");
-
-    vi.unstubAllGlobals();
-    vi.useRealTimers();
+    const viewer = document.querySelector("model-viewer");
+    expect(viewer).toHaveAttribute("src", "/api/model-asset?url=https%3A%2F%2Fassets.meshy.ai%2Ftask-9%2Foutput%2Fmodel.glb");
   });
 });

@@ -1,13 +1,13 @@
-import type { PlacementCandidate } from "@/components/xr/XRPlacementClient";
+import type { PlacementCandidate } from "./model-scaling";
 import type { CatalogProduct, FitEvaluation } from "./catalog-types";
 import { formatFitLabel } from "./fit-engine";
 
 /**
  * Bridges the search/catalog domain (lib/catalog-types.ts) to the AR placement
- * domain (lib/model-scaling.ts + XRPlacementClient/ProductQuickLookViewer).
- * A catalog product's model is only trusted at native scale when the catalog
- * itself marked it `scaleVerified: true` — everything else falls back to the
- * shared placeholder box stretched to the product's verified dimensions.
+ * domain (lib/model-scaling.ts + ProductQuickLookViewer). A catalog product's
+ * model is only trusted at native scale when the catalog itself marked it
+ * `scaleVerified: true` — everything else falls back to the shared placeholder
+ * box stretched to the product's verified dimensions.
  */
 /** Descriptive text-to-3d prompt built from the catalog's own verified attributes. */
 export function buildMeshyPromptForProduct(product: CatalogProduct): string {

@@ -35,6 +35,16 @@ export interface PlacementModel {
   readonly scaleSource?: ModelScaleSource;
 }
 
+export interface PlacementCandidate {
+  readonly id: string;
+  readonly name: string;
+  readonly retailer: string;
+  readonly priceLabel: string;
+  readonly fitLabel: string;
+  readonly retailerUrl?: string;
+  readonly model: PlacementModel;
+}
+
 export function computeBoxScale(
   targetMm: ProductDimensions,
   unitBoxMm: ProductDimensions = UNIT_BOX_SIZE_MM,
