@@ -59,6 +59,23 @@ describe("runtime furniture catalog", () => {
       expect(result.errors.join(" ")).toContain("widthMm must be a positive number");
     }
   });
+
+  it("requires source metadata for cached HTTPS retailer images", () => {
+    const invalid = [
+      {
+        ...rawCatalog[0],
+        imagePath:
+          "https://example.supabase.co/storage/v1/object/public/product-images/item.jpg",
+      },
+    ];
+    const result = validateCatalog(invalid);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.errors.join(" ")).toContain(
+        "imageSourceUrl and imageAttribution",
+      );
+    }
+  });
 });
 
 function readGlbDimensionsMm(path: string): {

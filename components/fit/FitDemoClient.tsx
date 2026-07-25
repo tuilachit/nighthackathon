@@ -6,16 +6,21 @@ import type {
   ProductSelection,
   SpaceMeasurement,
 } from "@/lib/catalog-types";
+import type { CatalogSource } from "@/lib/supabase/catalog-source";
 import { FitSearchExperience } from "./FitSearchExperience";
 
 interface FitDemoClientProps {
   readonly measurement: SpaceMeasurement;
   readonly products: readonly CatalogProduct[];
+  readonly catalogSource?: CatalogSource;
+  readonly retailerCount?: number;
 }
 
 export function FitDemoClient({
   measurement,
   products,
+  catalogSource = "fallback",
+  retailerCount = new Set(products.map((product) => product.retailer)).size,
 }: FitDemoClientProps): React.JSX.Element {
   const [selection, setSelection] = useState<ProductSelection | undefined>();
 
@@ -24,6 +29,8 @@ export function FitDemoClient({
       <FitSearchExperience
         measurement={measurement}
         products={products}
+        catalogSource={catalogSource}
+        retailerCount={retailerCount}
         onSelectProduct={setSelection}
       />
 

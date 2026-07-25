@@ -87,6 +87,14 @@ function parseCatalogProduct(
   const styles = stringArray(value.styles, `${path}.styles`, errors);
   const keywords = stringArray(value.keywords, `${path}.keywords`, errors);
   const imagePath = requiredString(value.imagePath, `${path}.imagePath`, errors);
+  const imageSourceUrl =
+    value.imageSourceUrl === undefined
+      ? undefined
+      : requiredHttpsUrl(value.imageSourceUrl, `${path}.imageSourceUrl`, errors);
+  const imageAttribution =
+    value.imageAttribution === undefined
+      ? undefined
+      : requiredString(value.imageAttribution, `${path}.imageAttribution`, errors);
   const productUrl = requiredHttpsUrl(value.productUrl, `${path}.productUrl`, errors);
   const verification = parseVerification(value.verification, `${path}.verification`, errors);
   const model = value.model === undefined ? undefined : parseModel(value.model, `${path}.model`, errors);
@@ -97,8 +105,15 @@ function parseCatalogProduct(
   if (!CATEGORIES.has(categoryValue as FurnitureCategory)) {
     errors.push(`${path}.category is unsupported.`);
   }
-  if (imagePath !== undefined && (!imagePath.startsWith("/images/products/") || !imagePath.endsWith(".svg"))) {
-    errors.push(`${path}.imagePath must reference a local product SVG.`);
+  if (imagePath !== undefined && !isSupportedProductImage(imagePath)) {
+    errors.push(`${path}.imagePath must reference a local product SVG or an HTTPS image.`);
+  }
+  if (
+    imagePath !== undefined &&
+    imagePath.startsWith("https://") &&
+    (imageSourceUrl === undefined || imageAttribution === undefined)
+  ) {
+    errors.push(`${path} must include imageSourceUrl and imageAttribution for a cached retailer image.`);
   }
   if (
     dimensions !== undefined &&
@@ -137,6 +152,8 @@ function parseCatalogProduct(
     styles,
     keywords,
     imagePath,
+    ...(imageSourceUrl === undefined ? {} : { imageSourceUrl }),
+    ...(imageAttribution === undefined ? {} : { imageAttribution }),
     productUrl,
     verification,
     ...(model === undefined ? {} : { model }),
@@ -271,4 +288,16 @@ function requiredHttpsUrl(value: unknown, path: string, errors: string[]): strin
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isSupportedProductImage(value: string): boolean {
+  if (value.startsWith("/images/products/") && value.endsWith(".svg")) {
+    return true;
+  }
+
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
 }

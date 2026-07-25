@@ -34,7 +34,7 @@ export function ProductCard({
       <div className="grid grid-cols-[112px_1fr] gap-4 p-3 sm:grid-cols-[144px_1fr]">
         <Image
           src={product.imagePath}
-          alt={`${product.name} product illustration`}
+          alt={`${product.name} ${product.imageSourceUrl === undefined ? "product illustration" : "retailer product photo"}`}
           width={320}
           height={240}
           className="h-full min-h-[124px] w-full rounded-[18px] object-cover"
@@ -54,6 +54,16 @@ export function ProductCard({
           <p className="mt-2 text-xs font-semibold text-[#6f685d]">
             {formatDimensions(product.dimensions)}
           </p>
+          {product.imageSourceUrl !== undefined && product.imageAttribution !== undefined ? (
+            <a
+              className="mt-1 inline-block text-[11px] font-semibold text-[#766e61] underline decoration-[#c9c0b3] underline-offset-2"
+              href={product.imageSourceUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Photo source: {product.imageAttribution} ↗
+            </a>
+          ) : null}
           <p
             className={`mt-2 text-sm font-bold leading-5 ${
               status === "fit" ? "text-[#28713a]" : status === "access" ? "text-[#98611a]" : "text-[#9b3d2f]"

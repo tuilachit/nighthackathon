@@ -58,6 +58,8 @@ export interface CatalogProduct {
   readonly styles: readonly string[];
   readonly keywords: readonly string[];
   readonly imagePath: string;
+  readonly imageSourceUrl?: string;
+  readonly imageAttribution?: string;
   readonly productUrl: string;
   readonly verification: CatalogVerification;
   readonly model?: ProductModelAsset;

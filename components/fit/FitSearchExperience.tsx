@@ -7,6 +7,7 @@ import type {
   FurnitureQuery,
   ProductSelection,
 } from "@/lib/catalog-types";
+import type { CatalogSource } from "@/lib/supabase/catalog-source";
 import { CACHED_FURNITURE_QUERIES } from "@/lib/fit-config";
 import { searchProducts } from "@/lib/product-ranker";
 import {
@@ -21,6 +22,8 @@ import { QueryInput } from "./QueryInput";
 
 interface FitSearchClientProps extends FitSearchExperienceProps {
   readonly products: readonly CatalogProduct[];
+  readonly catalogSource?: CatalogSource;
+  readonly retailerCount?: number;
 }
 
 interface QueryEnhancementResponse {
@@ -32,6 +35,8 @@ export function FitSearchExperience({
   initialQuery = CACHED_FURNITURE_QUERIES[0],
   onSelectProduct,
   products,
+  catalogSource = "fallback",
+  retailerCount = new Set(products.map((product) => product.retailer)).size,
 }: FitSearchClientProps): React.JSX.Element {
   const [input, setInput] = useState(initialQuery);
   const [submittedText, setSubmittedText] = useState(initialQuery);
@@ -108,6 +113,11 @@ export function FitSearchExperience({
       <header>
         <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8c7c61]">
           Night Hack · Fit first
+        </p>
+        <p className="mt-2 text-xs font-bold text-[#6f685d]" data-testid="catalog-status">
+          {catalogSource === "supabase" ? "Live verified catalog" : "Offline-safe verified catalog"}
+          {" · "}
+          {products.length} products across {retailerCount} retailers
         </p>
         <h1 className="mt-2 max-w-2xl text-[40px] font-black leading-[0.94] tracking-[-0.055em] sm:text-6xl">
           Stop guessing.
