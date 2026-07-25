@@ -85,7 +85,11 @@ const JSON_CHUNK_TYPE = 0x4e4f534a;
 
 async function main(): Promise<void> {
   const products = await readCatalog();
-  const selected = SELECTED_IDS.map((id) => {
+  const roadmapId = process.argv
+    .find((argument) => argument.startsWith("--catalog-product="))
+    ?.slice("--catalog-product=".length);
+  const selectedIds: readonly string[] = roadmapId === undefined ? SELECTED_IDS : [roadmapId];
+  const selected = selectedIds.map((id) => {
     const product = products.find((candidate) => candidate.id === id);
     if (product === undefined) {
       throw new Error(`Selected catalog product ${id} is missing.`);
