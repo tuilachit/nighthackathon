@@ -90,4 +90,21 @@ describe("FitSearchExperience", () => {
     expect(screen.getByText("shelving unit")).toBeInTheDocument();
     expect(screen.getByText("Under $200")).toBeInTheDocument();
   });
+
+  it("shows no fixture products when the live catalog is unavailable", () => {
+    render(
+      <FitSearchExperience
+        measurement={DEMO_SPACE_MEASUREMENT}
+        products={[]}
+        catalogSource="unavailable"
+        onSelectProduct={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("catalog-unavailable")).toHaveTextContent(
+      "No placeholder products are being shown",
+    );
+    expect(screen.queryByText("Dimensions verified")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Compare" })).not.toBeInTheDocument();
+  });
 });

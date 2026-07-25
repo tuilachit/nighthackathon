@@ -66,9 +66,9 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The deterministic baseline and checked-in 18-product furniture catalog work
-without API keys. When Supabase contains at least 100 verified products across
-all three retailers, `/fit` automatically uses that online catalog instead.
+The generic prototype baseline works without API keys. The `/fit` experience
+requires a complete Supabase catalog of at least 100 verified products across
+all three retailers; it never substitutes the old 18-item fixture at runtime.
 Copy `.env.example` to `.env.local` only when testing an optional integration:
 
 ```bash
@@ -109,9 +109,9 @@ ScrapingAnt → deterministic retailer adapters → validation
             → Supabase Postgres + Storage → /fit server read
 ```
 
-The checked-in 18-product catalog remains the deterministic fallback whenever
-Supabase is unavailable, contains fewer than 100 products, or lacks one of the
-three required retailers.
+If Supabase is unavailable, contains fewer than 100 products, or lacks one of
+the three required retailers, `/fit` shows an explicit unavailable state and
+no product results.
 
 Validate retailer adapters without changing Supabase:
 
@@ -179,7 +179,7 @@ New fit-first work should use the boundaries defined in `AGENTS.md`:
 ```text
 components/fit/                    Measurement confirmation and comparison UI
 components/xr/                     WebXR measurement and placement clients
-lib/catalog-*.ts                   Catalog schema, validation, and fallback data
+lib/catalog-*.ts                   Catalog schema, validation, and legacy test fixture
 lib/supabase/                      Online catalog mapping and read boundary
 lib/fit-engine.ts                  Pure conservative fit predicate
 lib/measurement-geometry.ts        Pure point-to-dimensions geometry

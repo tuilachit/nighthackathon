@@ -38,3 +38,6 @@ npm-debug.log*
 # Vercel
 .vercel
 .gstack/
+
+# Supabase CLI local state
+supabase/.temp/

@@ -19,7 +19,7 @@ interface FitDemoClientProps {
 export function FitDemoClient({
   measurement,
   products,
-  catalogSource = "fallback",
+  catalogSource,
   retailerCount = new Set(products.map((product) => product.retailer)).size,
 }: FitDemoClientProps): React.JSX.Element {
   const [selection, setSelection] = useState<ProductSelection | undefined>();

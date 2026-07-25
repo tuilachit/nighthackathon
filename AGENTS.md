@@ -264,14 +264,14 @@ interface FurnitureQuery {
 
 ## Catalog and Asset Rules
 
-Use the verified Supabase catalog when its all-or-nothing publication gate is
-green, with `public/data/catalog.json` as the deterministic offline fallback.
-The approved database scope is catalog snapshots and attributed asset metadata
-only; it does not authorize user accounts, XR persistence, or runtime scraping.
+Use the verified Supabase catalog only when its all-or-nothing publication gate
+is green. The old `public/data/catalog.json` fixture may support deterministic
+unit tests but must never render as a runtime product fallback. The approved
+database scope is catalog snapshots and attributed asset metadata only; it does
+not authorize user accounts, XR persistence, or runtime scraping.
 
 - Maintain at least 100 active verified products across IKEA, Target, and
   Wayfair in the online snapshot.
-- Keep at least 18 curated fallback products across the same retailers.
 - Use at least three retailers.
 - Keep one currency for the demo.
 - Verify dimensions, price, image, and live product URL for every hero item.
@@ -287,6 +287,7 @@ only; it does not authorize user accounts, XR persistence, or runtime scraping.
 - Run bounded scheduled ingestion only; the app reads Supabase during search.
 - Keep the online-catalog gate at 100 products and three retailers so a partial
   refresh cannot appear as a finished catalog.
+- Show a clear catalog-unavailable state with no products when that gate fails.
 - Treat the adapters as a hackathon ingestion path. Review retailer terms and
   move to authorized feeds before commercial production use.
 

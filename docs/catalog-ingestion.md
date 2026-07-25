@@ -1,8 +1,8 @@
 # Verified Catalog Ingestion
 
 The user-facing `/fit` route never scrapes a retailer. Search reads a verified
-Supabase snapshot, and automatically falls back to the checked-in catalog if the
-online snapshot is incomplete or unavailable.
+Supabase snapshot. If that snapshot is incomplete or unavailable, the route
+shows no products instead of substituting fixture data.
 
 ## Data Flow
 
@@ -55,8 +55,8 @@ provider's free allowance. Manual workflow dispatch is also available.
   publication.
 - Failed refreshes are recorded in `catalog_sync_runs`.
 - Public users cannot read operational sync records or write catalog tables.
-- If the online view falls below its runtime gate, `/fit` serves the local
-  verified fallback rather than a partial catalog.
+- If the online view falls below its runtime gate, `/fit` shows an explicit
+  catalog-unavailable state rather than a partial or fixture catalog.
 
 ## Production Caveat
 

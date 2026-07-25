@@ -35,7 +35,7 @@ export function FitSearchExperience({
   initialQuery = CACHED_FURNITURE_QUERIES[0],
   onSelectProduct,
   products,
-  catalogSource = "fallback",
+  catalogSource,
   retailerCount = new Set(products.map((product) => product.retailer)).size,
 }: FitSearchClientProps): React.JSX.Element {
   const [input, setInput] = useState(initialQuery);
@@ -52,6 +52,8 @@ export function FitSearchExperience({
     [comparedIds, results.fits],
   );
   const filterChips = getFilterChips(query);
+  const resolvedCatalogSource =
+    catalogSource ?? (products.length > 0 ? "supabase" : "unavailable");
 
   async function handleSubmit(value: string): Promise<void> {
     const trimmed = value.trim();
@@ -108,26 +110,42 @@ export function FitSearchExperience({
     onSelectProduct(selection);
   }
 
+  if (resolvedCatalogSource === "unavailable") {
+    return (
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+        <ExperienceHeader
+          catalogSource={resolvedCatalogSource}
+          productCount={0}
+          retailerCount={0}
+        />
+        <MeasurementSummary measurement={measurement} />
+        <section
+          role="alert"
+          data-testid="catalog-unavailable"
+          className="rounded-[24px] border border-[#d9a84f] bg-[#fff8e8] p-5"
+        >
+          <h2 className="text-xl font-black tracking-[-0.02em]">
+            Live catalog temporarily unavailable
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-[#6f5b35]">
+            We could not load a complete verified catalog of at least 100 real products
+            across all three retailers. No placeholder products are being shown.
+          </p>
+          <p className="mt-3 text-sm font-bold text-[#684d1e]">
+            Refresh after the catalog sync completes.
+          </p>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <header>
-        <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8c7c61]">
-          Night Hack · Fit first
-        </p>
-        <p className="mt-2 text-xs font-bold text-[#6f685d]" data-testid="catalog-status">
-          {catalogSource === "supabase" ? "Live verified catalog" : "Offline-safe verified catalog"}
-          {" · "}
-          {products.length} products across {retailerCount} retailers
-        </p>
-        <h1 className="mt-2 max-w-2xl text-[40px] font-black leading-[0.94] tracking-[-0.055em] sm:text-6xl">
-          Stop guessing.
-          <br />
-          Shop what fits.
-        </h1>
-        <p className="mt-4 max-w-xl text-base leading-7 text-[#625b50]">
-          We filter verified furniture by your actual space before style or price enters the ranking.
-        </p>
-      </header>
+      <ExperienceHeader
+        catalogSource={resolvedCatalogSource}
+        productCount={products.length}
+        retailerCount={retailerCount}
+      />
 
       <MeasurementSummary measurement={measurement} />
       <QueryInput
@@ -211,6 +229,37 @@ export function FitSearchExperience({
         ))}
       </ResultSection>
     </div>
+  );
+}
+
+function ExperienceHeader({
+  catalogSource,
+  productCount,
+  retailerCount,
+}: {
+  readonly catalogSource: CatalogSource;
+  readonly productCount: number;
+  readonly retailerCount: number;
+}): React.JSX.Element {
+  return (
+    <header>
+      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8c7c61]">
+        Night Hack · Fit first
+      </p>
+      <p className="mt-2 text-xs font-bold text-[#6f685d]" data-testid="catalog-status">
+        {catalogSource === "supabase"
+          ? `Live verified catalog · ${productCount} products across ${retailerCount} retailers`
+          : "Live catalog unavailable · 0 products"}
+      </p>
+      <h1 className="mt-2 max-w-2xl text-[40px] font-black leading-[0.94] tracking-[-0.055em] sm:text-6xl">
+        Stop guessing.
+        <br />
+        Shop what fits.
+      </h1>
+      <p className="mt-4 max-w-xl text-base leading-7 text-[#625b50]">
+        We filter verified furniture by your actual space before style or price enters the ranking.
+      </p>
+    </header>
   );
 }
 

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("fit-first mobile flow works with AI disabled", async ({ page }) => {
+test("fit-first mobile route is honest with AI disabled", async ({ page }) => {
   await page.route("**/api/parse-query", async (route) => {
     await route.fulfill({
       status: 503,
@@ -15,6 +15,16 @@ test("fit-first mobile flow works with AI disabled", async ({ page }) => {
   const measurement = page.getByRole("region", { name: "Your space is the search filter." });
   await expect(measurement).toContainText("900");
   await expect(measurement).toContainText("820 mm");
+  const catalogStatus = page.getByTestId("catalog-status");
+  if ((await catalogStatus.textContent())?.includes("unavailable")) {
+    await expect(page.getByTestId("catalog-unavailable")).toContainText(
+      "No placeholder products are being shown",
+    );
+    await expect(page.getByText("Dimensions verified")).toHaveCount(0);
+    return;
+  }
+
+  await expect(catalogStatus).toContainText("Live verified catalog");
   await expect(page.getByRole("heading", { name: /verified fits/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Fits the space, access issue" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Near misses" })).toBeVisible();
