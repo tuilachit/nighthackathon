@@ -91,10 +91,20 @@ const JSON_CHUNK_TYPE = 0x4e4f534a;
 async function main(): Promise<void> {
   const products = await readCatalog();
   const requestedId = process.argv.find((argument) => argument.startsWith("--product="))?.slice("--product=".length);
+  const roadmapId = process.argv
+    .find((argument) => argument.startsWith("--catalog-product="))
+    ?.slice("--catalog-product=".length);
+  if (requestedId !== undefined && roadmapId !== undefined) {
+    throw new Error("Use either --product or --catalog-product, not both.");
+  }
   if (requestedId !== undefined && !SELECTED_IDS.includes(requestedId as (typeof SELECTED_IDS)[number])) {
     throw new Error(`${requestedId} is not in the approved hero selection.`);
   }
-  const selectedIds = requestedId === undefined ? SELECTED_IDS : [requestedId];
+  const selectedIds = roadmapId === undefined
+    ? requestedId === undefined
+      ? SELECTED_IDS
+      : [requestedId]
+    : [roadmapId];
   const selected = selectedIds.map((id) => {
     const product = products.find((candidate) => candidate.id === id);
     if (product === undefined) {
