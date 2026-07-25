@@ -75,6 +75,11 @@ const MESHY_API = "https://api.meshy.ai/openapi/v1/image-to-3d";
 const CATALOG_PATH = resolve(process.cwd(), "public/catalog.json");
 const GLB_DIRECTORY = resolve(process.cwd(), "public/models/glb");
 const SELECTED_IDS = [
+  "target-93209258", // White cube organizer; chips one and two
+  "target-54358443", // White dorm bookcase; chip three
+  "target-1010820888", // Rustic tree shelf
+  "target-83817772", // White open shelf
+  "target-1001317520", // Industrial steel-frame shelf
   "ikea-40178591", // LAIVA: dark, slim, visually distinctive
   "ikea-20436713", // BAGGEBO: tall white shelf
   "ikea-50481172", // BAGGEBO: open metal shelf
@@ -85,7 +90,12 @@ const JSON_CHUNK_TYPE = 0x4e4f534a;
 
 async function main(): Promise<void> {
   const products = await readCatalog();
-  const selected = SELECTED_IDS.map((id) => {
+  const requestedId = process.argv.find((argument) => argument.startsWith("--product="))?.slice("--product=".length);
+  if (requestedId !== undefined && !SELECTED_IDS.includes(requestedId as (typeof SELECTED_IDS)[number])) {
+    throw new Error(`${requestedId} is not in the approved hero selection.`);
+  }
+  const selectedIds = requestedId === undefined ? SELECTED_IDS : [requestedId];
+  const selected = selectedIds.map((id) => {
     const product = products.find((candidate) => candidate.id === id);
     if (product === undefined) {
       throw new Error(`Selected catalog product ${id} is missing.`);
@@ -132,6 +142,14 @@ async function main(): Promise<void> {
 
   await mkdir(GLB_DIRECTORY, { recursive: true });
   for (const product of selected) {
+    if (product.model !== undefined) {
+      const glb = await readFile(
+        resolve(process.cwd(), "public", product.model.glbPath.replace(/^\//, "")),
+      );
+      assertBounds(glb, product.dimensions, product.id);
+      console.log(`${product.id}: existing GLB reused and exact bounds verified.`);
+      continue;
+    }
     await generateProduct(apiKey, product, products);
   }
 }
