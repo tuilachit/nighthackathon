@@ -7,6 +7,9 @@ interface ModelViewerElementAttributes extends React.HTMLAttributes<HTMLElement>
   readonly alt?: string;
   readonly ar?: boolean;
   readonly "ar-modes"?: string;
+  readonly "ar-scale"?: "auto" | "fixed";
+  readonly "ar-placement"?: "floor" | "wall";
+  readonly scale?: string;
   readonly "camera-controls"?: boolean;
   readonly "auto-rotate"?: boolean;
   readonly "shadow-intensity"?: string;
