@@ -107,6 +107,21 @@ async function main(): Promise<void> {
     return;
   }
 
+  if (process.argv.includes("--verify-existing")) {
+    for (const product of selected) {
+      const glbPath = product.model?.glbPath;
+      if (glbPath === undefined) {
+        throw new Error(`${product.id} has no cached GLB metadata.`);
+      }
+      const glb = await readFile(resolve(process.cwd(), "public", glbPath.replace(/^\//, "")));
+      assertBounds(glb, product.dimensions, product.id);
+      console.log(
+        `${product.id}: ${product.dimensions.widthMm} × ${product.dimensions.heightMm} × ${product.dimensions.depthMm} mm verified.`,
+      );
+    }
+    return;
+  }
+
   const apiKey = process.env.MESHY_API_KEY?.trim();
   if (apiKey === undefined || apiKey === "") {
     throw new Error("MESHY_API_KEY is missing or empty.");

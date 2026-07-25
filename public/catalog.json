@@ -338,6 +338,15 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-20436713/",
       "verifiedAt": "2026-07-25T05:12:44.322Z"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-20436713.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 498,
+        "heightMm": 1600,
+        "depthMm": 251
+      }
     }
   },
   {
@@ -686,6 +695,15 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/laiva-bookcase-black-brown-40178591/",
       "verifiedAt": "2026-07-25T05:13:41.692Z"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-40178591.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 619,
+        "heightMm": 1651,
+        "depthMm": 241
+      }
     }
   },
   {
@@ -832,6 +850,15 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-shelf-unit-metal-white-50481172/",
       "verifiedAt": "2026-07-25T05:14:04.524Z"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-50481172.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 600,
+        "heightMm": 1159,
+        "depthMm": 251
+      }
     }
   },
   {
