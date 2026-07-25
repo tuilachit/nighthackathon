@@ -2009,6 +2009,15 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/5-tier-tall-bookshelf-bookcase-with-steel-frame-book-shelf-for-living-room-home-office-study-11-8-x-26-x-60-inches-industrial-style/-/A-1001317520",
       "verifiedAt": "2026-07-25T05:47:55.323Z"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-target-1001317520.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 660,
+        "heightMm": 1524,
+        "depthMm": 300
+      }
     }
   },
   {
