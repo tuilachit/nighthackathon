@@ -85,10 +85,10 @@ describe("FitSearchExperience", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "white shelving unit under $200" }));
-    expect(screen.getByDisplayValue("white shelving unit under $200")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "white metal shelving unit under $30" }));
+    expect(screen.getByDisplayValue("white metal shelving unit under $30")).toBeInTheDocument();
     expect(screen.getByText("shelving unit")).toBeInTheDocument();
-    expect(screen.getByText("Under $200")).toBeInTheDocument();
+    expect(screen.getByText("Under $30")).toBeInTheDocument();
   });
 
   it("shows no fixture products when the live catalog is unavailable", () => {

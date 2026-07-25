@@ -16,7 +16,7 @@ export const DEMO_SPACE_MEASUREMENT: SpaceMeasurement = {
 };
 
 export const CACHED_FURNITURE_QUERIES = [
-  "warm oak narrow bookshelf under $300",
-  "white shelving unit under $200",
-  "black slim bookcase under $250",
+  "white wood bookcase under $50",
+  "black brown bookcase under $50",
+  "white metal shelving unit under $30",
 ] as const;
