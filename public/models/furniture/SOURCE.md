@@ -14,3 +14,12 @@ bounding boxes measured with three.js `Box3`:
 | bookcase-closed-wide.glb | 800 | 790 | 250 |
 | drawer-unit.glb | 430 | 450 | 450 |
 | sideboard.glb | 534 | 384 | 222 |
+
+The matching `.usdz` files are **not** from Kenney (the kit ships FBX/OBJ/glTF/DAE/STL,
+no USDZ). They were generated locally from the `.glb` geometry with a small
+pygltflib → USD Python script plus macOS's built-in `usdzip --arkitAsset`,
+so iOS Quick Look has a real author-provided USDZ (auto-generated USDZ does not
+honor `ar-scale="fixed"`; see `lib/model-scaling.ts`). Flat colors only, no
+textures, so the conversion only needed points/normals/indices + a
+UsdPreviewSurface per material — verify visually on a real iPhone before
+trusting them for a live demo.

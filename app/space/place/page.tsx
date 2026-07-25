@@ -38,6 +38,7 @@ const CATALOG_SEED: readonly CatalogSeed[] = [
     model: {
       dimensions: { widthMm: 400, depthMm: 250, heightMm: 880 },
       glbUrl: "/models/furniture/bookcase-open.glb",
+      iosUsdzUrl: "/models/furniture/bookcase-open.usdz",
       placeholderBoxGlbUrl: "/models/unit-box.glb",
     },
   },
@@ -50,6 +51,7 @@ const CATALOG_SEED: readonly CatalogSeed[] = [
     model: {
       dimensions: { widthMm: 800, depthMm: 250, heightMm: 790 },
       glbUrl: "/models/furniture/bookcase-closed-wide.glb",
+      iosUsdzUrl: "/models/furniture/bookcase-closed-wide.usdz",
       placeholderBoxGlbUrl: "/models/unit-box.glb",
     },
   },
@@ -62,6 +64,7 @@ const CATALOG_SEED: readonly CatalogSeed[] = [
     model: {
       dimensions: { widthMm: 430, depthMm: 450, heightMm: 450 },
       glbUrl: "/models/furniture/drawer-unit.glb",
+      iosUsdzUrl: "/models/furniture/drawer-unit.usdz",
       placeholderBoxGlbUrl: "/models/unit-box.glb",
     },
   },
@@ -74,6 +77,7 @@ const CATALOG_SEED: readonly CatalogSeed[] = [
     model: {
       dimensions: { widthMm: 534, depthMm: 222, heightMm: 384 },
       glbUrl: "/models/furniture/sideboard.glb",
+      iosUsdzUrl: "/models/furniture/sideboard.usdz",
       placeholderBoxGlbUrl: "/models/unit-box.glb",
     },
   },
