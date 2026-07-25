@@ -53,7 +53,7 @@ export function FitSearchExperience({
   );
   const filterChips = getFilterChips(query);
   const resolvedCatalogSource =
-    catalogSource ?? (products.length > 0 ? "supabase" : "unavailable");
+    catalogSource ?? (products.length > 0 ? "bundled" : "unavailable");
 
   async function handleSubmit(value: string): Promise<void> {
     const trimmed = value.trim();
@@ -247,8 +247,8 @@ function ExperienceHeader({
         Night Hack · Fit first
       </p>
       <p className="mt-2 text-xs font-bold text-[#6f685d]" data-testid="catalog-status">
-        {catalogSource === "supabase"
-          ? `Live verified catalog · ${productCount} products across ${retailerCount} retailers`
+        {catalogSource === "bundled"
+          ? `Verified catalog cached for offline use · ${productCount} products across ${retailerCount} retailers`
           : "Live catalog unavailable · 0 products"}
       </p>
       <h1 className="mt-2 max-w-2xl text-[40px] font-black leading-[0.94] tracking-[-0.055em] sm:text-6xl">
