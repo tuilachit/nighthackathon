@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   computeBoxScale,
+  computeScaleFromMeasuredSize,
   formatScaleAttribute,
   getPlacementScale,
   getPlacementSource,
   IDENTITY_SCALE,
   iosTrueScaleAvailable,
   isHeroModel,
+  needsRuntimeScaleMeasurement,
 } from "./model-scaling";
 import type { PlacementModel } from "./model-scaling";
 
@@ -56,5 +58,30 @@ describe("hero vs placeholder placement models", () => {
   it("only trusts iOS true scale when a real USDZ is provided", () => {
     expect(iosTrueScaleAvailable(heroModel)).toBe(true);
     expect(iosTrueScaleAvailable(placeholderModel)).toBe(false);
+  });
+});
+
+describe("generated (Meshy) models never get a static identity scale", () => {
+  const generatedModel: PlacementModel = {
+    dimensions: { widthMm: 778, depthMm: 280, heightMm: 840 },
+    glbUrl: "https://assets.meshy.ai/task/output/model.glb",
+    iosUsdzUrl: "https://assets.meshy.ai/task/output/model.usdz",
+    placeholderBoxGlbUrl: "/models/unit-box.glb",
+    scaleSource: "generated",
+  };
+
+  it("is not treated as a trustworthy hero model even though it has a glbUrl", () => {
+    expect(isHeroModel(generatedModel)).toBe(false);
+    expect(needsRuntimeScaleMeasurement(generatedModel)).toBe(true);
+  });
+
+  it("does not need runtime measurement once it is verified", () => {
+    expect(needsRuntimeScaleMeasurement({ ...generatedModel, scaleSource: "verified" })).toBe(false);
+  });
+
+  it("computes a stretch scale from whatever native size the loaded model actually measures", () => {
+    const measuredNativeMm = { widthMm: 500, depthMm: 500, heightMm: 500 };
+    const scale = computeScaleFromMeasuredSize(generatedModel.dimensions, measuredNativeMm);
+    expect(scale).toEqual({ x: 1.556, y: 1.68, z: 0.56 });
   });
 });

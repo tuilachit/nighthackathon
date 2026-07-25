@@ -6,7 +6,7 @@ import { analyzePromptToPrototype, DEFAULT_PROMPT, EXAMPLE_PROMPTS } from "@/lib
 import { savePrototypeToLocalStorage } from "@/lib/local-prototype-store";
 import { applyGeneratedModelResult, getStartingMeshyStatus, withMeshyStatus } from "@/lib/model-generation";
 import { validateImageUpload } from "@/lib/upload-validation";
-import { ArrowRightIcon, CameraIcon, CubeIcon, DotIcon, SparkleIcon, UploadIcon } from "@/components/ui/Icon";
+import { ArrowRightIcon, CameraIcon, CubeIcon, SparkleIcon, UploadIcon } from "@/components/ui/Icon";
 import type { ConceptRefinement, GeneratedModelResult, PrototypeSpec } from "@/lib/prototype-types";
 
 const POLL_INTERVAL_MS = 3500;
@@ -326,11 +326,6 @@ export function RealityCreateClient(): React.JSX.Element {
           {isPending ? "Generating Reality MVP" : refinement === undefined ? "Answer product questions" : "Generate Reality MVP"}
           <ArrowRightIcon size={16} color="#fff" />
         </button>
-
-        <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500">
-          <DotIcon size={6} color="#10B981" />
-          Codex agents online · Vercel deploy ready
-        </div>
       </section>
     </main>
   );

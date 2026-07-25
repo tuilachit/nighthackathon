@@ -5,8 +5,32 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { averagePoint } from "@/lib/measurement-geometry";
 import type { Point3 } from "@/lib/measurement-geometry";
-import { getPlacementScale, getPlacementSource } from "@/lib/model-scaling";
+import { computeScaleFromMeasuredSize, getPlacementScale, getPlacementSource, needsRuntimeScaleMeasurement } from "@/lib/model-scaling";
 import type { PlacementModel } from "@/lib/model-scaling";
+
+/**
+ * Generated (Meshy) models have no trustworthy native scale, so this measures the
+ * loaded mesh's actual bounding box and stretches it to the declared real dimensions
+ * instead of trusting whatever size the generator happened to produce.
+ */
+function applyModelScale(scene: THREE.Object3D, model: PlacementModel): void {
+  if (!needsRuntimeScaleMeasurement(model)) {
+    const scale = getPlacementScale(model);
+    scene.scale.set(scale.x, scale.y, scale.z);
+    return;
+  }
+
+  const box = new THREE.Box3().setFromObject(scene);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+
+  const measuredMm = { widthMm: size.x * 1000, depthMm: size.z * 1000, heightMm: size.y * 1000 };
+  const scale =
+    measuredMm.widthMm > 0 && measuredMm.depthMm > 0 && measuredMm.heightMm > 0
+      ? computeScaleFromMeasuredSize(model.dimensions, measuredMm)
+      : { x: 1, y: 1, z: 1 };
+  scene.scale.set(scale.x, scale.y, scale.z);
+}
 import { isImmersiveArSupported } from "@/lib/webxr-support";
 
 export interface PlacementCandidate {
@@ -102,8 +126,7 @@ export function XRPlacementClient({ candidates, initialCandidateId, onExit }: XR
       loader.load(
         getPlacementSource(candidate.model),
         (gltf) => {
-          const scale = getPlacementScale(candidate.model);
-          gltf.scene.scale.set(scale.x, scale.y, scale.z);
+          applyModelScale(gltf.scene, candidate.model);
           loadedModelsRef.current.set(candidate.id, gltf.scene);
           if (!disposed) onReady(gltf.scene);
         },
@@ -322,8 +345,7 @@ export function XRPlacementClient({ candidates, initialCandidateId, onExit }: XR
     }
 
     loader.load(getPlacementSource(candidate.model), (gltf) => {
-      const scale = getPlacementScale(candidate.model);
-      gltf.scene.scale.set(scale.x, scale.y, scale.z);
+      applyModelScale(gltf.scene, candidate.model);
       loadedModelsRef.current.set(candidateId, gltf.scene);
       placementGroup.clear();
       placementGroup.add(gltf.scene);

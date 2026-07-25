@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { CubeIcon } from "@/components/ui/Icon";
 import {
+  computeScaleFromMeasuredSize,
   formatScaleAttribute,
   getPlacementScale,
   getPlacementSource,
   iosTrueScaleAvailable,
   isHeroModel,
+  needsRuntimeScaleMeasurement,
 } from "@/lib/model-scaling";
 import type { PlacementModel } from "@/lib/model-scaling";
 
@@ -16,13 +18,18 @@ export interface ProductQuickLookViewerProps {
   readonly model: PlacementModel;
 }
 
+type ModelViewerElement = HTMLElement & {
+  activateAR?: () => Promise<void> | void;
+  getDimensions?: () => { readonly x: number; readonly y: number; readonly z: number };
+};
+
 /**
  * Handoff-style AR: Android Scene Viewer / iOS Quick Look take over the system camera.
  * Unlike XRPlacementClient this never keeps a live WebXR session — it just opens the
  * platform AR viewer with the model pre-scaled to the product's exact dimensions.
  */
 export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerProps): React.JSX.Element {
-  const modelViewerRef = useRef<HTMLElement & { activateAR?: () => Promise<void> | void }>(null);
+  const modelViewerRef = useRef<ModelViewerElement>(null);
   const [modelLoaded, setModelLoaded] = useState<boolean>(false);
 
   useEffect(() => {
@@ -31,11 +38,29 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
     }
   }, []);
 
-  const scaleAttribute = formatScaleAttribute(getPlacementScale(model));
+  const needsMeasurement = needsRuntimeScaleMeasurement(model);
+  const scaleAttribute = needsMeasurement ? undefined : formatScaleAttribute(getPlacementScale(model));
   const trustsIosScale = iosTrueScaleAvailable(model);
 
   function handleArLaunch(): void {
     void modelViewerRef.current?.activateAR?.();
+  }
+
+  function handleLoad(): void {
+    setModelLoaded(true);
+
+    // Generated (Meshy) models have no trustworthy native scale: measure the loaded
+    // model's own bounding box and stretch it to the declared real dimensions instead
+    // of trusting whatever size the generator happened to produce.
+    if (!needsMeasurement) return;
+
+    const element = modelViewerRef.current;
+    const dimensions = element?.getDimensions?.();
+    if (dimensions === undefined || dimensions.x <= 0 || dimensions.y <= 0 || dimensions.z <= 0) return;
+
+    const measuredMm = { widthMm: dimensions.x * 1000, depthMm: dimensions.z * 1000, heightMm: dimensions.y * 1000 };
+    const scale = computeScaleFromMeasuredSize(model.dimensions, measuredMm);
+    element?.setAttribute("scale", formatScaleAttribute(scale));
   }
 
   return (
@@ -56,7 +81,7 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
           exposure="0.9"
           loading="eager"
           class="relative z-10 h-[320px] w-full bg-transparent sm:h-[380px]"
-          onLoad={() => setModelLoaded(true)}
+          onLoad={handleLoad}
         />
         <div className="mono pointer-events-none absolute left-3 top-3 rounded-full bg-white/70 px-2 py-1 text-[9px] uppercase tracking-wide text-slate-500 backdrop-blur">
           {isHeroModel(model) ? "hero model" : "exact-dimension box"}
