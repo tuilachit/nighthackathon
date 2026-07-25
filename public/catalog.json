@@ -1,0 +1,488 @@
+[
+  {
+    "id": "ikea-20522046",
+    "name": "BILLY Bookcase - white 31 1/2x11x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 79,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 2019,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "white",
+      "2x11x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0625599_pe692385_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0625599_pe692385_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-20522046/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-20522046/",
+      "verifiedAt": "2026-07-25T05:12:14.912Z"
+    }
+  },
+  {
+    "id": "ikea-40594928",
+    "name": "BILLY Bookcase - blue 15 3/4x11x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 59,
+    "dimensions": {
+      "widthMm": 400,
+      "heightMm": 2019,
+      "depthMm": 279
+    },
+    "materials": [],
+    "colors": [
+      "blue"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "blue",
+      "4x11x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-blue__1471385_pe997200_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-blue__1471385_pe997200_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-blue-40594928/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-blue-40594928/",
+      "verifiedAt": "2026-07-25T05:12:18.575Z"
+    }
+  },
+  {
+    "id": "ikea-90522043",
+    "name": "BILLY Bookcase - white 31 1/2x11x41 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 49,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 1060,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "white",
+      "2x11x41"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644780_pe702956_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644780_pe702956_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
+      "verifiedAt": "2026-07-25T05:12:22.068Z"
+    }
+  },
+  {
+    "id": "ikea-60413502",
+    "name": "HEMNES Bookcase - white stain/light brown 35 3/8x77 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 329,
+    "dimensions": {
+      "widthMm": 899,
+      "heightMm": 1969,
+      "depthMm": 371
+    },
+    "materials": [
+      "solid wood"
+    ],
+    "colors": [
+      "brown",
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "hemnes",
+      "bookcase",
+      "white",
+      "stain",
+      "light",
+      "brown",
+      "8x77"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/hemnes-bookcase-white-stain-light-brown__0980092_pe814822_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/hemnes-bookcase-white-stain-light-brown__0980092_pe814822_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/hemnes-bookcase-white-stain-light-brown-60413502/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/hemnes-bookcase-white-stain-light-brown-60413502/",
+      "verifiedAt": "2026-07-25T05:12:24.815Z"
+    }
+  },
+  {
+    "id": "ikea-40301223",
+    "name": "BRIMNES Bookcase - black 23 5/8x74 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 149,
+    "dimensions": {
+      "widthMm": 600,
+      "heightMm": 1899,
+      "depthMm": 349
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "black"
+    ],
+    "styles": [],
+    "keywords": [
+      "brimnes",
+      "bookcase",
+      "black",
+      "8x74"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/brimnes-bookcase-black__0427999_pe583197_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/brimnes-bookcase-black__0427999_pe583197_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/brimnes-bookcase-black-40301223/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/brimnes-bookcase-black-40301223/",
+      "verifiedAt": "2026-07-25T05:12:27.464Z"
+    }
+  },
+  {
+    "id": "ikea-89581514",
+    "name": "BILLY Bookcase - white 63x11x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 158,
+    "dimensions": {
+      "widthMm": 1600,
+      "heightMm": 2019,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "white",
+      "63x11x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644156_pe702452_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0644156_pe702452_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s89581514/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s89581514/",
+      "verifiedAt": "2026-07-25T05:12:30.292Z"
+    }
+  },
+  {
+    "id": "ikea-59638673",
+    "name": "BILLY Bookcase with height extension unit - white 31 1/2x11x93 1/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 109,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 2369,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "with",
+      "height",
+      "extension",
+      "unit",
+      "white",
+      "2x11x93"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-height-extension-unit-white__0934889_pe792600_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-height-extension-unit-white__0934889_pe792600_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-white-s59638673/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-white-s59638673/",
+      "verifiedAt": "2026-07-25T05:12:33.623Z"
+    }
+  },
+  {
+    "id": "ikea-09483367",
+    "name": "BILLY / OXBERG Bookcase with doors - oak effect 31 1/2x11 3/4x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 159,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 2019,
+      "depthMm": 298
+    },
+    "materials": [],
+    "colors": [
+      "oak"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "oxberg",
+      "bookcase",
+      "with",
+      "doors",
+      "oak",
+      "effect",
+      "2x11",
+      "4x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-oxberg-bookcase-with-doors-oak-effect__1097018_pe864668_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-oxberg-bookcase-with-doors-oak-effect__1097018_pe864668_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-oak-effect-s09483367/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-oak-effect-s09483367/",
+      "verifiedAt": "2026-07-25T05:12:36.997Z"
+    }
+  },
+  {
+    "id": "ikea-19581517",
+    "name": "BILLY Bookcase combination - white 94 1/2x11x41 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 147,
+    "dimensions": {
+      "widthMm": 2400,
+      "heightMm": 1060,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "combination",
+      "white",
+      "2x11x41"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-combination-white__0644497_pe702733_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-combination-white__0644497_pe702733_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-combination-white-s19581517/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-combination-white-s19581517/",
+      "verifiedAt": "2026-07-25T05:12:41.128Z"
+    }
+  },
+  {
+    "id": "ikea-20436713",
+    "name": "BAGGEBO Bookcase - white 19 5/8x9 7/8x63 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 32.99,
+    "dimensions": {
+      "widthMm": 498,
+      "heightMm": 1600,
+      "depthMm": 251
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "baggebo",
+      "bookcase",
+      "white",
+      "8x9",
+      "8x63"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/baggebo-bookcase-white__0981552_pe815388_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/baggebo-bookcase-white__0981552_pe815388_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-20436713/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-20436713/",
+      "verifiedAt": "2026-07-25T05:12:44.322Z"
+    }
+  },
+  {
+    "id": "ikea-10522037",
+    "name": "BILLY Bookcase - white 15 3/4x11x41 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 39,
+    "dimensions": {
+      "widthMm": 400,
+      "heightMm": 1060,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "white",
+      "4x11x41"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0627110_pe693186_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-white__0627110_pe693186_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-10522037/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-10522037/",
+      "verifiedAt": "2026-07-25T05:12:53.881Z"
+    }
+  },
+  {
+    "id": "ikea-20323805",
+    "name": "BILLY Bookcase with glass doors - dark blue 31 1/2x11 3/4x79 1/2 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 199,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 2019,
+      "depthMm": 298
+    },
+    "materials": [
+      "wood (including board)",
+      "glass"
+    ],
+    "colors": [
+      "blue"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "with",
+      "glass",
+      "doors",
+      "dark",
+      "blue",
+      "2x11",
+      "4x79"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-glass-doors-dark-blue__0429309_pe584188_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-glass-doors-dark-blue__0429309_pe584188_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-glass-doors-dark-blue-20323805/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-glass-doors-dark-blue-20323805/",
+      "verifiedAt": "2026-07-25T05:12:56.554Z"
+    }
+  },
+  {
+    "id": "ikea-70261131",
+    "name": "GERSBY Bookcase - white 23 5/8x70 7/8 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 59,
+    "dimensions": {
+      "widthMm": 600,
+      "heightMm": 1800,
+      "depthMm": 241
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "gersby",
+      "bookcase",
+      "white",
+      "8x70"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/gersby-bookcase-white__0251910_pe390723_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/gersby-bookcase-white__0251910_pe390723_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/gersby-bookcase-white-70261131/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/gersby-bookcase-white-70261131/",
+      "verifiedAt": "2026-07-25T05:13:02.377Z"
+    }
+  },
+  {
+    "id": "ikea-09581891",
+    "name": "BILLY Bookcase with height extension unit - brown walnut effect 15 3/4x11x93 1/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 99,
+    "dimensions": {
+      "widthMm": 400,
+      "heightMm": 2369,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "brown",
+      "walnut"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "with",
+      "height",
+      "extension",
+      "unit",
+      "brown",
+      "walnut",
+      "effect",
+      "4x11x93"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-height-extension-unit-brown-walnut-effect__1269125_pe929015_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-with-height-extension-unit-brown-walnut-effect__1269125_pe929015_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-brown-walnut-effect-s09581891/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-brown-walnut-effect-s09581891/",
+      "verifiedAt": "2026-07-25T05:13:13.853Z"
+    }
+  }
+]

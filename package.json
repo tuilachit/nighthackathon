@@ -16,7 +16,7 @@
     "test:watch": "vitest",
     "e2e": "playwright test",
     "catalog:validate": "vitest run lib/catalog-validation.test.ts",
-    "catalog:sync": "tsx --env-file-if-exists=.env.local scripts/catalog/sync-supabase.ts",
+    "catalog:sync": "tsx --env-file-if-exists=.env.local scripts/catalog/sync-ikea.ts",
     "catalog:sync:dry": "npm run catalog:sync -- --dry-run",
     "assets:generate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/catalog/generate-model-assets.ts",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
