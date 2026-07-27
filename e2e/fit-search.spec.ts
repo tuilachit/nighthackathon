@@ -24,7 +24,7 @@ test("fit-first mobile route is honest with AI disabled", async ({ page }) => {
     return;
   }
 
-  await expect(catalogStatus).toContainText("Live verified catalog");
+  await expect(catalogStatus).toContainText("Verified catalog cached for offline use");
   await expect(page.getByRole("heading", { name: /verified fits/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Fits the space, access issue" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Near misses" })).toBeVisible();
@@ -44,5 +44,6 @@ test("fit-first mobile route is honest with AI disabled", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Compare clearance" })).toBeVisible();
 
   await page.getByRole("button", { name: "View in room" }).first().click();
-  await expect(page.getByTestId("selection-handoff")).toContainText("Ready for placement");
+  await expect(page.getByRole("button", { name: "View in AR" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "‹ Back to results" })).toBeVisible();
 });

@@ -21,7 +21,7 @@ export default defineConfig({
   projects: [
     {
       // This is responsive browser emulation, not real-device AR validation.
-      name: "legacy-mobile-chrome-emulation",
+      name: "pixel-5-chrome",
       use: { ...devices["Pixel 5"] },
     },
   ],
