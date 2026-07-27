@@ -25,6 +25,7 @@ interface CatalogValidationFailure {
 
 export type CatalogValidationResult = CatalogValidationSuccess | CatalogValidationFailure;
 
+/** Validates every runtime catalog record without accepting a partial result. */
 export function validateCatalog(input: unknown): CatalogValidationResult {
   if (!Array.isArray(input)) {
     return { ok: false, errors: ["Catalog must be an array."] };
@@ -62,6 +63,7 @@ export function validateCatalog(input: unknown): CatalogValidationResult {
   return { ok: true, products };
 }
 
+/** Returns a fully validated catalog or throws with all validation failures. */
 export function requireValidCatalog(input: unknown): readonly CatalogProduct[] {
   const result = validateCatalog(input);
   if (!result.ok) {

@@ -1,3 +1,8 @@
+/**
+ * Deterministic furniture-intent parsing and validation. These functions are
+ * the offline source of truth; optional AI output can only enrich this shape.
+ */
+
 import type { FurnitureCategory, FurnitureQuery } from "./catalog-types";
 
 const CATEGORY_MATCHERS: ReadonlyArray<readonly [FurnitureCategory, readonly string[]]> = [
@@ -25,6 +30,7 @@ const STOP_WORDS = new Set([
   "with",
 ]);
 
+/** Parses a free-form furniture request into the local structured query shape. */
 export function parseFurnitureQuery(input: string): FurnitureQuery {
   const normalized = normalizeText(input);
   const category = CATEGORY_MATCHERS.find(([, matchers]) =>
@@ -56,6 +62,7 @@ export function parseFurnitureQuery(input: string): FurnitureQuery {
   };
 }
 
+/** Merges optional AI enrichment without replacing explicit local values. */
 export function mergeFurnitureQueries(
   localQuery: FurnitureQuery,
   enhancement: FurnitureQuery,
@@ -70,6 +77,7 @@ export function mergeFurnitureQueries(
   };
 }
 
+/** Validates untrusted structured parser output at the application boundary. */
 export function parseFurnitureQueryValue(value: unknown): FurnitureQuery | undefined {
   if (!isRecord(value)) {
     return undefined;

@@ -1,9 +1,11 @@
+/**
+ * Pure destination-space fit evaluation. It applies measurement uncertainty,
+ * safety clearances, and deterministic upright orientation selection.
+ */
+
 import type {
-  AccessCrossSectionDimension,
-  AccessEvaluation,
   ClearancePolicy,
   FitEvaluation,
-  ProductAxis,
   ProductDimensions,
   ProductOrientation,
   SpaceMeasurement,
@@ -24,12 +26,10 @@ interface OrientationDimensions {
   readonly depthMm: number;
 }
 
-const AXIS_TIE_ORDER: Record<ProductAxis, number> = {
-  width: 0,
-  depth: 1,
-  height: 2,
-};
-
+/**
+ * Evaluates both upright orientations and returns the candidate with the
+ * greatest minimum clearance, or the least-bad stable near miss.
+ */
 export function evaluateProductFit(
   dimensions: ProductDimensions,
   measurement: SpaceMeasurement,
@@ -75,55 +75,6 @@ export function formatFitLabel(evaluation: FitEvaluation): string {
   }
   const reason = evaluation.reasons[0]?.replace(" after safety allowance.", "");
   return reason === undefined ? "Doesn't fit" : `Near miss · ${reason}`;
-}
-
-export function evaluateProductAccess(
-  dimensions: ProductDimensions,
-  accessWidthMm: number | null | undefined,
-  uncertaintyMm: number,
-  policy: ClearancePolicy,
-): AccessEvaluation {
-  if (accessWidthMm === null || accessWidthMm === undefined) {
-    return { status: "skipped", passes: true };
-  }
-
-  const crossSection = getSmallestCrossSection(dimensions);
-  const controllingDimensionMm = Math.max(crossSection[0].sizeMm, crossSection[1].sizeMm);
-  const requiredWidthMm = controllingDimensionMm + uncertaintyMm + policy.sideMm * 2;
-  const clearanceMm = Math.round(accessWidthMm - requiredWidthMm);
-
-  if (clearanceMm >= 0) {
-    return {
-      status: "passed",
-      passes: true,
-      accessWidthMm,
-      crossSection,
-      clearanceMm,
-    };
-  }
-
-  const deficitMm = Math.abs(clearanceMm);
-  return {
-    status: "failed",
-    passes: false,
-    accessWidthMm,
-    crossSection,
-    deficitMm,
-    reason: `Fits the space, but ${deficitMm} mm too wide for the ${Math.round(accessWidthMm)} mm access opening.`,
-  };
-}
-
-export function getSmallestCrossSection(
-  dimensions: ProductDimensions,
-): readonly [AccessCrossSectionDimension, AccessCrossSectionDimension] {
-  const axes: AccessCrossSectionDimension[] = [
-    { axis: "width", sizeMm: dimensions.widthMm },
-    { axis: "depth", sizeMm: dimensions.depthMm },
-    { axis: "height", sizeMm: dimensions.heightMm },
-  ];
-
-  axes.sort((left, right) => left.sizeMm - right.sizeMm || AXIS_TIE_ORDER[left.axis] - AXIS_TIE_ORDER[right.axis]);
-  return [axes[0], axes[1]];
 }
 
 function getOrientations(dimensions: ProductDimensions): readonly OrientationDimensions[] {

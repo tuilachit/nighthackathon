@@ -1,3 +1,8 @@
+/**
+ * Pure catalog partitioning and ranking. Physical fit and access predicates
+ * run before preference scoring so failing products never enter `fits`.
+ */
+
 import type {
   AccessEvaluation,
   CatalogProduct,
@@ -6,9 +11,14 @@ import type {
   ProductSearchResults,
   SpaceMeasurement,
 } from "./catalog-types";
-import { evaluateProductAccess, evaluateProductFit } from "./fit-engine";
+import { evaluateProductAccess } from "./access-fit";
+import { evaluateProductFit } from "./fit-engine";
 import { DEFAULT_CLEARANCE_POLICY } from "./fit-config";
 
+/**
+ * Partitions products into fits, access failures, and destination near misses,
+ * then applies deterministic intent and preference ranking within each group.
+ */
 export function searchProducts(
   products: readonly CatalogProduct[],
   measurement: SpaceMeasurement,
