@@ -1,203 +1,220 @@
-# Night Hack: Fit-First Furniture Search
+# Fit-First Furniture Search
 
-Measure an awkward space, find furniture that physically fits, compare the
-remaining clearance across retailers, and preview a chosen item at true scale.
+**Only shows furniture that actually fits—your space and your front door.**
 
-> **Collaboration source of truth:** Read [`AGENTS.md`](./AGENTS.md) before
-> changing scope, shared contracts, or the demo path.
+2nd place out of 117 teams at Founders, Inc. Night Hack.
 
-## Baseline and Night Hack Target
+[Live demo](https://app-input.vercel.app/fit) ·
+[CI](https://github.com/tuilachit/nighthackathon/actions/workflows/quality.yml)
 
-This repository contains two deliberately separate layers:
+[![Quality](https://github.com/tuilachit/nighthackathon/actions/workflows/quality.yml/badge.svg)](https://github.com/tuilachit/nighthackathon/actions/workflows/quality.yml)
 
-### Disclosed pre-event baseline
+> **Demo GIF placeholder:** replace this block with
+> `docs/assets/fit-first-demo.gif` after recording the final phone walkthrough.
 
-The current Next.js app is **ARchitect**, a mobile-first sketch-to-spatial-MVP
-prototype. It can:
+## Architecture
 
-- capture a sketch and product prompt;
-- create a typed fallback `PrototypeSpec`;
-- optionally refine concepts with OpenAI and generate models with Meshy;
-- show result, AR, launch, and Build Pack routes; and
-- recover to deterministic local behavior when optional integrations fail.
+```mermaid
+flowchart LR
+  subgraph Runtime["Browser runtime"]
+    Measure["Space measurement<br/>manual or WebXR"]
+    Intent["Voice or text intent"]
+    Parse["Deterministic parser<br/>optional AI enrichment"]
+    Fit["Destination fit predicate"]
+    Access["Access-opening predicate"]
+    Rank["Preference ranking"]
+    Compare["Cross-retailer comparison"]
+    AR["True-scale AR placement"]
 
-This generic sketch-to-3D AR experience existed before Night Hack. The annotated
-tag `night-hack-baseline-2026-07-24` records an earlier disclosed baseline. The
-team must create another commit or tag at the actual kickoff to record the exact
-starting state.
+    Measure --> Fit
+    Intent --> Parse --> Rank
+    Fit --> Access --> Rank --> Compare --> AR
+  end
 
-### Night Hack target
+  subgraph Ingestion["Offline catalog ingestion agent"]
+    Retailers["Retailer pages and APIs"]
+    Adapters["Retailer adapters"]
+    Validate["All-or-nothing validation gate"]
+    Catalog["public/catalog.json"]
 
-The new capability is fit-first, cross-retailer furniture search:
+    Retailers --> Adapters --> Validate --> Catalog
+  end
 
-1. Capture width and depth with Android WebXR, or enter dimensions manually.
-2. Confirm width, depth, height, and measurement uncertainty.
-3. Describe the desired furniture.
-4. Apply a conservative physical-fit predicate before preference ranking.
-5. When supplied, apply an advisory narrowest-access check and keep failures
-   separate from destination-space near misses.
-6. Compare valid products by retailer, dimensions, price, and clearance.
-7. Keep near misses separate and explain the exact shortfall.
-8. Place selected hero products at true scale and swap without remeasuring.
-9. Open the retailer product page.
+  subgraph Assets["Offline 3D asset pipeline"]
+    Photos["Verified retailer photos"]
+    Meshy["Meshy image-to-3D"]
+    Scale["Rescale and verify bounds"]
+    Models["Cached GLB / USDZ assets"]
 
-The room is the query, not the catalog. AR is the final proof, not the product
-claim. See [`AGENTS.md`](./AGENTS.md) for the binding scope, fit semantics,
-device strategy, and five-hour build order.
+    Photos --> Meshy --> Scale --> Models
+  end
 
-## Run Locally
+  Catalog --> Fit
+  Catalog --> Rank
+  Catalog --> Photos
+  Models --> AR
+```
+
+Retailer fetching and model generation are kept off the search request path.
+The deployed app reads a validated catalog snapshot and cached hero assets, so
+fit and comparison remain deterministic when external APIs are unavailable.
+
+## How it works
+
+### 1. Intent becomes a deterministic query
+
+The local parser extracts category, budget, material, color, style, and keyword
+preferences from text. Optional AI enrichment can add missing fields, but it
+cannot replace explicitly parsed category or budget values. Search still works
+without an API key.
+
+### 2. Destination-space fit runs before ranking
+
+All measurements use millimetres. The engine conservatively reduces the usable
+space by measurement uncertainty and a centralized clearance policy:
+
+- `20 mm` on each side;
+- `20 mm` behind the product; and
+- `10 mm` above the product.
+
+Each product is evaluated upright in its default orientation and rotated 90
+degrees on the floor. Height never rotates. A boundary equality passes. When
+both orientations fit, the engine chooses the one with the greatest minimum
+clearance. Products that fail remain in a separate near-miss collection with a
+stable dimensional reason.
+
+### 3. Access fit is a separate predicate
+
+When a narrowest access width is known, width, depth, and height are sorted
+from smallest to largest. The two smallest axes form the transport
+cross-section; ties resolve in `width`, `depth`, then `height` order. The
+opening must clear both axes after uncertainty and side allowances.
+
+A product that fits the destination but fails this check is never presented as
+a fit. It appears in a separate access-failure collection with its exact
+deficit.
+
+### 4. Valid products are ranked and compared
+
+Only products that pass the physical predicates reach the main result list.
+Ranking then considers category, budget, preference matches, fit confidence,
+minimum clearance, price, and stable ID. Up to three products can be compared
+across retailers using the same dimensions and clearance metrics.
+
+### 5. The selected product is placed at verified scale
+
+Hero product photos are converted to GLBs through Meshy outside the critical
+search path. Each mesh is rescaled to the catalog record's verified
+width/height/depth and its scene bounds are checked before the asset path is
+attached. Products without a cached mesh use a unit box scaled to the same
+verified dimensions rather than an invented model size.
+
+## Catalog ingestion
+
+The current ingestion tools use deterministic IKEA, Target, and Wayfair
+adapters. A record enters the runtime snapshot only when the catalog validator
+accepts the complete catalog.
+
+The gate rejects:
+
+- missing or non-positive width, height, or depth;
+- missing verification source or verification date;
+- duplicate IDs;
+- invalid retailer, image, or product URLs;
+- negative prices or unsupported categories; and
+- model metadata whose verified bounds do not match the product dimensions.
+
+The deployed application never scrapes a retailer during a user search.
+
+## Repository structure
+
+```text
+app/fit/                         Fit-first route and server catalog load
+components/fit/                  Search, results, comparison, and AR viewer UI
+lib/access-fit.ts                Pure access-opening predicate
+lib/fit-engine.ts                Pure destination-space predicate
+lib/query-parser.ts              Deterministic intent parser and AI validation
+lib/product-ranker.ts            Result partitioning and stable ranking
+lib/catalog-source.ts            Bundled runtime catalog boundary
+lib/catalog-validation.ts        All-or-nothing catalog validation
+lib/measurement-geometry.ts      Pure measurement and unit geometry
+lib/model-scaling.ts             Verified model scaling and placement types
+scripts/catalog/ingestion/       Retailer-specific offline adapters
+scripts/catalog/generate-*.ts    Resumable Meshy generation and verification
+public/catalog.json              Bundled validated catalog snapshot
+public/models/                   Cached GLB and USDZ assets
+```
+
+UI components do not perform fit mathematics or retailer ingestion. Those
+rules live in pure TypeScript modules with unit tests.
+
+## Run locally
 
 Requirements:
 
-- Node `22.23.1` (see [`.nvmrc`](./.nvmrc))
+- Node `24.3.0` (see [`.nvmrc`](./.nvmrc))
 - npm `10.9.8`
-
-Install exactly from the committed lockfile:
 
 ```bash
 npm ci
-```
-
-Start the development server:
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000/fit](http://localhost:3000/fit).
 
-The generic prototype and `/fit` experience work without API keys. `/fit` reads
-the validated snapshot at `public/catalog.json`; retailer ingestion never runs
-on the user request path. Copy `.env.example` to `.env.local` only when testing
-an optional integration:
+The bundled catalog, deterministic parser, fit engine, comparison, and cached
+models work without credentials. For optional integrations:
 
 ```bash
 cp .env.example .env.local
 ```
 
-All optional integrations are disabled by default. Do not commit `.env.local`
-or real credentials.
+Relevant environment variables:
 
 | Variable | Purpose |
 | --- | --- |
-| `OPENAI_API_KEY` | Optional server-side concept refinement, query parsing, and voice transcription |
-| `OPENAI_VISION_MODEL` | Model used by the optional OpenAI path |
-| `OPENAI_QUERY_MODEL` | Optional override for the furniture-query extraction model |
-| `OPENAI_TRANSCRIPTION_MODEL` | Optional override for the voice transcription model |
-| `ENABLE_MESHY` | Enables optional custom model generation when set to `true` |
-| `MESHY_API_KEY` | Server-side credential for Meshy |
-| `ENABLE_NOTION` | Enables the optional waitlist integration when set to `true` |
-| `NOTION_TOKEN` | Server-side Notion credential |
-| `NOTION_WAITLIST_DATABASE_ID` | Optional Notion database identifier |
-| `NOTION_WAITLIST_DATA_SOURCE_ID` | Optional Notion data-source identifier |
-| `SCRAPINGANT_API_KEY` | Server-side credential used only by scheduled catalog ingestion |
+| `OPENAI_API_KEY` | Optional query enrichment, transcription, and legacy concept analysis |
+| `OPENAI_QUERY_MODEL` | Optional query-extraction model override |
+| `OPENAI_TRANSCRIPTION_MODEL` | Optional transcription model override |
+| `MESHY_API_KEY` | Offline or optional on-demand model generation |
+| `ENABLE_MESHY` | Enables Meshy generation when `true` |
+| `SCRAPINGANT_API_KEY` | Current offline catalog-ingestion transport |
+| `NOTION_TOKEN` | Optional legacy waitlist integration |
 
-## Verified Bundled Catalog
+Never commit `.env.local` or generated credential files.
 
-Retailer pages are never scraped during a user search. The ingestion tooling
-collects factual product data outside the app, rejects incomplete records, and
-updates the reviewed snapshot committed with the deployment:
-
-```text
-ScrapingAnt → deterministic retailer adapters → validation
-            → public/catalog.json → /fit server read
-```
-
-Run the current bounded IKEA ingestion locally:
-
-```bash
-npm run catalog:sync
-```
-
-The command appends only products that pass the catalog validator and writes
-the snapshot incrementally. Review retailer terms and migrate to authorized
-affiliate/catalog feeds before treating this hackathon ingestion path as a
-commercial production data source.
-
-## Quality Gate
-
-Run the same reproducible gate used by CI:
+## Verification
 
 ```bash
 npm run verify
-```
-
-It runs TypeScript checks, ESLint, Vitest, and a production build. Playwright is
-kept separate because browser binaries and a running app may be required:
-
-```bash
 npm run e2e
 ```
 
-Before a phone-demo handoff, also verify the deployed HTTPS origin on the actual
-Android and iPhone devices. Automated checks do not validate camera permission,
-plane detection, Scene Viewer, or Quick Look behavior.
+`npm run verify` runs TypeScript, ESLint, Vitest, and a production build.
+GitHub Actions runs that gate for every push to `main` and every pull request.
+Playwright covers the user flow separately.
 
-## Code Boundaries
+## Honest limitations
 
-The existing baseline remains organized as follows:
+- The bundled portfolio snapshot currently contains IKEA and Target products;
+  the Wayfair adapter exists, but Wayfair data is not yet in the snapshot.
+- The deployed `/fit` route currently starts with a known demo measurement.
+  Measurement geometry exists, but live WebXR capture and first-class manual
+  entry still need to be wired into this route.
+- The access predicate models one narrowest opening. It does not simulate
+  turns, stairs, packaging, disassembly, ceiling height, or a complete route.
+- AR behavior depends on device support. Android can use WebXR or Scene Viewer;
+  fixed-scale iPhone Quick Look requires a verified USDZ asset.
+- Only selected hero products have shape-accurate cached meshes. Other products
+  use dimensionally accurate boxes.
+- Retailer adapters collect public factual product data for a prototype.
+  Commercial use requires authorized feeds and a review of retailer terms.
+- Optional AI and Meshy endpoints require network access and credentials; the
+  fit and comparison path does not.
 
-```text
-app/
-  page.tsx                         Existing create-flow shell
-  result/[id]/page.tsx             Existing generated prototype result
-  ar/[id]/page.tsx                 Existing model-viewer AR route
-  launch/[id]/page.tsx             Existing launch/waitlist surface
-  build-pack/[id]/page.tsx         Existing generated artifact viewer
-  api/                             Optional OpenAI, Meshy, and waitlist routes
+## Award disclosure
 
-components/
-  create/ result/ ar/ launch/      Existing baseline UI
-  build-pack/ ui/                  Existing artifact and UI primitives
-
-lib/
-  prototype-*.ts                   Existing baseline domain and registry
-  analyzer.ts                      Existing deterministic analysis
-  model-generation.ts             Existing generation state transitions
-  meshy-client.ts                  Existing optional Meshy boundary
-```
-
-New fit-first work should use the boundaries defined in `AGENTS.md`:
-
-```text
-components/fit/                    Measurement confirmation and comparison UI
-components/xr/                     WebXR measurement and placement clients
-lib/catalog-*.ts                   Catalog schema, validation, and legacy test fixture
-lib/fit-engine.ts                  Pure conservative fit predicate
-lib/measurement-geometry.ts        Pure point-to-dimensions geometry
-lib/product-ranker.ts              Deterministic ranking after hard fit
-public/data/                       Verified catalog and cached queries
-public/models/{glb,usdz}/          Optimized local hero assets
-scripts/catalog/                   Bounded ingestion, validation, and asset tools
-```
-
-Do not duplicate a working abstraction just to match this suggested layout.
-Coordinate changes to shared types, the fit engine, measurement state, and the
-top-level flow before editing them.
-
-## Collaboration
-
-- [`AGENTS.md`](./AGENTS.md) — canonical product, engineering, and demo rules.
-- [`TODOS.md`](./TODOS.md) — current owner/status/blocker board.
-- [`docs/collaboration/handoff.md`](./docs/collaboration/handoff.md) — small
-  handoff checklist and paste-ready template.
-- [`docs/designs/`](./docs/designs/) — archived historical plans for the older
-  Reality MVP direction; useful context, not active scope.
-
-Keep commits small, mark pre-event work truthfully, and never commit credentials,
-private attendee links, Wi-Fi details, or other event-only information.
-
-## Scripts
-
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the local Next.js server |
-| `npm run build` | Create a production build |
-| `npm run start` | Serve a production build |
-| `npm run typecheck` | Run TypeScript checks |
-| `npm run lint` | Run ESLint |
-| `npm run test` | Run Vitest once |
-| `npm run test:watch` | Run Vitest in watch mode |
-| `npm run e2e` | Run Playwright tests |
-| `npm run catalog:sync` | Append validated products to the bundled catalog snapshot |
-| `npm run verify` | Run the CI quality gate |
+The generic concept-to-3D prototype routes predate Night Hack. The fit-first
+catalog validation, conservative fit/access predicates, cross-retailer
+comparison, verified model scaling, and furniture workflow were the hackathon
+submission. Baseline tags remain in Git for provenance.
