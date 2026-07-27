@@ -1,4 +1,3 @@
-import type { Json } from "../../../lib/supabase/database.types";
 import {
   dimensionsFromInches,
   inferCategory,
@@ -10,7 +9,11 @@ import {
   numberValue,
   stringValue,
 } from "./shared";
-import type { ProductCandidate, ProductDiscoveryTarget } from "./types";
+import type {
+  JsonValue,
+  ProductCandidate,
+  ProductDiscoveryTarget,
+} from "./types";
 
 export const IKEA_CATEGORY_URLS = [
   "https://www.ikea.com/us/en/cat/bookcases-10382/",
@@ -113,7 +116,7 @@ function parseJsonLd(html: string): readonly unknown[] {
   return [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
     .flatMap((match) => {
       try {
-        return [JSON.parse(match[1]) as Json];
+        return [JSON.parse(match[1]) as JsonValue];
       } catch {
         return [];
       }

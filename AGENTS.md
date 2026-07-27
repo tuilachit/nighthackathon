@@ -264,11 +264,8 @@ interface FurnitureQuery {
 
 ## Catalog and Asset Rules
 
-Use the verified Supabase catalog only when its all-or-nothing publication gate
-is green. The old `public/data/catalog.json` fixture may support deterministic
-unit tests but must never render as a runtime product fallback. The approved
-database scope is catalog snapshots and attributed asset metadata only; it does
-not authorize user accounts, XR persistence, or runtime scraping.
+Use the validated bundled `public/catalog.json` snapshot as the runtime source
+of truth. Retailer ingestion must remain outside the user request path.
 
 - Maintain at least 100 active verified products across IKEA, Target, and
   Wayfair in the online snapshot.
@@ -280,14 +277,13 @@ not authorize user accounts, XR persistence, or runtime scraping.
 - Include USDZ for the small iPhone Quick Look hero set.
 - Use exact-dimension placeholder boxes for products without a 3D model; label
   them honestly.
-- Cache retailer product images in the public `product-images` bucket and retain
-  their retailer source URL and attribution.
+- Retain each retailer image source URL and attribution.
 - Never invent product dimensions.
 - Never scrape retailers at runtime.
-- Run bounded scheduled ingestion only; the app reads Supabase during search.
-- Keep the online-catalog gate at 100 products and three retailers so a partial
-  refresh cannot appear as a finished catalog.
-- Show a clear catalog-unavailable state with no products when that gate fails.
+- Run bounded ingestion only; the app reads the committed catalog snapshot
+  during search.
+- Show a clear catalog-unavailable state when the bundled snapshot is invalid
+  or missing.
 - Treat the adapters as a hackathon ingestion path. Review retailer terms and
   move to authorized feeds before commercial production use.
 
@@ -298,8 +294,7 @@ verification source/date, and optional GLB/USDZ paths.
 The catalog validation and ingestion scripts should reject duplicate IDs,
 missing dimensions, missing verification or attribution, invalid URLs,
 negative prices, unsupported units, and model records without matching scale
-metadata. Public clients may read active catalog rows and assets through RLS;
-only the scheduled server/CI job may write them.
+metadata. Only offline ingestion tooling may update the catalog snapshot.
 
 ## Device and AR Strategy
 

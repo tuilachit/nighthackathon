@@ -17,13 +17,11 @@
     "e2e": "playwright test",
     "catalog:validate": "vitest run lib/catalog-validation.test.ts",
     "catalog:sync": "tsx --env-file-if-exists=.env.local scripts/catalog/sync-ikea.ts",
-    "catalog:sync:dry": "npm run catalog:sync -- --dry-run",
     "assets:generate": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/catalog/generate-model-assets.ts",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
     "@google/model-viewer": "^4.2.0",
-    "@supabase/supabase-js": "2.110.8",
     "autoprefixer": "^10.5.0",
     "next": "^15.5.21",
     "postcss": "^8.5.18",

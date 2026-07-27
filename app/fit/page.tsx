@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { FitDemoClient } from "@/components/fit/FitDemoClient";
+import { loadFurnitureCatalog } from "@/lib/catalog-source";
 import { DEMO_SPACE_MEASUREMENT } from "@/lib/fit-config";
-import { loadFurnitureCatalog } from "@/lib/supabase/catalog-source";
 
 export const metadata: Metadata = {
   title: "Fit-first furniture search",

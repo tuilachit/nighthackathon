@@ -65,7 +65,7 @@ describe("runtime furniture catalog", () => {
       {
         ...rawCatalog[0],
         imagePath:
-          "https://example.supabase.co/storage/v1/object/public/product-images/item.jpg",
+          "https://cdn.example.com/product-images/item.jpg",
       },
     ];
     const result = validateCatalog(invalid);

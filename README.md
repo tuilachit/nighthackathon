@@ -66,10 +66,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The generic prototype baseline works without API keys. The `/fit` experience
-requires a complete Supabase catalog of at least 100 verified products across
-all three retailers; it never substitutes the old 18-item fixture at runtime.
-Copy `.env.example` to `.env.local` only when testing an optional integration:
+The generic prototype and `/fit` experience work without API keys. `/fit` reads
+the validated snapshot at `public/catalog.json`; retailer ingestion never runs
+on the user request path. Copy `.env.example` to `.env.local` only when testing
+an optional integration:
 
 ```bash
 cp .env.example .env.local
@@ -91,43 +91,26 @@ or real credentials.
 | `NOTION_WAITLIST_DATABASE_ID` | Optional Notion database identifier |
 | `NOTION_WAITLIST_DATA_SOURCE_ID` | Optional Notion data-source identifier |
 | `SCRAPINGANT_API_KEY` | Server-side credential used only by scheduled catalog ingestion |
-| `NEXT_PUBLIC_SUPABASE_URL` | Public Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public read-only Data API key; RLS remains authoritative |
-| `SUPABASE_SECRET_KEY` | Server/CI-only catalog writer credential; never expose to client code |
-| `SUPABASE_CATALOG_MIN_PRODUCTS` | Online-catalog publication gate; defaults to `100` |
-| `CATALOG_PRODUCTS_PER_RETAILER` | Ingestion quota; defaults to `35` and cannot be below `34` |
 
-## Verified Online Catalog
+## Verified Bundled Catalog
 
-Retailer pages are never scraped during a user search. A bounded scheduled job
-collects factual product data, rejects incomplete records, caches attributed
-product photos in Supabase Storage, and then publishes the verified snapshot.
-The app reads only active rows through RLS:
+Retailer pages are never scraped during a user search. The ingestion tooling
+collects factual product data outside the app, rejects incomplete records, and
+updates the reviewed snapshot committed with the deployment:
 
 ```text
 ScrapingAnt → deterministic retailer adapters → validation
-            → Supabase Postgres + Storage → /fit server read
+            → public/catalog.json → /fit server read
 ```
 
-If Supabase is unavailable, contains fewer than 100 products, or lacks one of
-the three required retailers, `/fit` shows an explicit unavailable state and
-no product results.
-
-Validate retailer adapters without changing Supabase:
-
-```bash
-npm run catalog:sync:dry
-```
-
-Publish a complete verified snapshot:
+Run the current bounded IKEA ingestion locally:
 
 ```bash
 npm run catalog:sync
 ```
 
-The weekly GitHub Actions refresh requires repository secrets named
-`SCRAPINGANT_API_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, and
-`SUPABASE_SECRET_KEY`. Review retailer terms and migrate to authorized
+The command appends only products that pass the catalog validator and writes
+the snapshot incrementally. Review retailer terms and migrate to authorized
 affiliate/catalog feeds before treating this hackathon ingestion path as a
 commercial production data source.
 
@@ -180,14 +163,12 @@ New fit-first work should use the boundaries defined in `AGENTS.md`:
 components/fit/                    Measurement confirmation and comparison UI
 components/xr/                     WebXR measurement and placement clients
 lib/catalog-*.ts                   Catalog schema, validation, and legacy test fixture
-lib/supabase/                      Online catalog mapping and read boundary
 lib/fit-engine.ts                  Pure conservative fit predicate
 lib/measurement-geometry.ts        Pure point-to-dimensions geometry
 lib/product-ranker.ts              Deterministic ranking after hard fit
 public/data/                       Verified catalog and cached queries
 public/models/{glb,usdz}/          Optimized local hero assets
 scripts/catalog/                   Bounded ingestion, validation, and asset tools
-supabase/migrations/               Catalog schema, RLS, view, and Storage bucket
 ```
 
 Do not duplicate a working abstraction just to match this suggested layout.
@@ -218,6 +199,5 @@ private attendee links, Wi-Fi details, or other event-only information.
 | `npm run test` | Run Vitest once |
 | `npm run test:watch` | Run Vitest in watch mode |
 | `npm run e2e` | Run Playwright tests |
-| `npm run catalog:sync:dry` | Validate 105+ live retailer records without database writes |
-| `npm run catalog:sync` | Cache images and publish a fully verified Supabase snapshot |
+| `npm run catalog:sync` | Append validated products to the bundled catalog snapshot |
 | `npm run verify` | Run the CI quality gate |

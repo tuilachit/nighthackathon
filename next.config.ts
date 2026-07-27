@@ -6,11 +6,6 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "erzuhravgjnysspjqell.supabase.co",
-        pathname: "/storage/v1/object/public/product-images/**",
-      },
-      {
-        protocol: "https",
         hostname: "www.ikea.com",
         pathname: "/**",
       },

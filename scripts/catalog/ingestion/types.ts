@@ -1,5 +1,12 @@
 import type { FurnitureCategory, ProductDimensions } from "../../../lib/catalog-types";
-import type { Json } from "../../../lib/supabase/database.types";
+
+export type JsonValue =
+  | boolean
+  | number
+  | string
+  | null
+  | { readonly [key: string]: JsonValue | undefined }
+  | readonly JsonValue[];
 
 export type RetailerId = "ikea" | "target" | "wayfair";
 
@@ -20,7 +27,7 @@ export interface ProductCandidate {
   readonly verificationSourceUrl: string;
   readonly variantLabel?: string;
   readonly variantOptions: Readonly<Record<string, string>>;
-  readonly sourcePayload: Json;
+  readonly sourcePayload: JsonValue;
 }
 
 export interface ProductDiscoveryTarget {

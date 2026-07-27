@@ -5,10 +5,18 @@ node_modules/
 .next/
 out/
 
-# env files — never commit secrets
+# env and credential files — never commit secrets
 .env
-.env.local
-.env.*.local
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+credentials*.json
+service-account*.json
+.npmrc
 
 # build output
 dist/
@@ -38,7 +46,3 @@ npm-debug.log*
 # Vercel
 .vercel
 .gstack/
-
-# Supabase CLI local state
-supabase/.temp/
-.env*

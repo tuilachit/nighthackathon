@@ -7,7 +7,7 @@ import type {
   FurnitureQuery,
   ProductSelection,
 } from "@/lib/catalog-types";
-import type { CatalogSource } from "@/lib/supabase/catalog-source";
+import type { CatalogSource } from "@/lib/catalog-source";
 import { CACHED_FURNITURE_QUERIES } from "@/lib/fit-config";
 import { searchProducts } from "@/lib/product-ranker";
 import {

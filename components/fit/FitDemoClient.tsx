@@ -6,7 +6,7 @@ import type {
   ProductSelection,
   SpaceMeasurement,
 } from "@/lib/catalog-types";
-import type { CatalogSource } from "@/lib/supabase/catalog-source";
+import type { CatalogSource } from "@/lib/catalog-source";
 import { getModelViewerAssetUrl } from "@/lib/assets";
 import { buildMeshyPromptForProduct, catalogProductToPlacementCandidate } from "@/lib/catalog-to-placement";
 import { generateModelViaMeshy } from "@/lib/meshy-generation-client";
