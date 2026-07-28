@@ -15,7 +15,11 @@ describe("searchProducts", () => {
         parseFurnitureQuery(queryText),
       );
       expect(results.fits.length).toBeGreaterThanOrEqual(3);
-      expect(new Set(results.fits.map((entry) => entry.product.retailer)).size).toBeGreaterThanOrEqual(2);
+      expect(
+        new Set(results.fits.slice(0, 3).map((entry) => entry.product.retailer))
+          .size,
+      ).toBeGreaterThanOrEqual(2);
+      expect(results.fitsSpaceButFailsAccess.length).toBeGreaterThanOrEqual(1);
       expect(results.nearMisses.length).toBeGreaterThanOrEqual(1);
       expect(results.nearMisses[0]?.fit.reasons[0]).toMatch(/mm too/);
     },

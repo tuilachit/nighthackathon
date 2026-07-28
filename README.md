@@ -59,6 +59,18 @@ Retailer fetching and model generation are kept off the search request path.
 The deployed app reads a validated catalog snapshot and cached hero assets, so
 fit and comparison remain deterministic when external APIs are unavailable.
 
+### Catalog provenance
+
+| Retailer | Products | JSON-LD | LLM-extracted | Retailer API |
+| --- | ---: | ---: | ---: | ---: |
+| IKEA | 77 | 69 | 8 | 0 |
+| Target | 40 | 0 | 0 | 40 |
+| Wayfair | 3 | 0 | 3 | 0 |
+| **Total** | **120** | **69** | **11** | **40** |
+
+Every row passed the same exact-dimension, source-URL, attribution, and
+high-confidence validation gate before entering the bundled snapshot.
+
 ## How it works
 
 ### 1. Intent becomes a deterministic query
@@ -178,7 +190,9 @@ Relevant environment variables:
 | `OPENAI_TRANSCRIPTION_MODEL` | Optional transcription model override |
 | `MESHY_API_KEY` | Offline or optional on-demand model generation |
 | `ENABLE_MESHY` | Enables Meshy generation when `true` |
-| `SCRAPINGANT_API_KEY` | Current offline catalog-ingestion transport |
+| `FIRECRAWL_API_KEY` | Default offline retailer-page extraction |
+| `BROWSER_USE_API_KEY` | Bounded rendered-page fallback for offline ingestion |
+| `ANTHROPIC_API_KEY` | Strict structured extraction for missing retailer facts |
 | `NOTION_TOKEN` | Optional legacy waitlist integration |
 
 Never commit `.env.local` or generated credential files.
@@ -196,8 +210,9 @@ Playwright covers the user flow separately.
 
 ## Honest limitations
 
-- The bundled portfolio snapshot currently contains IKEA and Target products;
-  the Wayfair adapter exists, but Wayfair data is not yet in the snapshot.
+- The bundled portfolio snapshot contains 77 IKEA, 40 Target, and 3 Wayfair
+  products. Wayfair coverage is intentionally smaller because ingestion
+  stopped at the first provider credit-exhaustion signal.
 - The deployed `/fit` route currently starts with a known demo measurement.
   Measurement geometry exists, but live WebXR capture and first-class manual
   entry still need to be wired into this route.
