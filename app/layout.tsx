@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
-import { ProjectNavigation } from "./_components/ProjectNavigation";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  applicationName: "Reality MVP",
-  title: "Reality MVP",
-  description: "Mobile-first spatial prototype builder for product concepts.",
+  applicationName: "Fit First",
+  title: "Fit First",
+  description: "Furniture that fits your measured space and access opening.",
   appleWebApp: {
     capable: true,
-    title: "Reality MVP",
+    title: "Fit First",
     statusBarStyle: "default",
   },
 };
@@ -21,7 +20,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
-        <ProjectNavigation />
         {children}
       </body>
     </html>

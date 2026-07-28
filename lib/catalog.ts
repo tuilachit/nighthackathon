@@ -1,4 +1,4 @@
-import rawCatalog from "@/public/data/catalog.json";
+import rawCatalog from "@/public/catalog.json";
 import { requireValidCatalog } from "./catalog-validation";
 import type { CatalogProduct } from "./catalog-types";
 

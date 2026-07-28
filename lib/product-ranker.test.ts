@@ -110,7 +110,7 @@ function createProduct(id: string, dimensions: CatalogProduct["dimensions"]): Ca
     colors: ["white"],
     styles: ["minimalist"],
     keywords: ["bookcase"],
-    imagePath: "/images/products/billy-low.svg",
+    imagePath: "/window.svg",
     productUrl: "https://example.com/product",
     verification: {
       sourceUrl: "https://example.com/product",

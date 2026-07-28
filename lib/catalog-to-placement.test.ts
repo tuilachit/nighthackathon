@@ -25,7 +25,7 @@ function buildProduct(overrides: Partial<CatalogProduct> = {}): CatalogProduct {
     colors: ["black"],
     styles: ["slim"],
     keywords: ["bookcase"],
-    imagePath: "/images/products/laiva.svg",
+    imagePath: "/window.svg",
     productUrl: "https://www.ikea.com/us/en/p/laiva-bookcase-black-brown-40178591/",
     verification: { sourceUrl: "https://www.ikea.com/...", verifiedAt: "2026-07-24" },
     provenance: {
