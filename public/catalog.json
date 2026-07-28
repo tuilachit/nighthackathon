@@ -3608,5 +3608,651 @@
       "extractedAt": "2026-07-28T07:12:15.638Z",
       "confidence": "high"
     }
+  },
+  {
+    "id": "wayfair-cflx1521",
+    "name": "Colton Bookcase",
+    "retailer": "Wayfair",
+    "category": "bookcase",
+    "priceUsd": 149.99,
+    "dimensions": {
+      "widthMm": 762,
+      "heightMm": 914,
+      "depthMm": 330
+    },
+    "materials": [
+      "solid wood",
+      "pine"
+    ],
+    "colors": [],
+    "styles": [
+      "traditional"
+    ],
+    "keywords": [
+      "colton",
+      "bookcase",
+      "solid",
+      "wood",
+      "pine"
+    ],
+    "imagePath": "https://assets.wfcdn.com/im/66341265/resize-h800-w800%5Ecompr-r85/3282/328242360/Colton+Bookcase-62406192-32462787.jpg",
+    "imageSourceUrl": "https://assets.wfcdn.com/im/66341265/resize-h800-w800%5Ecompr-r85/3282/328242360/Colton+Bookcase-62406192-32462787.jpg",
+    "imageAttribution": "Wayfair product photo",
+    "productUrl": "https://www.wayfair.com/furniture/pdp/winston-porter-colton-bookcase-cflx1521.html?piid=62406192%2C32462787",
+    "verification": {
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/winston-porter-colton-bookcase-cflx1521.html?piid=62406192%2C32462787",
+      "verifiedAt": "2026-07-28T07:52:40.611Z"
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/winston-porter-colton-bookcase-cflx1521.html?piid=62406192%2C32462787",
+      "extractedAt": "2026-07-28T07:52:40.611Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00275848",
+    "name": "KALLAX Shelf unit - white 16 3/8x57 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 49.99,
+    "dimensions": {
+      "widthMm": 416,
+      "heightMm": 1464,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "white",
+      "8x57",
+      "wood",
+      "including",
+      "board"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white__0627095_pe693171_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white__0627095_pe693171_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-00275848/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-00275848/",
+      "verifiedAt": "2026-07-28T07:53:56.489Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-00275848/",
+      "extractedAt": "2026-07-28T07:53:56.489Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00314642",
+    "name": "KALLAX Insert with 2 drawers - high gloss white 13x13 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 35,
+    "dimensions": {
+      "widthMm": 330,
+      "heightMm": 330,
+      "depthMm": 371
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "insert",
+      "with",
+      "drawers",
+      "high",
+      "gloss",
+      "white",
+      "13x13",
+      "wood",
+      "including",
+      "board"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-insert-with-2-drawers-high-gloss-white__0624166_pe691689_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-insert-with-2-drawers-high-gloss-white__0624166_pe691689_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-2-drawers-high-gloss-white-00314642/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-2-drawers-high-gloss-white-00314642/",
+      "verifiedAt": "2026-07-28T07:54:01.524Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-2-drawers-high-gloss-white-00314642/",
+      "extractedAt": "2026-07-28T07:54:01.524Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00477337",
+    "name": "BILLY Bookcase - black oak effect 31 1/2x11x41 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 59,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 1060,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "black",
+      "oak"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "black",
+      "oak",
+      "effect",
+      "2x11x41",
+      "wood",
+      "including",
+      "board"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-black-oak-effect__1097107_pe864733_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-black-oak-effect__1097107_pe864733_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-black-oak-effect-00477337/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-black-oak-effect-00477337/",
+      "verifiedAt": "2026-07-28T07:54:05.649Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-black-oak-effect-00477337/",
+      "extractedAt": "2026-07-28T07:54:05.649Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00477361",
+    "name": "BILLY Height extension unit - black oak effect 32x11x14\"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 35,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 349,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "black",
+      "oak"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "height",
+      "extension",
+      "unit",
+      "black",
+      "oak",
+      "effect",
+      "32x11x14",
+      "wood",
+      "including",
+      "board"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-height-extension-unit-black-oak-effect__1134332_pe878758_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-height-extension-unit-black-oak-effect__1134332_pe878758_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-black-oak-effect-00477361/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-black-oak-effect-00477361/",
+      "verifiedAt": "2026-07-28T07:54:09.972Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-black-oak-effect-00477361/",
+      "extractedAt": "2026-07-28T07:54:09.972Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00492757",
+    "name": "BILLY Bookcase - dark-brown oak effect 15 3/4x11x41 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 49,
+    "dimensions": {
+      "widthMm": 400,
+      "heightMm": 1060,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "brown",
+      "oak"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "bookcase",
+      "dark-brown",
+      "oak",
+      "effect",
+      "4x11x41",
+      "wood",
+      "including",
+      "board",
+      "brown"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-bookcase-dark-brown-oak-effect__1097073_pe864703_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-bookcase-dark-brown-oak-effect__1097073_pe864703_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-dark-brown-oak-effect-00492757/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-dark-brown-oak-effect-00492757/",
+      "verifiedAt": "2026-07-28T07:54:14.177Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-dark-brown-oak-effect-00492757/",
+      "extractedAt": "2026-07-28T07:54:14.177Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00492823",
+    "name": "BILLY Shelf - dark-brown oak effect 30x10 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 15,
+    "dimensions": {
+      "widthMm": 759,
+      "heightMm": 25,
+      "depthMm": 260
+    },
+    "materials": [
+      "particleboard",
+      "paper foil",
+      "plastic edging"
+    ],
+    "colors": [
+      "brown",
+      "beige",
+      "oak",
+      "dark brown",
+      "oak effect"
+    ],
+    "styles": [
+      "modern",
+      "minimalist"
+    ],
+    "keywords": [
+      "billy",
+      "shelf",
+      "dark-brown",
+      "oak",
+      "effect",
+      "30x10",
+      "particleboard",
+      "paper",
+      "foil",
+      "plastic",
+      "edging",
+      "brown",
+      "beige",
+      "dark"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-shelf-dark-brown-oak-effect__1355947_pe953242_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-shelf-dark-brown-oak-effect__1355947_pe953242_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-shelf-dark-brown-oak-effect-00492823/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-shelf-dark-brown-oak-effect-00492823/",
+      "verifiedAt": "2026-07-28T07:54:23.617Z"
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-shelf-dark-brown-oak-effect-00492823/",
+      "extractedAt": "2026-07-28T07:54:23.617Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00508659",
+    "name": "BILLY Shelf - brown walnut effect 30x10 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 15,
+    "dimensions": {
+      "widthMm": 759,
+      "heightMm": 25,
+      "depthMm": 260
+    },
+    "materials": [
+      "particleboard",
+      "paper foil",
+      "plastic edging"
+    ],
+    "colors": [
+      "brown",
+      "walnut"
+    ],
+    "styles": [
+      "minimalist",
+      "scandinavian"
+    ],
+    "keywords": [
+      "billy",
+      "shelf",
+      "brown",
+      "walnut",
+      "effect",
+      "30x10",
+      "particleboard",
+      "paper",
+      "foil",
+      "plastic",
+      "edging"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-shelf-brown-walnut-effect__1355946_pe953246_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-shelf-brown-walnut-effect__1355946_pe953246_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-shelf-brown-walnut-effect-00508659/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-shelf-brown-walnut-effect-00508659/",
+      "verifiedAt": "2026-07-28T07:54:34.162Z"
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-shelf-brown-walnut-effect-00508659/",
+      "extractedAt": "2026-07-28T07:54:34.162Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00529275",
+    "name": "HAVSTA Shelf unit - black 31 7/8x13 3/4x48 3/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 230,
+    "dimensions": {
+      "widthMm": 810,
+      "heightMm": 1229,
+      "depthMm": 349
+    },
+    "materials": [],
+    "colors": [
+      "black"
+    ],
+    "styles": [],
+    "keywords": [
+      "havsta",
+      "shelf",
+      "unit",
+      "black",
+      "8x13",
+      "4x48"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/havsta-shelf-unit-black__1294519_pe935491_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/havsta-shelf-unit-black__1294519_pe935491_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/havsta-shelf-unit-black-00529275/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/havsta-shelf-unit-black-00529275/",
+      "verifiedAt": "2026-07-28T07:54:38.787Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/havsta-shelf-unit-black-00529275/",
+      "extractedAt": "2026-07-28T07:54:38.787Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00562420",
+    "name": "OXBERG Door - brown walnut effect 15 1/2x75 3/4 \"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 50,
+    "dimensions": {
+      "widthMm": 394,
+      "heightMm": 1924,
+      "depthMm": 19
+    },
+    "materials": [
+      "wood (including board)",
+      "fiberboard",
+      "paper foil",
+      "plastic edging"
+    ],
+    "colors": [
+      "brown",
+      "walnut",
+      "walnut effect"
+    ],
+    "styles": [
+      "modern",
+      "minimalist"
+    ],
+    "keywords": [
+      "oxberg",
+      "door",
+      "brown",
+      "walnut",
+      "effect",
+      "2x75",
+      "wood",
+      "including",
+      "board",
+      "fiberboard",
+      "paper",
+      "foil",
+      "plastic",
+      "edging"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/oxberg-door-brown-walnut-effect__1171432_pe893064_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/oxberg-door-brown-walnut-effect__1171432_pe893064_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/oxberg-door-brown-walnut-effect-00562420/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/oxberg-door-brown-walnut-effect-00562420/",
+      "verifiedAt": "2026-07-28T07:54:54.540Z"
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.ikea.com/us/en/p/oxberg-door-brown-walnut-effect-00562420/",
+      "extractedAt": "2026-07-28T07:54:54.540Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00631635",
+    "name": "KALLAX Shelf unit - black-brown 16 3/8x57 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 49.99,
+    "dimensions": {
+      "widthMm": 416,
+      "heightMm": 1464,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "black",
+      "brown"
+    ],
+    "styles": [],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "black-brown",
+      "8x57",
+      "wood",
+      "including",
+      "board",
+      "black",
+      "brown"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-black-brown__0625059_pe692080_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-black-brown__0625059_pe692080_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-00631635/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-00631635/",
+      "verifiedAt": "2026-07-28T07:55:00.548Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-00631635/",
+      "extractedAt": "2026-07-28T07:55:00.548Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00631640",
+    "name": "KALLAX Shelf unit - black-brown 30 1/8x57 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 64.99,
+    "dimensions": {
+      "widthMm": 765,
+      "heightMm": 1464,
+      "depthMm": 391
+    },
+    "materials": [
+      "wood (including board)",
+      "particleboard",
+      "fiberboard",
+      "acrylic paint",
+      "honeycomb structure paper filling (100% recycled)",
+      "plastic edging",
+      "paper foil"
+    ],
+    "colors": [
+      "black",
+      "brown",
+      "black-brown"
+    ],
+    "styles": [
+      "minimalist",
+      "modern"
+    ],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "black-brown",
+      "8x57",
+      "wood",
+      "including",
+      "board",
+      "particleboard",
+      "fiberboard",
+      "acrylic",
+      "paint",
+      "honeycomb",
+      "structure",
+      "paper",
+      "filling",
+      "100",
+      "recycled"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-black-brown__0644754_pe702938_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-black-brown__0644754_pe702938_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-00631640/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-00631640/",
+      "verifiedAt": "2026-07-28T07:55:11.848Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-00631640/",
+      "extractedAt": "2026-07-28T07:55:11.848Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-00637289",
+    "name": "KALLAX Shelf unit - white stained oak effect 30 1/8x57 5/8 \"",
+    "retailer": "IKEA",
+    "category": "shelving-unit",
+    "priceUsd": 64.99,
+    "dimensions": {
+      "widthMm": 765,
+      "heightMm": 1464,
+      "depthMm": 391
+    },
+    "materials": [
+      "particleboard",
+      "fiberboard",
+      "acrylic paint",
+      "honeycomb structure paper filling (100% recycled)",
+      "plastic edging",
+      "paper foil"
+    ],
+    "colors": [
+      "oak",
+      "white"
+    ],
+    "styles": [
+      "minimalist",
+      "modern"
+    ],
+    "keywords": [
+      "kallax",
+      "shelf",
+      "unit",
+      "white",
+      "stained",
+      "oak",
+      "effect",
+      "8x57",
+      "particleboard",
+      "fiberboard",
+      "acrylic",
+      "paint",
+      "honeycomb",
+      "structure",
+      "paper",
+      "filling",
+      "100",
+      "recycled"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white-stained-oak-effect__0459250_pe606049_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/kallax-shelf-unit-white-stained-oak-effect__0459250_pe606049_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-00637289/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-00637289/",
+      "verifiedAt": "2026-07-28T07:55:25.550Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-00637289/",
+      "extractedAt": "2026-07-28T07:55:25.550Z",
+      "confidence": "high"
+    }
   }
 ]
