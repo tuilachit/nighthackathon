@@ -22,15 +22,17 @@ export function QueryInput({
   }
 
   return (
-    <section aria-labelledby="query-title" className="rounded-[28px] border border-[#ded8cd] bg-white p-5 shadow-sm">
-      <div className="flex items-end justify-between gap-4">
+    <section aria-labelledby="query-title" className="rounded-md border border-[#17221f]/35 bg-white p-4 sm:p-5">
+      <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#887f71]">Step 2</p>
-          <h2 id="query-title" className="mt-1 text-2xl font-black tracking-[-0.03em]">
+          <p className="fit-data text-[9px] font-bold uppercase tracking-[0.12em] text-[#17221f]/65">
+            Search intent
+          </p>
+          <h2 id="query-title" className="fit-display mt-1 text-xl font-bold tracking-[-0.025em]">
             What should fit here?
           </h2>
         </div>
-        <span className="text-xs font-semibold text-[#887f71]">
+        <span className="fit-data text-[10px] font-semibold uppercase tracking-[0.06em] text-[#17221f]/65">
           {isEnhancing ? "Refining…" : "Local-first"}
         </span>
       </div>
@@ -39,18 +41,18 @@ export function QueryInput({
         <label htmlFor="furniture-query" className="sr-only">
           Describe the furniture you want
         </label>
-        <div className="flex flex-col gap-2 rounded-2xl border border-[#cfc7ba] bg-[#fbfaf7] p-2 focus-within:border-[#a47b38] sm:flex-row">
+        <div className="flex flex-col gap-2 rounded-sm border border-[#17221f]/35 bg-[#f4f7f5] p-2 focus-within:border-[#17221f] focus-within:ring-1 focus-within:ring-[#17221f] sm:flex-row">
           <input
             id="furniture-query"
             value={value}
             onChange={(event) => onChange(event.target.value)}
             placeholder="Warm oak narrow bookshelf under $300"
-            className="min-h-12 min-w-0 flex-1 bg-transparent px-3 text-base font-semibold outline-none placeholder:text-[#9b9386]"
+            className="fit-data min-h-12 min-w-0 flex-1 bg-transparent px-2 text-sm font-semibold outline-none placeholder:text-[#17221f]/65"
           />
           <button
             type="submit"
             disabled={value.trim().length === 0}
-            className="min-h-12 rounded-xl bg-[#1c1b18] px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-[#aaa399]"
+            className="min-h-12 rounded-sm bg-[#17221f] px-5 text-sm font-bold text-white hover:bg-[#26332f] disabled:cursor-not-allowed disabled:bg-[#17221f]/40"
           >
             Find what fits
           </button>
@@ -65,7 +67,7 @@ export function QueryInput({
           <button
             type="button"
             key={query}
-            className="shrink-0 rounded-full border border-[#ded8cd] bg-[#fbfaf7] px-3 py-2 text-left text-xs font-bold text-[#595247] hover:border-[#a47b38]"
+            className="fit-data min-h-11 shrink-0 rounded-sm border border-[#17221f]/25 bg-white px-3 py-2 text-left text-[10px] font-bold text-[#17221f]/80 hover:border-[#17221f]"
             onClick={() => {
               onChange(query);
               onSubmit(query);

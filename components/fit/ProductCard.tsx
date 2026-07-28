@@ -25,38 +25,50 @@ export function ProductCard({
       : status === "access" && access.status === "failed"
         ? access.reason
         : fit.reasons[0] ?? "Measurement needs review.";
+  const statusClasses =
+    status === "fit"
+      ? "border-l-[#3f6b57]"
+      : status === "access"
+        ? "border-l-[#8a632d]"
+        : "border-l-[#8a4e48]";
+  const statusTextClasses =
+    status === "fit"
+      ? "text-[#3f6b57]"
+      : status === "access"
+        ? "text-[#8a632d]"
+        : "text-[#8a4e48]";
 
   return (
     <article
-      className="overflow-hidden rounded-[24px] border border-[#ded8cd] bg-white"
+      className={`overflow-hidden rounded-md border border-l-[3px] border-[#17221f]/25 bg-white ${statusClasses}`}
       data-testid={`product-${product.id}`}
     >
-      <div className="grid grid-cols-[112px_1fr] gap-4 p-3 sm:grid-cols-[144px_1fr]">
+      <div className="grid grid-cols-[104px_1fr] gap-3 p-3 sm:grid-cols-[144px_1fr] sm:gap-4">
         <Image
           src={product.imagePath}
           alt={`${product.name} ${product.imageSourceUrl === undefined ? "product illustration" : "retailer product photo"}`}
           width={320}
           height={240}
-          className="h-full min-h-[124px] w-full rounded-[18px] object-cover"
+          className="h-[136px] w-full rounded-sm border border-[#17221f]/15 bg-[#f4f7f5] object-contain"
         />
 
-        <div className="min-w-0 py-1">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-[#f0ece4] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.11em] text-[#665e50]">
+            <span className="fit-data border border-[#17221f]/20 bg-[#f4f7f5] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.1em] text-[#17221f]/75">
               {product.retailer}
             </span>
-            <span className="rounded-full bg-[#e8f3e9] px-2.5 py-1 text-[10px] font-black text-[#24572d]">
+            <span className="border border-[#3f6b57]/25 bg-[#3f6b57]/10 px-2 py-1 text-[9px] font-bold text-[#315544]">
               Dimensions verified
             </span>
           </div>
-          <h3 className="mt-2 text-base font-black leading-tight tracking-[-0.02em]">{product.name}</h3>
-          <p className="mt-1 text-xl font-black">${product.priceUsd.toFixed(2)}</p>
-          <p className="mt-2 text-xs font-semibold text-[#6f685d]">
+          <h3 className="mt-2 text-[15px] font-bold leading-[1.18] tracking-[-0.015em]">{product.name}</h3>
+          <p className="fit-data mt-1 text-xl font-bold">${product.priceUsd.toFixed(2)}</p>
+          <p className="fit-data mt-2 text-[10px] font-semibold leading-4 text-[#17221f]/65">
             {formatDimensions(product.dimensions)}
           </p>
           {product.imageSourceUrl !== undefined && product.imageAttribution !== undefined ? (
             <a
-              className="mt-1 inline-block text-[11px] font-semibold text-[#766e61] underline decoration-[#c9c0b3] underline-offset-2"
+              className="mt-1 inline-block text-[10px] font-semibold text-[#17221f]/65 underline decoration-[#17221f]/25 underline-offset-2 hover:text-[#17221f]"
               href={product.imageSourceUrl}
               target="_blank"
               rel="noreferrer"
@@ -65,9 +77,7 @@ export function ProductCard({
             </a>
           ) : null}
           <p
-            className={`mt-2 text-sm font-bold leading-5 ${
-              status === "fit" ? "text-[#28713a]" : status === "access" ? "text-[#98611a]" : "text-[#9b3d2f]"
-            }`}
+            className={`fit-data mt-2 text-[11px] font-bold leading-4 ${statusTextClasses}`}
           >
             {statusCopy}
           </p>
@@ -75,24 +85,24 @@ export function ProductCard({
       </div>
 
       {status === "fit" ? (
-        <div className="grid grid-cols-3 border-y border-[#eee9e0] bg-[#fbfaf7]">
+        <div className="grid grid-cols-3 divide-x divide-[#17221f]/15 border-y border-[#17221f]/20 bg-white">
           <Clearance label="Width" value={fit.widthClearanceMm} />
           <Clearance label="Height" value={fit.heightClearanceMm} />
           <Clearance label="Depth" value={fit.depthClearanceMm} />
         </div>
       ) : null}
 
-      <div className="flex items-center gap-2 p-3">
+      <div className="flex items-center gap-2 bg-[#f4f7f5]/60 p-3">
         {status === "fit" && onToggleCompare !== undefined ? (
           <button
             type="button"
             onClick={onToggleCompare}
             disabled={compareDisabled && !isCompared}
             aria-pressed={isCompared}
-            className={`min-h-11 flex-1 rounded-xl border px-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`min-h-11 flex-1 rounded-sm border px-3 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40 ${
               isCompared
-                ? "border-[#1c1b18] bg-[#1c1b18] text-white"
-                : "border-[#d8d1c5] bg-white"
+                ? "border-[#17221f] bg-[#17221f] text-white"
+                : "border-[#17221f]/30 bg-white hover:border-[#17221f]"
             }`}
           >
             {isCompared ? "Comparing" : "Compare"}
@@ -102,7 +112,7 @@ export function ProductCard({
           <button
             type="button"
             onClick={onSelect}
-            className="min-h-11 flex-1 rounded-xl bg-[#b58a43] px-3 text-sm font-black text-[#21190d]"
+            className="min-h-11 flex-1 rounded-sm bg-[#17221f] px-3 text-xs font-bold text-white hover:bg-[#26332f]"
           >
             View in room
           </button>
@@ -111,7 +121,7 @@ export function ProductCard({
           href={product.productUrl}
           target="_blank"
           rel="noreferrer"
-          className="flex min-h-11 items-center justify-center rounded-xl border border-[#d8d1c5] px-3 text-sm font-bold"
+          className="flex min-h-11 items-center justify-center rounded-sm border border-[#17221f]/30 bg-white px-3 text-xs font-bold hover:border-[#17221f]"
         >
           Retailer ↗
         </a>
@@ -122,9 +132,13 @@ export function ProductCard({
 
 function Clearance({ label, value }: { readonly label: string; readonly value: number }): React.JSX.Element {
   return (
-    <div className="border-r border-[#eee9e0] px-3 py-2.5 text-center last:border-r-0">
-      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-[#8b8377]">{label}</p>
-      <p className="mt-0.5 text-sm font-black">{value} mm</p>
+    <div className="px-2 py-2.5 text-center">
+      <p className="fit-data text-[8px] font-bold uppercase tracking-[0.11em] text-[#17221f]/65">{label}</p>
+      <div className="fit-dimension-annotation" aria-label={`${value} millimetres ${label.toLowerCase()} clearance`}>
+        <span className="fit-data fit-dimension-annotation__value text-[11px] font-bold">
+          {value} mm
+        </span>
+      </div>
     </div>
   );
 }

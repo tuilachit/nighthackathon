@@ -15,7 +15,7 @@ describe("FitSearchExperience", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: /verified fits/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Verified fits" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Fits the space, access issue" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Near misses" })).toBeInTheDocument();
     expect(screen.getAllByText("Dimensions verified").length).toBeGreaterThan(5);

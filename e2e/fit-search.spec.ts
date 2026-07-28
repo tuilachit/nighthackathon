@@ -4,7 +4,7 @@ test("manual measurement is an honest first-class entry", async ({ page }) => {
   await page.goto("/fit");
 
   await expect(
-    page.getByRole("heading", { name: "Measure the space first." }),
+    page.getByRole("heading", { name: "Enter measured dimensions." }),
   ).toBeVisible();
   await expect(
     page.getByText("Live WebXR capture is not enabled"),
@@ -25,7 +25,7 @@ test("manual measurement is an honest first-class entry", async ({ page }) => {
   await expect(measurement).toContainText("820 mm");
   await page.getByRole("button", { name: "Edit measurements" }).click();
   await expect(
-    page.getByRole("heading", { name: "Measure the space first." }),
+    page.getByRole("heading", { name: "Enter measured dimensions." }),
   ).toBeVisible();
 });
 
@@ -46,7 +46,11 @@ test("fit-first mobile route is honest with AI disabled and remains usable offli
     .getByRole("button", { name: "Use labeled demo measurement" })
     .click();
 
-  await expect(page.getByRole("heading", { name: "Stop guessing. Shop what fits." })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Measured space in. Only verified fits out.",
+    }),
+  ).toBeVisible();
   const measurement = page.getByRole("region", { name: "Your space is the search filter." });
   await expect(measurement).toContainText("900");
   await expect(measurement).toContainText("820 mm");
@@ -59,8 +63,10 @@ test("fit-first mobile route is honest with AI disabled and remains usable offli
     return;
   }
 
-  await expect(catalogStatus).toContainText("Verified catalog cached for offline use");
-  await expect(page.getByRole("heading", { name: /verified fits/i })).toBeVisible();
+  await expect(catalogStatus).toContainText("offline ready");
+  await expect(
+    page.getByRole("heading", { name: "Verified fits", exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Fits the space, access issue" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Near misses" })).toBeVisible();
   await expect(page.getByText("Dimensions verified").first()).toBeVisible();

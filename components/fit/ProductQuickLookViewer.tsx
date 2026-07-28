@@ -64,7 +64,7 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="relative min-h-[320px] overflow-hidden rounded-[24px] border border-black/10 bg-slate-50 sm:min-h-[380px]">
+      <div className="relative min-h-[320px] overflow-hidden rounded-md border border-[#17221f]/30 bg-white sm:min-h-[380px]">
         <model-viewer
           ref={modelViewerRef}
           src={getPlacementSource(model)}
@@ -75,7 +75,6 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
           ar-scale="fixed"
           scale={scaleAttribute}
           camera-controls
-          auto-rotate
           shadow-intensity="0.8"
           exposure="0.9"
           loading="eager"
@@ -83,20 +82,20 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
           onLoad={handleLoad}
         />
         {!modelLoaded ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-slate-500">
+          <div className="fit-data pointer-events-none absolute inset-0 flex items-center justify-center text-[11px] font-medium uppercase tracking-[0.08em] text-[#17221f]/65">
             Loading 3D preview
           </div>
         ) : null}
       </div>
 
-      <div className="rounded-[24px] border border-black/10 bg-white p-3">
-        <p className="text-sm leading-5 text-slate-600">
+      <div className="rounded-md border border-[#17221f]/30 bg-white p-3">
+        <p className="text-sm leading-5 text-[#17221f]/70">
           {trustsIosScale ? "Placed at true real-world size." : "True size on Android; may be resizable on iPhone."}
         </p>
         <button
           type="button"
           onClick={handleArLaunch}
-          className="concept-primary-button mt-3 flex w-full items-center justify-center gap-2 px-4 py-3 text-sm font-bold"
+          className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-sm bg-[#17221f] px-4 py-3 text-sm font-bold text-white hover:bg-[#26332f]"
         >
           <CubeIcon size={14} color="#fff" />
           View in AR

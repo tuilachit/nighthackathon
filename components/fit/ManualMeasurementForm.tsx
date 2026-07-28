@@ -84,24 +84,24 @@ export function ManualMeasurementForm({
   return (
     <section
       aria-labelledby="manual-measurement-title"
-      className="mx-auto w-full max-w-xl rounded-[28px] border border-[#ded8cd] bg-white p-5 shadow-sm sm:p-7"
+      className="mx-auto w-full max-w-xl rounded-md border border-[#17221f]/35 bg-white p-5 sm:p-7"
     >
-      <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8c7c61]">
-        Step 1 · Manual measurement
+      <p className="fit-data text-[10px] font-bold uppercase tracking-[0.14em] text-[#17221f]/65">
+        Measurement input
       </p>
       <h1
         id="manual-measurement-title"
-        className="mt-2 text-4xl font-black tracking-[-0.05em]"
+        className="fit-display mt-2 text-[34px] font-bold leading-[1.02] tracking-[-0.04em]"
       >
-        Measure the space first.
+        Enter measured dimensions.
       </h1>
-      <p className="mt-3 text-sm leading-6 text-[#625b50]">
+      <p className="mt-3 text-sm leading-6 text-[#17221f]/75">
         Enter dimensions you measured with a tape measure. Live WebXR capture
         is not enabled in this portfolio build.
       </p>
 
       <form onSubmit={handleSubmit} className="mt-6">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-4">
           <MeasurementField
             id="space-width"
             label="Width"
@@ -129,37 +129,41 @@ export function ManualMeasurementForm({
           />
         </div>
 
-        <p className="mt-3 min-h-5 text-xs font-semibold text-[#766e61]">
+        <p className="fit-data mt-3 min-h-5 text-[11px] leading-5 text-[#17221f]/65">
           {inchSummary ??
             `Manual measurements use a conservative ±${MANUAL_BASE_UNCERTAINTY_MM} mm uncertainty.`}
         </p>
         {error === undefined ? null : (
-          <p role="alert" className="mt-2 text-sm font-bold text-[#9b3d2f]">
+          <p role="alert" className="mt-2 text-sm font-bold text-[#8a4e48]">
             {error}
           </p>
         )}
 
         <button
           type="submit"
-          className="mt-5 min-h-12 w-full rounded-xl bg-[#1c1b18] px-5 text-sm font-bold text-white"
+          className="mt-5 min-h-12 w-full rounded-sm bg-[#17221f] px-5 text-sm font-bold text-white hover:bg-[#26332f]"
         >
           Use these measurements
         </button>
       </form>
 
-      <div className="mt-5 border-t border-[#eee9e0] pt-5">
-        <p className="text-xs leading-5 text-[#766e61]">
+      <div className="mt-5 border-t border-[#17221f]/20 pt-5">
+        <p className="text-xs leading-5 text-[#17221f]/68">
           Need a no-camera walkthrough? Load the explicitly labeled portfolio
-          fixture: {demoMeasurement.widthMm} × {demoMeasurement.heightMm} ×{" "}
-          {demoMeasurement.depthMm} mm
-          {demoMeasurement.accessWidthMm === undefined
-            ? ""
-            : `, ${demoMeasurement.accessWidthMm} mm access`}.
+          fixture:{" "}
+          <span className="fit-data font-bold text-[#17221f]">
+            {demoMeasurement.widthMm} × {demoMeasurement.heightMm} ×{" "}
+            {demoMeasurement.depthMm} mm
+            {demoMeasurement.accessWidthMm === undefined
+              ? ""
+              : ` · ${demoMeasurement.accessWidthMm} mm access`}
+          </span>
+          .
         </p>
         <button
           type="button"
           onClick={() => onConfirm(demoMeasurement)}
-          className="mt-3 min-h-11 rounded-xl border border-[#cfc7ba] bg-[#fbfaf7] px-4 text-sm font-bold"
+          className="mt-3 min-h-11 rounded-sm border border-[#17221f]/35 bg-[#f4f7f5] px-4 text-sm font-bold hover:border-[#17221f]"
         >
           Use labeled demo measurement
         </button>
@@ -182,16 +186,16 @@ function MeasurementField({
   readonly onChange: (value: string) => void;
 }): React.JSX.Element {
   return (
-    <label htmlFor={id} className="text-sm font-bold text-[#4f493f]">
+    <label htmlFor={id} className="text-xs font-bold text-[#17221f]">
       <span className="flex items-center justify-between gap-2">
         {label}
         {optional ? (
-          <span className="text-[10px] uppercase tracking-wide text-[#8b8377]">
+          <span className="fit-data text-[9px] uppercase tracking-[0.08em] text-[#17221f]/65">
             Optional
           </span>
         ) : null}
       </span>
-      <span className="mt-2 flex items-center rounded-xl border border-[#cfc7ba] bg-[#fbfaf7] px-3 focus-within:border-[#a47b38]">
+      <span className="mt-2 flex items-center rounded-sm border border-[#17221f]/35 bg-[#f4f7f5] px-3 focus-within:border-[#17221f] focus-within:ring-1 focus-within:ring-[#17221f]">
         <input
           id={id}
           type="number"
@@ -201,9 +205,9 @@ function MeasurementField({
           step="1"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="min-h-12 min-w-0 flex-1 bg-transparent text-base font-semibold outline-none"
+          className="fit-data min-h-12 min-w-0 flex-1 bg-transparent text-lg font-bold outline-none"
         />
-        <span className="text-xs text-[#81796c]">mm</span>
+        <span className="fit-data text-[10px] text-[#17221f]/65">mm</span>
       </span>
     </label>
   );

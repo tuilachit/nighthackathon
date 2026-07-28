@@ -121,7 +121,7 @@ export function VoiceRecorder({
             void startRecording();
           }
         }}
-        className="min-h-11 rounded-xl border border-[#cfc7ba] bg-white px-4 text-sm font-bold text-[#4f493f] disabled:cursor-wait disabled:opacity-60"
+        className="min-h-11 rounded-sm border border-[#17221f]/35 bg-white px-4 text-xs font-bold text-[#17221f] hover:border-[#17221f] disabled:cursor-wait disabled:opacity-60"
       >
         {status === "recording"
           ? "Stop recording"
@@ -129,7 +129,7 @@ export function VoiceRecorder({
             ? "Transcribing…"
             : "Push to talk"}
       </button>
-      <span aria-live="polite" className="text-xs font-semibold text-[#766e61]">
+      <span aria-live="polite" className="fit-data text-[10px] font-semibold text-[#17221f]/65">
         {status === "recording"
           ? "Listening · stops after 20 seconds"
           : status === "error"

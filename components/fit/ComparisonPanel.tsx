@@ -14,37 +14,37 @@ export function ComparisonPanel({
   }
 
   return (
-    <section aria-labelledby="compare-title" className="rounded-[28px] bg-[#e9dfca] p-5">
+    <section aria-labelledby="compare-title" className="rounded-md border border-[#17221f] bg-white">
       <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.15em] text-[#77633e]">
-            Decision view
+        <div className="px-4 py-4">
+          <p className="fit-data text-[9px] font-bold uppercase tracking-[0.12em] text-[#17221f]/65">
+            Comparison register
           </p>
-          <h2 id="compare-title" className="mt-1 text-2xl font-black tracking-[-0.03em]">
+          <h2 id="compare-title" className="fit-display mt-1 text-xl font-bold tracking-[-0.025em]">
             Compare clearance
           </h2>
         </div>
-        <span className="rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold">
+        <span className="fit-data mr-4 border border-[#17221f]/30 bg-[#f4f7f5] px-2.5 py-1.5 text-xs font-bold">
           {entries.length}/3
         </span>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+      <div className="grid border-t border-[#17221f]/25 sm:grid-cols-3 sm:divide-x sm:divide-[#17221f]/20">
         {entries.map((entry) => (
-          <article key={entry.product.id} className="rounded-2xl bg-white p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#81796c]">
+          <article key={entry.product.id} className="border-b border-[#17221f]/20 p-4 last:border-b-0 sm:border-b-0">
+            <p className="fit-data text-[9px] font-bold uppercase tracking-[0.1em] text-[#17221f]/65">
               {entry.product.retailer}
             </p>
-            <h3 className="mt-1 text-sm font-black leading-tight">{entry.product.name}</h3>
-            <p className="mt-4 text-[34px] font-black leading-none tracking-[-0.06em]">
+            <h3 className="mt-1 text-sm font-bold leading-tight">{entry.product.name}</h3>
+            <p className="fit-data mt-4 text-[32px] font-bold leading-none">
               {entry.fit.minimumClearanceMm}
-              <span className="ml-1 text-xs tracking-normal text-[#81796c]">mm</span>
+              <span className="ml-1 text-[10px] tracking-normal text-[#17221f]/65">mm</span>
             </p>
-            <p className="mt-1 text-xs font-semibold text-[#6d665b]">minimum clearance</p>
+            <p className="mt-1 text-[11px] font-semibold text-[#17221f]/65">minimum clearance</p>
             <button
               type="button"
               onClick={() => onRemove(entry.product.id)}
-              className="mt-4 text-xs font-bold text-[#795b28] underline underline-offset-4"
+              className="mt-4 min-h-11 text-xs font-bold text-[#17221f] underline decoration-[#17221f]/40 underline-offset-4"
             >
               Remove
             </button>

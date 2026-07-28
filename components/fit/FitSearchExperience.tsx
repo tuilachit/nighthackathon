@@ -114,7 +114,7 @@ export function FitSearchExperience({
 
   if (resolvedCatalogSource === "unavailable") {
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+      <div className="mx-auto flex w-full max-w-[430px] flex-col gap-5">
         <ExperienceHeader
           catalogSource={resolvedCatalogSource}
           productCount={0}
@@ -127,16 +127,16 @@ export function FitSearchExperience({
         <section
           role="alert"
           data-testid="catalog-unavailable"
-          className="rounded-[24px] border border-[#d9a84f] bg-[#fff8e8] p-5"
+          className="rounded-md border border-l-[3px] border-[#8a632d] bg-white p-5"
         >
-          <h2 className="text-xl font-black tracking-[-0.02em]">
+          <h2 className="fit-display text-xl font-bold tracking-[-0.02em]">
             Live catalog temporarily unavailable
           </h2>
-          <p className="mt-2 text-sm leading-6 text-[#6f5b35]">
+          <p className="mt-2 text-sm leading-6 text-[#17221f]/75">
             We could not load a complete verified catalog of at least 100 real products
             across all three retailers. No placeholder products are being shown.
           </p>
-          <p className="mt-3 text-sm font-bold text-[#684d1e]">
+          <p className="mt-3 text-sm font-bold text-[#8a632d]">
             Refresh after the catalog sync completes.
           </p>
         </section>
@@ -145,7 +145,7 @@ export function FitSearchExperience({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+    <div className="mx-auto flex w-full max-w-[430px] flex-col gap-5">
       <ExperienceHeader
         catalogSource={resolvedCatalogSource}
         productCount={products.length}
@@ -168,13 +168,13 @@ export function FitSearchExperience({
           filterChips.map((chip) => (
             <span
               key={chip}
-              className="rounded-full border border-[#d8d1c5] bg-white px-3 py-1.5 text-xs font-bold text-[#5c5549]"
+              className="fit-data border border-[#17221f]/25 bg-white px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.04em] text-[#17221f]/75"
             >
               {chip}
             </span>
           ))
         ) : (
-          <span className="text-sm font-semibold text-[#766e61]">
+          <span className="text-sm font-semibold text-[#17221f]/70">
             Searching verified storage furniture for “{submittedText}”
           </span>
         )}
@@ -186,7 +186,7 @@ export function FitSearchExperience({
       />
 
       <ResultSection
-        title={`${results.fits.length} verified fits`}
+        title="Verified fits"
         description={
           measurement.accessWidthMm === undefined
             ? "Every product clears the measured envelope."
@@ -250,22 +250,28 @@ function ExperienceHeader({
   readonly retailerCount: number;
 }): React.JSX.Element {
   return (
-    <header>
-      <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8c7c61]">
-        Night Hack · Fit first
-      </p>
-      <p className="mt-2 text-xs font-bold text-[#6f685d]" data-testid="catalog-status">
-        {catalogSource === "bundled"
-          ? `Verified catalog cached for offline use · ${productCount} products across ${retailerCount} retailers`
-          : "Live catalog unavailable · 0 products"}
-      </p>
-      <h1 className="mt-2 max-w-2xl text-[40px] font-black leading-[0.94] tracking-[-0.055em] sm:text-6xl">
-        Stop guessing.
+    <header className="border-b border-[#17221f]/30 pb-5">
+      <div className="flex items-start justify-between gap-4">
+        <p className="fit-display text-xl font-bold tracking-[-0.035em]">
+          FIT / FIRST
+        </p>
+        <p
+          className="fit-data max-w-[210px] text-right text-[9px] font-bold uppercase leading-4 tracking-[0.05em] text-[#17221f]/65"
+          data-testid="catalog-status"
+        >
+          {catalogSource === "bundled"
+            ? `${productCount} verified products / ${retailerCount} retailers / offline ready`
+            : "0 products / catalog unavailable"}
+        </p>
+      </div>
+      <h1 className="fit-display mt-5 text-[38px] font-bold leading-[0.98] tracking-[-0.05em]">
+        Measured space in.
         <br />
-        Shop what fits.
+        Only verified fits out.
       </h1>
-      <p className="mt-4 max-w-xl text-base leading-7 text-[#625b50]">
-        We filter verified furniture by your actual space before style or price enters the ranking.
+      <p className="mt-4 max-w-md text-sm leading-6 text-[#17221f]/70">
+        Verified dimensions are checked before style, retailer, or price
+        enters the ranking.
       </p>
     </header>
   );
@@ -286,17 +292,23 @@ function ResultSection({
   tone = "default",
   children,
 }: ResultSectionProps): React.JSX.Element {
-  const accent =
-    tone === "warning" ? "bg-[#c98428]" : tone === "danger" ? "bg-[#b75949]" : "bg-[#3d8a4b]";
+  const tierClasses =
+    tone === "warning"
+      ? "border-[#8a632d] text-[#8a632d]"
+      : tone === "danger"
+        ? "border-[#8a4e48] text-[#8a4e48]"
+        : "border-[#3f6b57] text-[#3f6b57]";
 
   return (
-    <section className="mt-2" aria-label={title}>
-      <div className="mb-3 flex items-start gap-3">
-        <span className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${accent}`} aria-hidden="true" />
-        <div>
-          <h2 className="text-2xl font-black tracking-[-0.03em]">{title}</h2>
-          <p className="mt-1 text-sm leading-6 text-[#726a5e]">{description}</p>
+    <section className={`mt-2 border-t-2 pt-3 ${tierClasses}`} aria-label={title}>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="text-[#17221f]">
+          <h2 className="fit-display text-xl font-bold tracking-[-0.025em]">{title}</h2>
+          <p className="mt-1 text-xs leading-5 text-[#17221f]/65">{description}</p>
         </div>
+        <span className="fit-data min-w-10 border border-current px-2 py-1 text-center text-sm font-bold">
+          {entries.length}
+        </span>
       </div>
       <div className="grid gap-3">{entries.length > 0 ? children : <EmptyResults />}</div>
     </section>
@@ -305,7 +317,7 @@ function ResultSection({
 
 function EmptyResults(): React.JSX.Element {
   return (
-    <div className="rounded-2xl border border-dashed border-[#cfc7ba] bg-white/60 p-5 text-sm font-semibold text-[#6f685d]">
+    <div className="rounded-sm border border-dashed border-[#17221f]/35 bg-white p-5 text-sm font-semibold text-[#17221f]/70">
       No products in this section. Try a broader category or budget.
     </div>
   );

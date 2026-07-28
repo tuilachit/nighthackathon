@@ -38,7 +38,7 @@ export function FitDemoClient({
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f5f0] px-4 pb-20 pt-20 text-[#171714] sm:px-6">
+    <main id="fit-main" className="min-h-screen bg-[#f4f7f5] px-4 pb-20 pt-20 text-[#17221f] sm:px-6">
       {measurement === undefined ? (
         <ManualMeasurementForm
           demoMeasurement={demoMeasurement}
@@ -59,26 +59,26 @@ export function FitDemoClient({
       )}
 
       {activeCandidate !== undefined ? (
-        <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-[#f7f5f0] px-4 py-6 sm:px-6">
+        <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-[#f4f7f5] px-4 py-6 sm:px-6">
           <button
             type="button"
             onClick={() => setActiveCandidate(undefined)}
-            className="mb-4 inline-flex w-fit items-center rounded-full border border-[#d9d3c7] bg-white px-4 py-2 text-sm font-bold"
+            className="mb-4 inline-flex min-h-11 w-fit items-center rounded-sm border border-[#17221f]/35 bg-white px-4 py-2 text-sm font-bold hover:border-[#17221f]"
           >
             ‹ Back to results
           </button>
-          <div className="mx-auto w-full max-w-xl">
-            <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#81796c]">
+          <div className="mx-auto w-full max-w-[430px]">
+            <p className="fit-data mb-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#17221f]/65">
               {activeCandidate.retailer} · {activeCandidate.fitLabel}
             </p>
-            <h2 className="mb-4 text-2xl font-black tracking-[-0.03em]">{activeCandidate.name}</h2>
+            <h2 className="fit-display mb-4 text-2xl font-bold tracking-[-0.03em]">{activeCandidate.name}</h2>
             <ProductQuickLookViewer name={activeCandidate.name} model={activeCandidate.model} />
             {activeCandidate.retailerUrl !== undefined ? (
               <a
                 href={activeCandidate.retailerUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-3 flex min-h-11 items-center justify-center rounded-2xl border border-[#d8d1c5] bg-white text-sm font-bold"
+                className="mt-3 flex min-h-11 items-center justify-center rounded-sm border border-[#17221f]/35 bg-white text-sm font-bold hover:border-[#17221f]"
               >
                 View on {activeCandidate.retailer} ↗
               </a>
