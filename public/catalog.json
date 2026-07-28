@@ -381,6 +381,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-oak-effect-s09483367/",
       "extractedAt": "2026-07-25T05:12:36.997Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-09483367.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 800,
+        "heightMm": 2019,
+        "depthMm": 298
+      }
     }
   },
   {
@@ -421,6 +430,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-combination-white-s19581517/",
       "extractedAt": "2026-07-25T05:12:41.128Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-19581517.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 2400,
+        "heightMm": 1060,
+        "depthMm": 279
+      }
     }
   },
   {
@@ -509,6 +527,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-10522037/",
       "extractedAt": "2026-07-25T05:12:53.881Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-10522037.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 400,
+        "heightMm": 1060,
+        "depthMm": 279
+      }
     }
   },
   {
@@ -554,6 +581,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-glass-doors-dark-blue-20323805/",
       "extractedAt": "2026-07-25T05:12:56.554Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-20323805.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 800,
+        "heightMm": 2019,
+        "depthMm": 298
+      }
     }
   },
   {
@@ -593,6 +629,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/gersby-bookcase-white-70261131/",
       "extractedAt": "2026-07-25T05:13:02.377Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-70261131.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 600,
+        "heightMm": 1800,
+        "depthMm": 241
+      }
     }
   },
   {
@@ -639,6 +684,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-brown-walnut-effect-s09581891/",
       "extractedAt": "2026-07-25T05:13:13.853Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-09581891.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 400,
+        "heightMm": 2369,
+        "depthMm": 279
+      }
     }
   },
   {
