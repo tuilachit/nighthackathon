@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   CatalogProduct,
   FitSearchExperienceProps,
@@ -16,6 +16,7 @@ import {
   parseFurnitureQueryValue,
 } from "@/lib/query-parser";
 import { ComparisonPanel } from "./ComparisonPanel";
+import { ComparisonTray } from "./ComparisonTray";
 import { MeasurementSummary } from "./MeasurementSummary";
 import { ProductCard } from "./ProductCard";
 import { QueryInput } from "./QueryInput";
@@ -45,17 +46,37 @@ export function FitSearchExperience({
   const [query, setQuery] = useState<FurnitureQuery>(() => parseFurnitureQuery(initialQuery));
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [comparedIds, setComparedIds] = useState<readonly string[]>([]);
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
   const results = useMemo(
     () => searchProducts(products, measurement, query),
     [measurement, products, query],
   );
   const comparedEntries = useMemo(
-    () => results.fits.filter((entry) => comparedIds.includes(entry.product.id)),
+    () =>
+      comparedIds.flatMap((productId) => {
+        const entry = results.fits.find(
+          (candidate) => candidate.product.id === productId,
+        );
+        return entry === undefined ? [] : [entry];
+      }),
     [comparedIds, results.fits],
   );
   const filterChips = getFilterChips(query);
   const resolvedCatalogSource =
     catalogSource ?? (products.length > 0 ? "bundled" : "unavailable");
+
+  useEffect(() => {
+    if (!isComparisonOpen || comparedEntries.length === 0) {
+      return;
+    }
+    const frameId = window.requestAnimationFrame(() => {
+      const comparison = window.document.getElementById("fit-comparison");
+      if (typeof comparison?.scrollIntoView === "function") {
+        comparison.scrollIntoView({ block: "start" });
+      }
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [comparedEntries.length, isComparisonOpen]);
 
   async function handleSubmit(value: string): Promise<void> {
     const trimmed = value.trim();
@@ -67,6 +88,7 @@ export function FitSearchExperience({
     setSubmittedText(trimmed);
     setQuery(localQuery);
     setComparedIds([]);
+    setIsComparisonOpen(false);
 
     if (!needsEnhancement(localQuery)) {
       return;
@@ -106,6 +128,23 @@ export function FitSearchExperience({
           ? [...current, productId]
           : current,
     );
+  }
+
+  function openComparison(): void {
+    if (comparedIds.length === 0) {
+      const ikea = results.fits.find(
+        (entry) => entry.product.retailer === "IKEA",
+      );
+      const target = results.fits.find(
+        (entry) => entry.product.retailer === "Target",
+      );
+      setComparedIds(
+        [ikea?.product.id, target?.product.id].filter(
+          (productId): productId is string => productId !== undefined,
+        ),
+      );
+    }
+    setIsComparisonOpen(true);
   }
 
   function handleSelection(selection: ProductSelection): void {
@@ -180,10 +219,18 @@ export function FitSearchExperience({
         )}
       </div>
 
-      <ComparisonPanel
+      <ComparisonTray
         entries={comparedEntries}
-        onRemove={(productId) => toggleComparison(productId)}
+        onOpen={openComparison}
       />
+      {isComparisonOpen ? (
+        <ComparisonPanel
+          entries={comparedEntries}
+          measurement={measurement}
+          onClose={() => setIsComparisonOpen(false)}
+          onRemove={(productId) => toggleComparison(productId)}
+        />
+      ) : null}
 
       <ResultSection
         title="Verified fits"

@@ -1,8 +1,15 @@
 import { expect, test } from "@playwright/test";
 
-test("manual measurement is an honest first-class entry", async ({ page }) => {
+test("results land first and manual measurement remains a first-class edit", async ({ page }) => {
   await page.goto("/fit");
 
+  await expect(
+    page.getByRole("heading", { name: "Verified fits", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Enter measured dimensions." }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Edit" }).click();
   await expect(
     page.getByRole("heading", { name: "Enter measured dimensions." }),
   ).toBeVisible();
@@ -23,7 +30,7 @@ test("manual measurement is an honest first-class entry", async ({ page }) => {
   });
   await expect(measurement).toContainText("manual tape measurement");
   await expect(measurement).toContainText("820 mm");
-  await page.getByRole("button", { name: "Edit measurements" }).click();
+  await page.getByRole("button", { name: "Edit" }).click();
   await expect(
     page.getByRole("heading", { name: "Enter measured dimensions." }),
   ).toBeVisible();
@@ -42,9 +49,6 @@ test("fit-first mobile route is honest with AI disabled and remains usable offli
   });
 
   await page.goto("/fit");
-  await page
-    .getByRole("button", { name: "Use labeled demo measurement" })
-    .click();
 
   await expect(
     page.getByRole("heading", {
@@ -78,12 +82,17 @@ test("fit-first mobile route is honest with AI disabled and remains usable offli
   );
   await expect(page.getByText("Under $30", { exact: true })).toBeVisible();
 
-  const compareButtons = page.getByRole("button", { name: "Compare" });
-  await compareButtons.nth(0).click();
-  await compareButtons.nth(1).click();
-  await compareButtons.nth(2).click();
-  await expect(page.getByText("3/3")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Compare clearance" })).toBeVisible();
+  await page
+    .getByRole("button", { name: /Top IKEA \+ Target/ })
+    .click();
+  const comparison = page.getByRole("region", {
+    name: "Clearance comparison",
+  });
+  await expect(comparison).toBeVisible();
+  await expect(comparison.getByText("IKEA")).toBeVisible();
+  await expect(comparison.getByText("Target")).toBeVisible();
+  await expect(comparison.getByText(/Δ \d+ mm/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Comparing" })).toHaveCount(2);
 
   await page.getByRole("button", { name: "View in room" }).first().click();
   await expect(page.getByRole("button", { name: "View in AR" })).toBeVisible();

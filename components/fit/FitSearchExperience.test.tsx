@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { FURNITURE_CATALOG } from "@/lib/catalog";
@@ -51,9 +51,57 @@ describe("FitSearchExperience", () => {
     await user.click(compareButtons[1]);
     await user.click(compareButtons[2]);
 
-    expect(screen.getByText("3/3")).toBeInTheDocument();
+    expect(screen.getByText(/Comparison register · 3\/3/)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Comparing" })).toHaveLength(3);
     expect(screen.getAllByRole("button", { name: "Compare" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
+  });
+
+  it("preselects the top IKEA and Target fits when comparison opens empty", async () => {
+    const user = userEvent.setup();
+    render(
+      <FitSearchExperience
+        measurement={DEMO_SPACE_MEASUREMENT}
+        products={FURNITURE_CATALOG}
+        onSelectProduct={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Top IKEA \+ Target/ }),
+    );
+
+    const comparison = screen.getByRole("region", {
+      name: "Clearance comparison",
+    });
+    expect(within(comparison).getByText("IKEA")).toBeInTheDocument();
+    expect(within(comparison).getByText("Target")).toBeInTheDocument();
+    expect(
+      within(comparison).getByText(/Δ \d+ mm/),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Comparing" })).toHaveLength(2);
+  });
+
+  it("keeps the comparison tray visible after closing the detail view", async () => {
+    const user = userEvent.setup();
+    render(
+      <FitSearchExperience
+        measurement={DEMO_SPACE_MEASUREMENT}
+        products={FURNITURE_CATALOG}
+        onSelectProduct={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Top IKEA \+ Target/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(
+      screen.queryByRole("region", { name: "Clearance comparison" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /IKEA \/ Target/ }),
+    ).toBeInTheDocument();
   });
 
   it("hands a passing product to the placement boundary", async () => {

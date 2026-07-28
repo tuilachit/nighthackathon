@@ -64,6 +64,18 @@
   background: var(--fit-panel);
 }
 
+.fit-comparison-grid {
+  display: grid;
+  grid-auto-columns: minmax(160px, 1fr);
+  grid-auto-flow: column;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.fit-comparison-tray {
+  box-shadow: 0 4px 0 rgb(23 34 31 / 14%);
+}
+
 @keyframes fit-dimension-settle {
   from {
     opacity: 0;

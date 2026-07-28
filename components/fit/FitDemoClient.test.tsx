@@ -49,9 +49,6 @@ describe("FitDemoClient", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Use labeled demo measurement" }),
-    );
     fireEvent.click(screen.getByRole("button", { name: "View in room" }));
 
     expect(screen.getByRole("heading", { name: "LAIVA Bookcase", level: 2 })).toBeInTheDocument();
@@ -73,13 +70,35 @@ describe("FitDemoClient", () => {
         catalogSource="bundled"
       />,
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Use labeled demo measurement" }),
-    );
     fireEvent.click(screen.getByRole("button", { name: "View in room" }));
 
     const viewer = document.querySelector("model-viewer");
     expect(viewer).toHaveAttribute("src", "/models/unit-box.glb");
     expect(viewer).toHaveAttribute("scale", "0.619 1.651 0.241");
+  });
+
+  it("opens on measured results and exposes manual editing on demand", () => {
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    expect(
+      screen.getByRole("region", { name: "Your space is the search filter." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Verified fits" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Enter measured dimensions." }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(
+      screen.getByRole("heading", { name: "Enter measured dimensions." }),
+    ).toBeInTheDocument();
   });
 });
