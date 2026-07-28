@@ -66,7 +66,9 @@ The Phase 2 baseline is recorded on the first run. The agent will add at most
 signal from Firecrawl, Browser Use, or Anthropic. Progress and the final
 `.cache/catalog-ingestion/last-report.json` include Firecrawl pages fetched,
 Browser Use sessions, Claude calls, retailer API requests, retailer counts, and
-the provenance split.
+the provenance split. Each invocation also limits product-page attempts to
+eight Wayfair pages and twelve IKEA pages; complete Target retailer-API records
+do not require page extraction.
 
 Required local variables are documented in `.env.example`:
 `FIRECRAWL_API_KEY`, `BROWSER_USE_API_KEY`, and `ANTHROPIC_API_KEY`.

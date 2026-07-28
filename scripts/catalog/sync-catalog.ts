@@ -49,6 +49,11 @@ const REPORT_PATH = resolve(
 const MAX_PHASE_NEW_PRODUCTS = 150;
 const DEFAULT_BATCH_SIZE = 25;
 const MAX_BROWSER_USE_SESSIONS_PER_RUN = 8;
+const MAX_PAGE_ATTEMPTS: Readonly<Record<RetailerId, number>> = {
+  wayfair: 8,
+  ikea: 12,
+  target: 0,
+};
 const TARGET_REQUEST_INTERVAL_MS = 500;
 const WAYFAIR_CATEGORY_URLS = [
   WAYFAIR_CATEGORY_URL,
@@ -132,6 +137,11 @@ async function main(): Promise<void> {
     const knownUrls = new Set(
       products.map((product) => canonicalUrl(product.productUrl)),
     );
+    const pageAttempts: Record<RetailerId, number> = {
+      ikea: 0,
+      target: 0,
+      wayfair: 0,
+    };
 
     for (const seed of discovery.pageSeeds) {
       if (addedThisRun >= batchLimit) {
@@ -144,6 +154,10 @@ async function main(): Promise<void> {
       ) {
         continue;
       }
+      if (pageAttempts[seed.retailerId] >= MAX_PAGE_ATTEMPTS[seed.retailerId]) {
+        continue;
+      }
+      pageAttempts[seed.retailerId] += 1;
 
       try {
         const page = await fetcher.fetchPage(seed.productUrl);
