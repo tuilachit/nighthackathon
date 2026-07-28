@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useActivePrototype } from "@/components/prototype/useActivePrototype";
-import { CubeIcon, DotIcon, SparkleIcon } from "@/components/ui/Icon";
+import { DotIcon, SparkleIcon } from "@/components/ui/Icon";
 import { getIosModelSource, getModelViewerAssetUrl, getPrimaryModelSource, hasGeneratedModelAssetSource } from "@/lib/assets";
 import type { PrototypeSpec } from "@/lib/prototype-types";
 

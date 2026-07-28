@@ -7,9 +7,11 @@ export default defineConfig({
       "@": fileURLToPath(new URL(".", import.meta.url)),
     },
   },
-  esbuild: {
-    jsx: "automatic",
-    jsxImportSource: "react",
+  oxc: {
+    jsx: {
+      runtime: "automatic",
+      importSource: "react",
+    },
   },
   test: {
     environment: "jsdom",
