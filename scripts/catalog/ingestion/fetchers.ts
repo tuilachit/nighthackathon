@@ -122,7 +122,9 @@ export class BrowserUseClient {
             "Return the canonical final URL, the visible product/listing page text,",
             "all HTTPS product links, and direct HTTPS product-image URLs.",
             "On product pages, expand Dimensions, Specifications, or Product Details",
-            "as needed so pageText includes exact labelled width, height, and depth.",
+            "and copy the exact labelled width, height, and depth into evidenceText.",
+            "Also return the direct primary product image URL in primaryImageUrl.",
+            "Use an empty string for evidenceText or primaryImageUrl if unavailable.",
             "Do not infer or calculate product dimensions.",
           ].join(" "),
           model: "claude-sonnet-4.6",
@@ -143,8 +145,17 @@ export class BrowserUseClient {
                 type: "array",
                 items: { type: "string" },
               },
+              evidenceText: { type: "string" },
+              primaryImageUrl: { type: "string" },
             },
-            required: ["finalUrl", "pageText", "links", "imageUrls"],
+            required: [
+              "finalUrl",
+              "pageText",
+              "links",
+              "imageUrls",
+              "evidenceText",
+              "primaryImageUrl",
+            ],
             additionalProperties: false,
           },
         }),
@@ -167,24 +178,29 @@ export class BrowserUseClient {
 
     const deadline = Date.now() + BROWSER_USE_TIMEOUT_MS;
     let session: Record<string, unknown> = created;
-    while (!isTerminalBrowserStatus(stringValue(session.status))) {
-      if (Date.now() >= deadline) {
-        throw new Error("Browser Use session timed out.");
+    try {
+      while (!isTerminalBrowserStatus(stringValue(session.status))) {
+        if (Date.now() >= deadline) {
+          throw new Error("Browser Use session timed out.");
+        }
+        await wait(BROWSER_USE_POLL_INTERVAL_MS);
+        const pollResponse = await this.fetchImplementation(
+          `${BROWSER_USE_SESSIONS_ENDPOINT}/${sessionId}`,
+          { headers: this.headers(false) },
+        );
+        const pollBody = await pollResponse.text();
+        if (!pollResponse.ok) {
+          throw providerError("browser-use", pollResponse.status, pollBody);
+        }
+        const polled = parseJson(pollBody);
+        if (!isRecord(polled)) {
+          throw new Error("Browser Use returned an invalid poll response.");
+        }
+        session = polled;
       }
-      await wait(BROWSER_USE_POLL_INTERVAL_MS);
-      const pollResponse = await this.fetchImplementation(
-        `${BROWSER_USE_SESSIONS_ENDPOINT}/${sessionId}`,
-        { headers: this.headers(false) },
-      );
-      const pollBody = await pollResponse.text();
-      if (!pollResponse.ok) {
-        throw providerError("browser-use", pollResponse.status, pollBody);
-      }
-      const polled = parseJson(pollBody);
-      if (!isRecord(polled)) {
-        throw new Error("Browser Use returned an invalid poll response.");
-      }
-      session = polled;
+    } catch (error) {
+      await this.stopSession(sessionId);
+      throw error;
     }
 
     if (
@@ -211,13 +227,18 @@ export class BrowserUseClient {
     return {
       source: "browser-use",
       finalUrl,
-      markdown: output.pageText.trim(),
+      markdown: [output.pageText.trim(), output.evidenceText.trim()]
+        .filter(Boolean)
+        .join("\n\nExact rendered product evidence:\n"),
       rawHtml: "",
       links: output.links.flatMap((link) => {
         const normalized = normalizeHttpsUrl(link);
         return normalized === undefined ? [] : [normalized];
       }),
-      imageUrls: output.imageUrls.flatMap((link) => {
+      imageUrls: [
+        output.primaryImageUrl,
+        ...output.imageUrls,
+      ].flatMap((link) => {
         const normalized = normalizeHttpsUrl(link);
         return normalized === undefined ? [] : [normalized];
       }),
@@ -229,6 +250,20 @@ export class BrowserUseClient {
       "X-Browser-Use-API-Key": this.apiKey,
       ...(includeContentType ? { "Content-Type": "application/json" } : {}),
     };
+  }
+
+  private async stopSession(sessionId: string): Promise<void> {
+    try {
+      await this.fetchImplementation(
+        `${BROWSER_USE_SESSIONS_ENDPOINT}/${sessionId}/stop`,
+        {
+          method: "POST",
+          headers: this.headers(false),
+        },
+      );
+    } catch {
+      // Preserve the original provider failure; cleanup is best effort.
+    }
   }
 }
 
@@ -291,6 +326,8 @@ function parseBrowserOutput(value: unknown): {
   readonly pageText: string;
   readonly links: readonly string[];
   readonly imageUrls: readonly string[];
+  readonly evidenceText: string;
+  readonly primaryImageUrl: string;
 } {
   const parsed = typeof value === "string" ? parseJson(value) : value;
   if (!isRecord(parsed)) {
@@ -298,7 +335,18 @@ function parseBrowserOutput(value: unknown): {
   }
   const finalUrl = stringValue(parsed.finalUrl);
   const pageText = stringValue(parsed.pageText);
-  if (finalUrl === undefined || pageText === undefined) {
+  const evidenceText =
+    typeof parsed.evidenceText === "string" ? parsed.evidenceText : undefined;
+  const primaryImageUrl =
+    typeof parsed.primaryImageUrl === "string"
+      ? parsed.primaryImageUrl
+      : undefined;
+  if (
+    finalUrl === undefined ||
+    pageText === undefined ||
+    evidenceText === undefined ||
+    primaryImageUrl === undefined
+  ) {
     throw new Error("Browser Use output omitted required page fields.");
   }
   return {
@@ -306,6 +354,8 @@ function parseBrowserOutput(value: unknown): {
     pageText,
     links: stringArray(parsed.links),
     imageUrls: stringArray(parsed.imageUrls),
+    evidenceText,
+    primaryImageUrl,
   };
 }
 

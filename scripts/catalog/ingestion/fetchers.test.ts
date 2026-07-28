@@ -65,6 +65,8 @@ describe("two-tier page fetching", () => {
             pageText: "Rendered product text",
             links: [],
             imageUrls: ["https://example.com/product.jpg"],
+            evidenceText: "Width 20 in; Height 40 in; Depth 10 in",
+            primaryImageUrl: "https://example.com/product.jpg",
           },
         }),
     );
@@ -125,6 +127,8 @@ describe("two-tier page fetching", () => {
             pageText: "Rendered dimensions and product facts",
             links: [],
             imageUrls: ["https://example.com/product.jpg"],
+            evidenceText: "Width 20 in; Height 40 in; Depth 10 in",
+            primaryImageUrl: "https://example.com/product.jpg",
           },
         }),
     );
@@ -137,6 +141,31 @@ describe("two-tier page fetching", () => {
     expect(result.source).toBe("browser-use");
     expect(metrics.browserUseSessions).toBe(1);
   });
+
+  it("stops a remote browser session when polling fails", async () => {
+    const metrics = emptyMetrics();
+    const requests: string[] = [];
+    const browserUse = new BrowserUseClient(
+      "browser-key",
+      metrics,
+      async (input, init) => {
+        const url = String(input);
+        requests.push(`${init?.method ?? "GET"} ${url}`);
+        if (init?.method === "POST" && url.endsWith("/sessions")) {
+          return jsonResponse({ id: "session-id", status: "started" });
+        }
+        if (init?.method === "POST" && url.endsWith("/stop")) {
+          return jsonResponse({ id: "session-id", status: "stopped" });
+        }
+        return new Response("poll failed", { status: 500 });
+      },
+    );
+
+    await expect(
+      browserUse.fetchPage("https://example.com/product"),
+    ).rejects.toThrow("poll failed");
+    expect(requests.at(-1)).toContain("/session-id/stop");
+  }, 10_000);
 });
 
 function emptyMetrics(): IngestionMetrics {

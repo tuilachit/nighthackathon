@@ -48,9 +48,9 @@ const REPORT_PATH = resolve(
 );
 const MAX_PHASE_NEW_PRODUCTS = 150;
 const DEFAULT_BATCH_SIZE = 25;
-const MAX_BROWSER_USE_SESSIONS_PER_RUN = 8;
+const MAX_BROWSER_USE_SESSIONS_PER_RUN = 2;
 const MAX_PAGE_ATTEMPTS: Readonly<Record<RetailerId, number>> = {
-  wayfair: 8,
+  wayfair: 2,
   ikea: 12,
   target: 0,
 };

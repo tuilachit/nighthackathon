@@ -27,7 +27,8 @@ flowchart LR
 3. **Browser Use:** If Firecrawl cannot return usable content, or the static
    page still lacks the required product facts, one bounded Browser Use session
    expands product specifications and returns rendered visible text plus image
-   URLs. A run creates at most eight sessions. Credit
+   URLs and a verbatim dimension-evidence block. A run creates at most two
+   sessions. Credit
    or quota errors never trigger another provider; they stop the run.
 4. **JSON-LD:** `schema.org/Product` width, height, and depth are parsed before
    any model call. Explicit inches or centimetres are converted to whole

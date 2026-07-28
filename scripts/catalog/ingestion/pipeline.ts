@@ -77,7 +77,9 @@ export async function buildCandidateFromPage(
   const priceUsd = jsonLd?.priceUsd ?? extracted?.priceUsd;
   const dimensions = jsonLd?.dimensions ?? extracted?.dimensions;
   const imageSourceUrl =
-    jsonLd?.imageUrl ?? extracted?.imageUrl ?? page.imageUrls[0];
+    jsonLd?.imageUrl ??
+    extracted?.imageUrl ??
+    selectProductImage(page.imageUrls);
   const productUrl =
     canonicalRetailerUrl(
       seed.retailerId,
@@ -232,4 +234,20 @@ function uniqueTags(values: readonly string[]): readonly string[] {
         .filter(Boolean),
     ),
   ];
+}
+
+function selectProductImage(
+  imageUrls: readonly string[],
+): string | undefined {
+  return imageUrls.find((value) => {
+    try {
+      const url = new URL(value);
+      return (
+        /\.(?:avif|jpe?g|png|webp)$/i.test(url.pathname) &&
+        !/(pixel|tracker|logo|icon|sprite)/i.test(url.pathname)
+      );
+    } catch {
+      return false;
+    }
+  });
 }

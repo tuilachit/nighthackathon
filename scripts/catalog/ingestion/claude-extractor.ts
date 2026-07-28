@@ -14,6 +14,11 @@ const ANTHROPIC_MESSAGES_ENDPOINT = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 const ANTHROPIC_INTERVAL_MS = 1_100;
 const MAX_PAGE_TEXT_CHARACTERS = 35_000;
+const EXCERPT_LEADING_CHARACTERS = 8_000;
+const EXCERPT_TRAILING_CHARACTERS = 5_000;
+const EXCERPT_CONTEXT_BEFORE = 1_000;
+const EXCERPT_CONTEXT_AFTER = 2_000;
+const MAX_RELEVANT_EXCERPTS = 8;
 const CREDIT_ERROR_PATTERN =
   /\b(credit|quota|billing|payment|required|insufficient|exhausted|limit reached)\b/i;
 
@@ -83,9 +88,8 @@ export class ClaudeProductExtractor implements ProductTextExtractor {
         messages: [
           {
             role: "user",
-            content: `Source URL: ${sourceUrl}\n\n${pageText.slice(
-              0,
-              MAX_PAGE_TEXT_CHARACTERS,
+            content: `Source URL: ${sourceUrl}\n\n${buildExtractionExcerpt(
+              pageText,
             )}`,
           },
         ],
@@ -144,6 +148,48 @@ export class ClaudeProductExtractor implements ProductTextExtractor {
     }
     this.lastRequestAt = Date.now();
   }
+}
+
+/**
+ * Preserves dimension evidence from long rendered pages instead of keeping
+ * only the beginning of the document.
+ */
+export function buildExtractionExcerpt(pageText: string): string {
+  if (pageText.length <= MAX_PAGE_TEXT_CHARACTERS) {
+    return pageText;
+  }
+
+  const excerpts = [pageText.slice(0, EXCERPT_LEADING_CHARACTERS)];
+  const relevantPattern =
+    /\b(?:overall dimensions?|product dimensions?|width|height|depth)\b/gi;
+  let match: RegExpExecArray | null;
+  let previousEnd = EXCERPT_LEADING_CHARACTERS;
+  let relevantExcerptCount = 0;
+
+  while (
+    (match = relevantPattern.exec(pageText)) !== null &&
+    relevantExcerptCount < MAX_RELEVANT_EXCERPTS
+  ) {
+    const start = Math.max(0, match.index - EXCERPT_CONTEXT_BEFORE);
+    const end = Math.min(
+      pageText.length,
+      match.index + match[0].length + EXCERPT_CONTEXT_AFTER,
+    );
+    if (end <= previousEnd) {
+      continue;
+    }
+    excerpts.push(pageText.slice(Math.max(start, previousEnd), end));
+    previousEnd = end;
+    relevantExcerptCount += 1;
+  }
+
+  excerpts.push(
+    pageText.slice(Math.max(previousEnd, pageText.length - EXCERPT_TRAILING_CHARACTERS)),
+  );
+  return excerpts.join("\n\n[page excerpt]\n\n").slice(
+    0,
+    MAX_PAGE_TEXT_CHARACTERS,
+  );
 }
 
 const nullableString = {
