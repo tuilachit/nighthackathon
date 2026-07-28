@@ -22,11 +22,12 @@ flowchart LR
 
 1. **Retailer API:** Exact dimensions supplied by a retailer API are accepted
    with `dimensionsSource: "retailer-api"`.
-2. **Firecrawl:** Known product pages are fetched as markdown, raw HTML, and
-   links. Firecrawl is the default page provider.
+2. **Firecrawl:** Known product pages are fetched as markdown, raw HTML, links,
+   and direct image URLs. Firecrawl is the default page provider.
 3. **Browser Use:** If Firecrawl cannot return usable content, or the static
    page still lacks the required product facts, one bounded Browser Use session
-   returns rendered visible text. A run creates at most eight sessions. Credit
+   expands product specifications and returns rendered visible text plus image
+   URLs. A run creates at most eight sessions. Credit
    or quota errors never trigger another provider; they stop the run.
 4. **JSON-LD:** `schema.org/Product` width, height, and depth are parsed before
    any model call. Explicit inches or centimetres are converted to whole

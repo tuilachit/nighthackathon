@@ -55,7 +55,18 @@ export async function buildCandidateFromPage(
     jsonLd.imageUrl === undefined ||
     jsonLd.productUrl === undefined;
   const extracted = needsClaude
-    ? await claude.extract(page.markdown, page.finalUrl)
+    ? await claude.extract(
+        [
+          page.markdown,
+          ...(page.imageUrls.length === 0
+            ? []
+            : [
+                "\nDirect product image candidates:",
+                ...page.imageUrls.slice(0, 12),
+              ]),
+        ].join("\n"),
+        page.finalUrl,
+      )
     : undefined;
 
   if (needsClaude && extracted?.confidence !== "high") {
@@ -65,7 +76,8 @@ export async function buildCandidateFromPage(
   const name = jsonLd?.name ?? extracted?.name;
   const priceUsd = jsonLd?.priceUsd ?? extracted?.priceUsd;
   const dimensions = jsonLd?.dimensions ?? extracted?.dimensions;
-  const imageSourceUrl = jsonLd?.imageUrl ?? extracted?.imageUrl;
+  const imageSourceUrl =
+    jsonLd?.imageUrl ?? extracted?.imageUrl ?? page.imageUrls[0];
   const productUrl =
     canonicalRetailerUrl(
       seed.retailerId,

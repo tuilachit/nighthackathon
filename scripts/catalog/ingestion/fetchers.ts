@@ -22,6 +22,7 @@ export interface FetchedPage {
   readonly markdown: string;
   readonly rawHtml: string;
   readonly links: readonly string[];
+  readonly imageUrls: readonly string[];
 }
 
 export class ProviderCreditExhaustedError extends Error {
@@ -59,7 +60,7 @@ export class FirecrawlClient {
       },
       body: JSON.stringify({
         url: targetUrl,
-        formats: ["markdown", "rawHtml", "links"],
+        formats: ["markdown", "rawHtml", "links", "images"],
         onlyMainContent: false,
         location: { country: "US", languages: ["en-US"] },
         removeBase64Images: true,
@@ -95,6 +96,7 @@ export class FirecrawlClient {
       markdown,
       rawHtml,
       links: httpsUrlArray(payload.data.links),
+      imageUrls: httpsUrlArray(payload.data.images),
     };
   }
 }
@@ -118,7 +120,9 @@ export class BrowserUseClient {
           task: [
             `Open ${targetUrl}.`,
             "Return the canonical final URL, the visible product/listing page text,",
-            "and all HTTPS product links visible on the page.",
+            "all HTTPS product links, and direct HTTPS product-image URLs.",
+            "On product pages, expand Dimensions, Specifications, or Product Details",
+            "as needed so pageText includes exact labelled width, height, and depth.",
             "Do not infer or calculate product dimensions.",
           ].join(" "),
           model: "claude-sonnet-4.6",
@@ -135,8 +139,12 @@ export class BrowserUseClient {
                 type: "array",
                 items: { type: "string" },
               },
+              imageUrls: {
+                type: "array",
+                items: { type: "string" },
+              },
             },
-            required: ["finalUrl", "pageText", "links"],
+            required: ["finalUrl", "pageText", "links", "imageUrls"],
             additionalProperties: false,
           },
         }),
@@ -209,6 +217,10 @@ export class BrowserUseClient {
         const normalized = normalizeHttpsUrl(link);
         return normalized === undefined ? [] : [normalized];
       }),
+      imageUrls: output.imageUrls.flatMap((link) => {
+        const normalized = normalizeHttpsUrl(link);
+        return normalized === undefined ? [] : [normalized];
+      }),
     };
   }
 
@@ -278,6 +290,7 @@ function parseBrowserOutput(value: unknown): {
   readonly finalUrl: string;
   readonly pageText: string;
   readonly links: readonly string[];
+  readonly imageUrls: readonly string[];
 } {
   const parsed = typeof value === "string" ? parseJson(value) : value;
   if (!isRecord(parsed)) {
@@ -288,7 +301,12 @@ function parseBrowserOutput(value: unknown): {
   if (finalUrl === undefined || pageText === undefined) {
     throw new Error("Browser Use output omitted required page fields.");
   }
-  return { finalUrl, pageText, links: stringArray(parsed.links) };
+  return {
+    finalUrl,
+    pageText,
+    links: stringArray(parsed.links),
+    imageUrls: stringArray(parsed.imageUrls),
+  };
 }
 
 function isTerminalBrowserStatus(status: string | undefined): boolean {

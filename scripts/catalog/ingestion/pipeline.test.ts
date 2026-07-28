@@ -104,6 +104,7 @@ function pageWithJsonLd(json: string): FetchedPage {
     markdown: "Product page text",
     rawHtml: `<script type="application/ld+json">${json}</script>`,
     links: [],
+    imageUrls: [],
   };
 }
 

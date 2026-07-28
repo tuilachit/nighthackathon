@@ -20,6 +20,7 @@ describe("two-tier page fetching", () => {
             markdown: "# Product",
             rawHtml: "<h1>Product</h1>",
             links: ["https://example.com/product"],
+            images: ["https://example.com/product.jpg"],
             metadata: { sourceURL: "https://example.com/product" },
           },
         }),
@@ -63,6 +64,7 @@ describe("two-tier page fetching", () => {
             finalUrl: "https://example.com/product",
             pageText: "Rendered product text",
             links: [],
+            imageUrls: ["https://example.com/product.jpg"],
           },
         }),
     );
@@ -122,6 +124,7 @@ describe("two-tier page fetching", () => {
             finalUrl: "https://example.com/product",
             pageText: "Rendered dimensions and product facts",
             links: [],
+            imageUrls: ["https://example.com/product.jpg"],
           },
         }),
     );
