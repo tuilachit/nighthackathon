@@ -230,6 +230,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/brimnes-bookcase-black-40301223/",
       "extractedAt": "2026-07-25T05:12:27.464Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-40301223.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 600,
+        "heightMm": 1899,
+        "depthMm": 349
+      }
     }
   },
   {
@@ -269,6 +278,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s89581514/",
       "extractedAt": "2026-07-25T05:12:30.292Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-89581514.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 1600,
+        "heightMm": 2019,
+        "depthMm": 279
+      }
     }
   },
   {
@@ -312,6 +330,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-white-s59638673/",
       "extractedAt": "2026-07-25T05:12:33.623Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-59638673.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 800,
+        "heightMm": 2369,
+        "depthMm": 279
+      }
     }
   },
   {

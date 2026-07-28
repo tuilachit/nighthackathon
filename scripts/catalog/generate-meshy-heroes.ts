@@ -86,7 +86,13 @@ async function main(): Promise<void> {
   const roadmapId = process.argv
     .find((argument) => argument.startsWith("--catalog-product="))
     ?.slice("--catalog-product=".length);
+  const recoveryTaskId = process.argv
+    .find((argument) => argument.startsWith("--meshy-task="))
+    ?.slice("--meshy-task=".length);
   const selectedIds: readonly string[] = roadmapId === undefined ? SELECTED_IDS : [roadmapId];
+  if (recoveryTaskId !== undefined && selectedIds.length !== 1) {
+    throw new Error("--meshy-task requires exactly one --catalog-product.");
+  }
   const selected = selectedIds.map((id) => {
     const product = products.find((candidate) => candidate.id === id);
     if (product === undefined) {
@@ -134,7 +140,12 @@ async function main(): Promise<void> {
 
   await mkdir(GLB_DIRECTORY, { recursive: true });
   for (const product of selected) {
-    const result = await generateProduct(apiKey, product, products);
+    const result = await generateProduct(
+      apiKey,
+      product,
+      products,
+      recoveryTaskId,
+    );
     console.log(`MESHY_RESULT ${JSON.stringify(result)}`);
   }
 }
@@ -143,14 +154,18 @@ async function generateProduct(
   apiKey: string,
   product: CatalogProduct,
   products: CatalogProduct[],
+  recoveryTaskId?: string,
 ): Promise<MeshyGenerationResult> {
-  const image = await fetchRequired(product.imagePath, "retailer image");
-  const imageType = image.headers.get("content-type")?.split(";")[0];
-  if (imageType === undefined || !/^image\/(png|jpe?g|webp)$/i.test(imageType)) {
-    throw new Error(`${product.id} retailer image has unsupported content type.`);
+  let taskId = recoveryTaskId;
+  if (taskId === undefined) {
+    const image = await fetchRequired(product.imagePath, "retailer image");
+    const imageType = image.headers.get("content-type")?.split(";")[0];
+    if (imageType === undefined || !/^image\/(png|jpe?g|webp)$/i.test(imageType)) {
+      throw new Error(`${product.id} retailer image has unsupported content type.`);
+    }
+    const imageDataUrl = `data:${imageType};base64,${Buffer.from(await image.arrayBuffer()).toString("base64")}`;
+    taskId = await createTask(apiKey, imageDataUrl);
   }
-  const imageDataUrl = `data:${imageType};base64,${Buffer.from(await image.arrayBuffer()).toString("base64")}`;
-  const taskId = await createTask(apiKey, imageDataUrl);
   const task = await waitForTask(apiKey, taskId);
   const glbUrl = task.model_urls?.glb;
   if (glbUrl === undefined || !isHttpsUrl(glbUrl, ".glb")) {
@@ -246,11 +261,28 @@ async function waitForTask(apiKey: string, taskId: string): Promise<MeshyTask> {
 }
 
 async function fetchRequired(url: string, label: string): Promise<Response> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`${label} failed with HTTP ${response.status}.`);
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        return response;
+      }
+      lastError = new Error(`${label} failed with HTTP ${response.status}.`);
+      if (response.status < 500 || attempt === 3) {
+        throw lastError;
+      }
+    } catch (error: unknown) {
+      lastError = error;
+      if (attempt === 3) {
+        break;
+      }
+    }
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, attempt * 2_000));
   }
-  return response;
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`${label} fetch failed.`);
 }
 
 function rescaleGlb(source: Buffer, target: DimensionsMm, label: string): Buffer {
