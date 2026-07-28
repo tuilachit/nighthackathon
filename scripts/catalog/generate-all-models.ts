@@ -95,6 +95,7 @@ async function main(): Promise<void> {
     const result = await runGenerator(id);
     if (result.exitCode === 2) {
       currentBalance = await getBalance(apiKey);
+      creditsConsumed = Math.max(0, initialBalance - currentBalance);
       const report = await createReport(
         "credit-exhausted",
         initialBalance,
@@ -117,10 +118,10 @@ async function main(): Promise<void> {
       );
     } else {
       succeeded += 1;
-      creditsConsumed += result.generation.consumedCredits;
     }
 
     currentBalance = await getBalance(apiKey);
+    creditsConsumed = Math.max(0, initialBalance - currentBalance);
     const report = await createReport(
       "running",
       initialBalance,
