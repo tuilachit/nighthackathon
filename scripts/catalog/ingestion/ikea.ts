@@ -101,6 +101,9 @@ export function parseIkeaProduct(html: string): ProductCandidate | undefined {
     imageAltText: name,
     productUrl,
     verificationSourceUrl: productUrl,
+    dimensionsSource: "json-ld",
+    extractedAt: new Date().toISOString(),
+    confidence: "high",
     variantLabel: color.length === 0 ? undefined : color,
     variantOptions: color.length === 0 ? {} : { color },
     sourcePayload: {

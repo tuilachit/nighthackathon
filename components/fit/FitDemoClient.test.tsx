@@ -25,6 +25,12 @@ const product: CatalogProduct = {
   imagePath: "/images/products/laiva.svg",
   productUrl: "https://www.ikea.com/us/en/p/laiva-bookcase-black-brown-40178591/",
   verification: { sourceUrl: "https://www.ikea.com/...", verifiedAt: "2026-07-24" },
+  provenance: {
+    dimensionsSource: "json-ld",
+    sourceUrl: "https://www.ikea.com/...",
+    extractedAt: "2026-07-24",
+    confidence: "high",
+  },
   model: {
     glbPath: "/models/glb/ikea-laiva.glb",
     usdzPath: "/models/usdz/ikea-laiva.usdz",

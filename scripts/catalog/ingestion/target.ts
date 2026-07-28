@@ -10,7 +10,7 @@ import {
   numberValue,
   stringValue,
 } from "./shared";
-import type { ProductCandidate } from "./types";
+import type { ProductCandidate, ProductDiscoveryTarget } from "./types";
 
 const TARGET_REDSKY_ENDPOINT =
   "https://redsky.target.com/redsky_aggregations/v1/web/plp_search_v2";
@@ -19,9 +19,10 @@ const TARGET_CATEGORY_ID = "5xtmy";
 const TARGET_CATEGORY_PATH =
   "/c/bookshelves-bookcases-office-furniture-home-decor/-/N-5xtmy";
 const PAGE_SIZE = 28;
+const PAGE_COUNT = 8;
 
 export function targetDiscoveryUrls(): readonly string[] {
-  return [0, PAGE_SIZE].map((offset) => {
+  return Array.from({ length: PAGE_COUNT }, (_value, pageIndex) => pageIndex * PAGE_SIZE).map((offset) => {
     const url = new URL(TARGET_REDSKY_ENDPOINT);
     const params: Readonly<Record<string, string>> = {
       key: TARGET_REDSKY_KEY,
@@ -43,6 +44,35 @@ export function targetDiscoveryUrls(): readonly string[] {
       url.searchParams.set(key, value);
     }
     return url.toString();
+  });
+}
+
+export function parseTargetDiscoveryTargets(
+  input: unknown,
+): readonly ProductDiscoveryTarget[] {
+  if (
+    !isRecord(input) ||
+    !isRecord(input.data) ||
+    !isRecord(input.data.search) ||
+    !Array.isArray(input.data.search.products)
+  ) {
+    return [];
+  }
+
+  return input.data.search.products.flatMap((entry) => {
+    if (!isRecord(entry) || !isRecord(entry.item)) {
+      return [];
+    }
+    const externalId = stringValue(entry.tcin);
+    const enrichment = isRecord(entry.item.enrichment)
+      ? entry.item.enrichment
+      : undefined;
+    const productUrl = normalizeHttpsUrl(
+      stringValue(enrichment?.buy_url) ?? "",
+    );
+    return externalId === undefined || productUrl === undefined
+      ? []
+      : [{ externalId, productUrl }];
   });
 }
 
@@ -128,6 +158,9 @@ function parseTargetProduct(value: unknown): ProductCandidate | undefined {
     imageAltText: imageAltText ?? name,
     productUrl: normalizedProductUrl,
     verificationSourceUrl: normalizedProductUrl,
+    dimensionsSource: "retailer-api",
+    extractedAt: new Date().toISOString(),
+    confidence: "high",
     variantLabel: colors[0],
     variantOptions: colors.length === 0 ? {} : { color: colors.join(", ") },
     sourcePayload: {

@@ -1,5 +1,7 @@
 import type {
+  CatalogProvenance,
   CatalogProduct,
+  DimensionsSource,
   FurnitureCategory,
   ProductDimensions,
   Retailer,
@@ -11,6 +13,11 @@ const CATEGORIES = new Set<FurnitureCategory>([
   "shelving-unit",
   "sideboard",
   "drawer-unit",
+]);
+const DIMENSION_SOURCES = new Set<DimensionsSource>([
+  "json-ld",
+  "llm-extracted",
+  "retailer-api",
 ]);
 
 interface CatalogValidationSuccess {
@@ -99,6 +106,7 @@ function parseCatalogProduct(
       : requiredString(value.imageAttribution, `${path}.imageAttribution`, errors);
   const productUrl = requiredHttpsUrl(value.productUrl, `${path}.productUrl`, errors);
   const verification = parseVerification(value.verification, `${path}.verification`, errors);
+  const provenance = parseProvenance(value.provenance, `${path}.provenance`, errors);
   const model = value.model === undefined ? undefined : parseModel(value.model, `${path}.model`, errors);
 
   if (!RETAILERS.has(retailerValue as Retailer)) {
@@ -137,7 +145,8 @@ function parseCatalogProduct(
     keywords === undefined ||
     imagePath === undefined ||
     productUrl === undefined ||
-    verification === undefined
+    verification === undefined ||
+    provenance === undefined
   ) {
     return undefined;
   }
@@ -158,6 +167,7 @@ function parseCatalogProduct(
     ...(imageAttribution === undefined ? {} : { imageAttribution }),
     productUrl,
     verification,
+    provenance,
     ...(model === undefined ? {} : { model }),
   };
 }
@@ -196,6 +206,53 @@ function parseVerification(
     return undefined;
   }
   return { sourceUrl, verifiedAt };
+}
+
+function parseProvenance(
+  value: unknown,
+  path: string,
+  errors: string[],
+): CatalogProvenance | undefined {
+  if (!isRecord(value)) {
+    errors.push(`${path} is required for every runtime product.`);
+    return undefined;
+  }
+
+  const dimensionsSource = requiredString(
+    value.dimensionsSource,
+    `${path}.dimensionsSource`,
+    errors,
+  );
+  const sourceUrl = requiredHttpsUrl(value.sourceUrl, `${path}.sourceUrl`, errors);
+  const extractedAt = requiredString(value.extractedAt, `${path}.extractedAt`, errors);
+
+  if (!DIMENSION_SOURCES.has(dimensionsSource as DimensionsSource)) {
+    errors.push(
+      `${path}.dimensionsSource must be json-ld, llm-extracted, or retailer-api.`,
+    );
+  }
+  if (extractedAt !== undefined && Number.isNaN(Date.parse(extractedAt))) {
+    errors.push(`${path}.extractedAt must be an ISO date.`);
+  }
+  if (value.confidence !== "high") {
+    errors.push(`${path}.confidence must be high.`);
+  }
+  if (
+    dimensionsSource === undefined ||
+    !DIMENSION_SOURCES.has(dimensionsSource as DimensionsSource) ||
+    sourceUrl === undefined ||
+    extractedAt === undefined ||
+    value.confidence !== "high"
+  ) {
+    return undefined;
+  }
+
+  return {
+    dimensionsSource: dimensionsSource as DimensionsSource,
+    sourceUrl,
+    extractedAt,
+    confidence: "high",
+  };
 }
 
 function parseModel(

@@ -30,6 +30,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-20522046/",
       "verifiedAt": "2026-07-25T05:12:14.912Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-20522046/",
+      "extractedAt": "2026-07-25T05:12:14.912Z",
+      "confidence": "high"
     }
   },
   {
@@ -61,6 +67,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-blue-40594928/",
       "verifiedAt": "2026-07-25T05:12:18.575Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-blue-40594928/",
+      "extractedAt": "2026-07-25T05:12:18.575Z",
+      "confidence": "high"
     }
   },
   {
@@ -94,6 +106,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
       "verifiedAt": "2026-07-25T05:12:22.068Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
+      "extractedAt": "2026-07-25T05:12:22.068Z",
+      "confidence": "high"
     }
   },
   {
@@ -131,6 +149,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/hemnes-bookcase-white-stain-light-brown-60413502/",
       "verifiedAt": "2026-07-25T05:12:24.815Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/hemnes-bookcase-white-stain-light-brown-60413502/",
+      "extractedAt": "2026-07-25T05:12:24.815Z",
+      "confidence": "high"
     }
   },
   {
@@ -164,6 +188,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/brimnes-bookcase-black-40301223/",
       "verifiedAt": "2026-07-25T05:12:27.464Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/brimnes-bookcase-black-40301223/",
+      "extractedAt": "2026-07-25T05:12:27.464Z",
+      "confidence": "high"
     }
   },
   {
@@ -197,6 +227,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s89581514/",
       "verifiedAt": "2026-07-25T05:12:30.292Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s89581514/",
+      "extractedAt": "2026-07-25T05:12:30.292Z",
+      "confidence": "high"
     }
   },
   {
@@ -234,6 +270,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-white-s59638673/",
       "verifiedAt": "2026-07-25T05:12:33.623Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-white-s59638673/",
+      "extractedAt": "2026-07-25T05:12:33.623Z",
+      "confidence": "high"
     }
   },
   {
@@ -270,6 +312,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-oak-effect-s09483367/",
       "verifiedAt": "2026-07-25T05:12:36.997Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-oak-effect-s09483367/",
+      "extractedAt": "2026-07-25T05:12:36.997Z",
+      "confidence": "high"
     }
   },
   {
@@ -304,6 +352,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-combination-white-s19581517/",
       "verifiedAt": "2026-07-25T05:12:41.128Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-combination-white-s19581517/",
+      "extractedAt": "2026-07-25T05:12:41.128Z",
+      "confidence": "high"
     }
   },
   {
@@ -347,6 +401,12 @@
         "heightMm": 1600,
         "depthMm": 251
       }
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-20436713/",
+      "extractedAt": "2026-07-25T05:12:44.322Z",
+      "confidence": "high"
     }
   },
   {
@@ -380,6 +440,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-10522037/",
       "verifiedAt": "2026-07-25T05:12:53.881Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-10522037/",
+      "extractedAt": "2026-07-25T05:12:53.881Z",
+      "confidence": "high"
     }
   },
   {
@@ -419,6 +485,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-glass-doors-dark-blue-20323805/",
       "verifiedAt": "2026-07-25T05:12:56.554Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-glass-doors-dark-blue-20323805/",
+      "extractedAt": "2026-07-25T05:12:56.554Z",
+      "confidence": "high"
     }
   },
   {
@@ -452,6 +524,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/gersby-bookcase-white-70261131/",
       "verifiedAt": "2026-07-25T05:13:02.377Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/gersby-bookcase-white-70261131/",
+      "extractedAt": "2026-07-25T05:13:02.377Z",
+      "confidence": "high"
     }
   },
   {
@@ -492,6 +570,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-brown-walnut-effect-s09581891/",
       "verifiedAt": "2026-07-25T05:13:13.853Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-with-height-extension-unit-brown-walnut-effect-s09581891/",
+      "extractedAt": "2026-07-25T05:13:13.853Z",
+      "confidence": "high"
     }
   },
   {
@@ -525,6 +609,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-dark-blue-s19217721/",
       "verifiedAt": "2026-07-25T05:13:22.284Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-dark-blue-s19217721/",
+      "extractedAt": "2026-07-25T05:13:22.284Z",
+      "confidence": "high"
     }
   },
   {
@@ -558,6 +648,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s59581515/",
       "verifiedAt": "2026-07-25T05:13:26.508Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-s59581515/",
+      "extractedAt": "2026-07-25T05:13:26.508Z",
+      "confidence": "high"
     }
   },
   {
@@ -592,6 +688,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-70481171/",
       "verifiedAt": "2026-07-25T05:13:30.225Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-70481171/",
+      "extractedAt": "2026-07-25T05:13:30.225Z",
+      "confidence": "high"
     }
   },
   {
@@ -626,6 +728,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/hauga-high-cabinet-with-2-doors-white-20415046/",
       "verifiedAt": "2026-07-25T05:13:34.378Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/hauga-high-cabinet-with-2-doors-white-20415046/",
+      "extractedAt": "2026-07-25T05:13:34.378Z",
+      "confidence": "high"
     }
   },
   {
@@ -661,6 +769,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-white-80525278/",
       "verifiedAt": "2026-07-25T05:13:37.687Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-white-80525278/",
+      "extractedAt": "2026-07-25T05:13:37.687Z",
+      "confidence": "high"
     }
   },
   {
@@ -704,6 +818,12 @@
         "heightMm": 1651,
         "depthMm": 241
       }
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/laiva-bookcase-black-brown-40178591/",
+      "extractedAt": "2026-07-25T05:13:41.692Z",
+      "confidence": "high"
     }
   },
   {
@@ -741,6 +861,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-white-s59581558/",
       "verifiedAt": "2026-07-25T05:13:45.212Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-oxberg-bookcase-with-doors-white-s59581558/",
+      "extractedAt": "2026-07-25T05:13:45.212Z",
+      "confidence": "high"
     }
   },
   {
@@ -775,6 +901,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/skruvby-bookcase-black-blue-20520354/",
       "verifiedAt": "2026-07-25T05:13:48.015Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/skruvby-bookcase-black-blue-20520354/",
+      "extractedAt": "2026-07-25T05:13:48.015Z",
+      "confidence": "high"
     }
   },
   {
@@ -814,6 +946,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-40409935/",
       "verifiedAt": "2026-07-25T05:14:00.792Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-40409935/",
+      "extractedAt": "2026-07-25T05:14:00.792Z",
+      "confidence": "high"
     }
   },
   {
@@ -859,6 +997,12 @@
         "heightMm": 1159,
         "depthMm": 251
       }
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-shelf-unit-metal-white-50481172/",
+      "extractedAt": "2026-07-25T05:14:04.524Z",
+      "confidence": "high"
     }
   },
   {
@@ -897,6 +1041,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/fjaellbo-shelf-unit-black-70339291/",
       "verifiedAt": "2026-07-25T05:14:16.862Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/fjaellbo-shelf-unit-black-70339291/",
+      "extractedAt": "2026-07-25T05:14:16.862Z",
+      "confidence": "high"
     }
   },
   {
@@ -932,6 +1082,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-40275846/",
       "verifiedAt": "2026-07-25T05:14:24.250Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-40275846/",
+      "extractedAt": "2026-07-25T05:14:24.250Z",
+      "confidence": "high"
     }
   },
   {
@@ -969,6 +1125,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-black-brown-glass-20213312/",
       "verifiedAt": "2026-07-25T05:14:27.676Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-black-brown-glass-20213312/",
+      "extractedAt": "2026-07-25T05:14:27.676Z",
+      "confidence": "high"
     }
   },
   {
@@ -1002,6 +1164,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/lack-wall-shelf-unit-white-60282186/",
       "verifiedAt": "2026-07-25T05:14:42.757Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/lack-wall-shelf-unit-white-60282186/",
+      "extractedAt": "2026-07-25T05:14:42.757Z",
+      "confidence": "high"
     }
   },
   {
@@ -1037,6 +1205,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-70301542/",
       "verifiedAt": "2026-07-25T05:14:50.228Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-black-brown-70301542/",
+      "extractedAt": "2026-07-25T05:14:50.228Z",
+      "confidence": "high"
     }
   },
   {
@@ -1071,6 +1245,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/jonaxel-shelf-unit-white-50419972/",
       "verifiedAt": "2026-07-25T05:14:54.932Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/jonaxel-shelf-unit-white-50419972/",
+      "extractedAt": "2026-07-25T05:14:54.932Z",
+      "confidence": "high"
     }
   },
   {
@@ -1105,6 +1285,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-40631638/",
       "verifiedAt": "2026-07-25T05:14:57.802Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-40631638/",
+      "extractedAt": "2026-07-25T05:14:57.802Z",
+      "confidence": "high"
     }
   },
   {
@@ -1139,6 +1325,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-90301555/",
       "verifiedAt": "2026-07-25T05:15:01.613Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-90301555/",
+      "extractedAt": "2026-07-25T05:15:01.613Z",
+      "confidence": "high"
     }
   },
   {
@@ -1176,6 +1368,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-black-brown-glass-50214678/",
       "verifiedAt": "2026-07-25T05:15:05.128Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-black-brown-glass-50214678/",
+      "extractedAt": "2026-07-25T05:15:05.128Z",
+      "confidence": "high"
     }
   },
   {
@@ -1210,6 +1408,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-00415599/",
       "verifiedAt": "2026-07-25T05:15:08.246Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-00415599/",
+      "extractedAt": "2026-07-25T05:15:08.246Z",
+      "confidence": "high"
     }
   },
   {
@@ -1249,6 +1453,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-10324513/",
       "verifiedAt": "2026-07-25T05:15:12.610Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-shelf-unit-white-stained-oak-effect-10324513/",
+      "extractedAt": "2026-07-25T05:15:12.610Z",
+      "confidence": "high"
     }
   },
   {
@@ -1284,6 +1494,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-1-shelf-white-20423720/",
       "verifiedAt": "2026-07-25T05:15:15.602Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-1-shelf-white-20423720/",
+      "extractedAt": "2026-07-25T05:15:15.602Z",
+      "confidence": "high"
     }
   },
   {
@@ -1318,6 +1534,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/ikea-ps-2026-shelf-unit-pine-50616816/",
       "verifiedAt": "2026-07-25T05:15:19.276Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/ikea-ps-2026-shelf-unit-pine-50616816/",
+      "extractedAt": "2026-07-25T05:15:19.276Z",
+      "confidence": "high"
     }
   },
   {
@@ -1353,6 +1575,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-door-white-20278167/",
       "verifiedAt": "2026-07-25T05:15:22.064Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/kallax-insert-with-door-white-20278167/",
+      "extractedAt": "2026-07-25T05:15:22.064Z",
+      "confidence": "high"
     }
   },
   {
@@ -1386,6 +1614,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/ivar-shelf-unit-pine-s39407070/",
       "verifiedAt": "2026-07-25T05:15:29.041Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/ivar-shelf-unit-pine-s39407070/",
+      "extractedAt": "2026-07-25T05:15:29.041Z",
+      "confidence": "high"
     }
   },
   {
@@ -1422,6 +1656,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-white-glass-10305802/",
       "verifiedAt": "2026-07-25T05:15:31.850Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/vittsjoe-shelf-unit-white-glass-10305802/",
+      "extractedAt": "2026-07-25T05:15:31.850Z",
+      "confidence": "high"
     }
   },
   {
@@ -1463,6 +1703,12 @@
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/ladmakare-storage-combination-w-sliding-doors-with-9-shelves-oak-effect-s69563988/",
       "verifiedAt": "2026-07-25T05:15:35.151Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/ladmakare-storage-combination-w-sliding-doors-with-9-shelves-oak-effect-s69563988/",
+      "extractedAt": "2026-07-25T05:15:35.151Z",
+      "confidence": "high"
     }
   },
   {
@@ -1497,6 +1743,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/2-cube-organizer-white-brightroom-8482/-/A-83499970",
       "verifiedAt": "2026-07-25T05:47:45.529Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/2-cube-organizer-white-brightroom-8482/-/A-83499970",
+      "extractedAt": "2026-07-25T05:47:45.529Z",
+      "confidence": "high"
     }
   },
   {
@@ -1540,6 +1792,12 @@
         "heightMm": 913,
         "depthMm": 298
       }
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/6-cube-book-decorative-book-shelf-white-brightroom-8482/-/A-93209258",
+      "extractedAt": "2026-07-25T05:47:46.459Z",
+      "confidence": "high"
     }
   },
   {
@@ -1574,6 +1832,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/4-cube-organizer-white-brightroom-8482/-/A-83499981",
       "verifiedAt": "2026-07-25T05:47:47.207Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/4-cube-organizer-white-brightroom-8482/-/A-83499981",
+      "extractedAt": "2026-07-25T05:47:47.207Z",
+      "confidence": "high"
     }
   },
   {
@@ -1609,6 +1873,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/3-2-1-cube-book-shelf-white-brightroom-8482/-/A-93209259",
       "verifiedAt": "2026-07-25T05:47:47.953Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/3-2-1-cube-book-shelf-white-brightroom-8482/-/A-93209259",
+      "extractedAt": "2026-07-25T05:47:47.953Z",
+      "confidence": "high"
     }
   },
   {
@@ -1644,6 +1914,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/4-cube-vertical-organizer-white-brightroom-8482/-/A-83686521",
       "verifiedAt": "2026-07-25T05:47:48.605Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/4-cube-vertical-organizer-white-brightroom-8482/-/A-83686521",
+      "extractedAt": "2026-07-25T05:47:48.605Z",
+      "confidence": "high"
     }
   },
   {
@@ -1678,6 +1954,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/8-cube-organizer-white-brightroom-8482/-/A-83500015",
       "verifiedAt": "2026-07-25T05:47:49.406Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/8-cube-organizer-white-brightroom-8482/-/A-83500015",
+      "extractedAt": "2026-07-25T05:47:49.406Z",
+      "confidence": "high"
     }
   },
   {
@@ -1721,6 +2003,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/costway-70-tall-6-tier-bookcase-with-6-open-shelves-anti-toppling-kits-for-living-room-black/-/A-1002500159",
       "verifiedAt": "2026-07-25T05:47:50.261Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/costway-70-tall-6-tier-bookcase-with-6-open-shelves-anti-toppling-kits-for-living-room-black/-/A-1002500159",
+      "extractedAt": "2026-07-25T05:47:50.261Z",
+      "confidence": "high"
     }
   },
   {
@@ -1762,6 +2050,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/mixed-material-library-bookcase-with-doors-natural-wood-room-essentials-8482/-/A-92038473",
       "verifiedAt": "2026-07-25T05:47:51.090Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/mixed-material-library-bookcase-with-doors-natural-wood-room-essentials-8482/-/A-92038473",
+      "extractedAt": "2026-07-25T05:47:51.090Z",
+      "confidence": "high"
     }
   },
   {
@@ -1812,6 +2106,12 @@
         "heightMm": 800,
         "depthMm": 419
       }
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/costway-3-tier-open-shelf-bookcase-multi-functional-storage-display-cabinet-furni-white/-/A-83817772",
+      "extractedAt": "2026-07-25T05:47:51.878Z",
+      "confidence": "high"
     }
   },
   {
@@ -1857,6 +2157,12 @@
         "heightMm": 914,
         "depthMm": 240
       }
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/3-shelf-bookcase-white-room-essentials-8482/-/A-54358443",
+      "extractedAt": "2026-07-25T05:47:52.664Z",
+      "confidence": "high"
     }
   },
   {
@@ -1903,6 +2209,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/3-tier-bookshelf-31-5-inches-wide-open-bookcase-with-adjustable-storage-shelves-floor-standing-unit-cloud-white/-/A-1001300709",
       "verifiedAt": "2026-07-25T05:47:53.723Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/3-tier-bookshelf-31-5-inches-wide-open-bookcase-with-adjustable-storage-shelves-floor-standing-unit-cloud-white/-/A-1001300709",
+      "extractedAt": "2026-07-25T05:47:53.723Z",
+      "confidence": "high"
     }
   },
   {
@@ -1960,6 +2272,12 @@
         "heightMm": 1067,
         "depthMm": 381
       }
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/costway-tree-bookshelf-9-tier-freestanding-bookcase-corner-narrow-display-shelf-for-home-rustic-brown-black/-/A-1010820888",
+      "extractedAt": "2026-07-25T05:47:54.633Z",
+      "confidence": "high"
     }
   },
   {
@@ -2018,6 +2336,12 @@
         "heightMm": 1524,
         "depthMm": 300
       }
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/5-tier-tall-bookshelf-bookcase-with-steel-frame-book-shelf-for-living-room-home-office-study-11-8-x-26-x-60-inches-industrial-style/-/A-1001317520",
+      "extractedAt": "2026-07-25T05:47:55.323Z",
+      "confidence": "high"
     }
   },
   {
@@ -2054,6 +2378,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/5-shelf-bookcase-white-room-essentials-8482/-/A-54360637",
       "verifiedAt": "2026-07-25T05:47:56.048Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/5-shelf-bookcase-white-room-essentials-8482/-/A-54360637",
+      "extractedAt": "2026-07-25T05:47:56.048Z",
+      "confidence": "high"
     }
   },
   {
@@ -2098,6 +2428,12 @@
     "verification": {
       "sourceUrl": "https://www.target.com/p/72-34-loring-5-shelf-ladder-bookshelf-walnut-threshold-8482/-/A-86806503",
       "verifiedAt": "2026-07-25T05:47:56.859Z"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/72-34-loring-5-shelf-ladder-bookshelf-walnut-threshold-8482/-/A-86806503",
+      "extractedAt": "2026-07-25T05:47:56.859Z",
+      "confidence": "high"
     }
   }
 ]

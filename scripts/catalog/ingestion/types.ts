@@ -1,4 +1,8 @@
-import type { FurnitureCategory, ProductDimensions } from "../../../lib/catalog-types";
+import type {
+  DimensionsSource,
+  FurnitureCategory,
+  ProductDimensions,
+} from "../../../lib/catalog-types";
 
 export type JsonValue =
   | boolean
@@ -25,6 +29,9 @@ export interface ProductCandidate {
   readonly imageAltText: string;
   readonly productUrl: string;
   readonly verificationSourceUrl: string;
+  readonly dimensionsSource: DimensionsSource;
+  readonly extractedAt: string;
+  readonly confidence: "high";
   readonly variantLabel?: string;
   readonly variantOptions: Readonly<Record<string, string>>;
   readonly sourcePayload: JsonValue;

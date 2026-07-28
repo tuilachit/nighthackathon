@@ -5,11 +5,30 @@
     "name": "LAIVA Bookcase",
     "category": "bookcase",
     "priceUsd": 39.99,
-    "dimensions": { "widthMm": 619, "heightMm": 1651, "depthMm": 241 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["black", "brown"],
-    "styles": ["slim", "warm", "minimalist"],
-    "keywords": ["bookcase", "bookshelf", "narrow", "open storage"],
+    "dimensions": {
+      "widthMm": 619,
+      "heightMm": 1651,
+      "depthMm": 241
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "black",
+      "brown"
+    ],
+    "styles": [
+      "slim",
+      "warm",
+      "minimalist"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "narrow",
+      "open storage"
+    ],
     "imagePath": "/images/products/laiva.svg",
     "productUrl": "https://www.ikea.com/us/en/p/laiva-bookcase-black-brown-40178591/",
     "verification": {
@@ -20,7 +39,17 @@
       "glbPath": "/models/glb/ikea-laiva.glb",
       "usdzPath": "/models/usdz/ikea-laiva.usdz",
       "scaleVerified": true,
-      "nativeDimensionsMm": { "widthMm": 619, "heightMm": 1651, "depthMm": 241 }
+      "nativeDimensionsMm": {
+        "widthMm": 619,
+        "heightMm": 1651,
+        "depthMm": 241
+      }
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/laiva-bookcase-black-brown-40178591/",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -29,16 +58,38 @@
     "name": "VESKEN Shelf Unit",
     "category": "shelving-unit",
     "priceUsd": 14.99,
-    "dimensions": { "widthMm": 368, "heightMm": 1006, "depthMm": 232 },
-    "materials": ["plastic"],
-    "colors": ["white"],
-    "styles": ["slim", "minimalist"],
-    "keywords": ["shelving", "shelves", "narrow", "small space"],
+    "dimensions": {
+      "widthMm": 368,
+      "heightMm": 1006,
+      "depthMm": 232
+    },
+    "materials": [
+      "plastic"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "slim",
+      "minimalist"
+    ],
+    "keywords": [
+      "shelving",
+      "shelves",
+      "narrow",
+      "small space"
+    ],
     "imagePath": "/images/products/vesken.svg",
     "productUrl": "https://www.ikea.com/us/en/p/vesken-shelf-unit-white-40307866/",
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/vesken-shelf-unit-white-40307866/",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/vesken-shelf-unit-white-40307866/",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -47,16 +98,39 @@
     "name": "BAGGEBO Low Bookcase",
     "category": "bookcase",
     "priceUsd": 24.99,
-    "dimensions": { "widthMm": 499, "heightMm": 800, "depthMm": 298 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["white"],
-    "styles": ["minimalist", "narrow"],
-    "keywords": ["bookcase", "bookshelf", "low", "small space"],
+    "dimensions": {
+      "widthMm": 499,
+      "heightMm": 800,
+      "depthMm": 298
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "minimalist",
+      "narrow"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "low",
+      "small space"
+    ],
     "imagePath": "/images/products/baggebo-low.svg",
     "productUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-70481171/",
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-70481171/",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-70481171/",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -65,11 +139,28 @@
     "name": "BAGGEBO Tall Bookcase",
     "category": "bookcase",
     "priceUsd": 32.99,
-    "dimensions": { "widthMm": 499, "heightMm": 1600, "depthMm": 251 },
-    "materials": ["metal", "steel"],
-    "colors": ["white"],
-    "styles": ["slim", "minimalist"],
-    "keywords": ["bookcase", "bookshelf", "narrow", "open storage"],
+    "dimensions": {
+      "widthMm": 499,
+      "heightMm": 1600,
+      "depthMm": 251
+    },
+    "materials": [
+      "metal",
+      "steel"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "slim",
+      "minimalist"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "narrow",
+      "open storage"
+    ],
     "imagePath": "/images/products/baggebo-tall.svg",
     "productUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-20436713/",
     "verification": {
@@ -79,7 +170,17 @@
     "model": {
       "glbPath": "/models/glb/ikea-baggebo-tall.glb",
       "scaleVerified": true,
-      "nativeDimensionsMm": { "widthMm": 499, "heightMm": 1600, "depthMm": 251 }
+      "nativeDimensionsMm": {
+        "widthMm": 499,
+        "heightMm": 1600,
+        "depthMm": 251
+      }
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/baggebo-bookcase-white-20436713/",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -88,16 +189,38 @@
     "name": "BILLY Low Bookcase",
     "category": "bookcase",
     "priceUsd": 49,
-    "dimensions": { "widthMm": 800, "heightMm": 1060, "depthMm": 279 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["white"],
-    "styles": ["minimalist"],
-    "keywords": ["bookcase", "bookshelf", "wide", "adjustable"],
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 1060,
+      "depthMm": 279
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "minimalist"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "wide",
+      "adjustable"
+    ],
     "imagePath": "/images/products/billy-low.svg",
     "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -106,16 +229,39 @@
     "name": "BILLY Narrow Tall Bookcase",
     "category": "bookcase",
     "priceUsd": 59,
-    "dimensions": { "widthMm": 400, "heightMm": 2019, "depthMm": 279 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["white"],
-    "styles": ["slim", "minimalist"],
-    "keywords": ["bookcase", "bookshelf", "narrow", "tall"],
+    "dimensions": {
+      "widthMm": 400,
+      "heightMm": 2019,
+      "depthMm": 279
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "slim",
+      "minimalist"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "narrow",
+      "tall"
+    ],
     "imagePath": "/images/products/billy-tall.svg",
     "productUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-50522040/",
     "verification": {
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-50522040/",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-50522040/",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -124,11 +270,28 @@
     "name": "Dorm 3 Shelf Bookcase — White",
     "category": "bookcase",
     "priceUsd": 28,
-    "dimensions": { "widthMm": 622, "heightMm": 914, "depthMm": 240 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["white"],
-    "styles": ["minimalist", "narrow"],
-    "keywords": ["bookcase", "bookshelf", "dorm", "adjustable"],
+    "dimensions": {
+      "widthMm": 622,
+      "heightMm": 914,
+      "depthMm": 240
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "minimalist",
+      "narrow"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "dorm",
+      "adjustable"
+    ],
     "imagePath": "/images/products/target-3-white.svg",
     "productUrl": "https://www.target.com/p/-/A-54376270",
     "verification": {
@@ -139,7 +302,17 @@
       "glbPath": "/models/glb/target-dorm-3-white.glb",
       "usdzPath": "/models/usdz/target-dorm-3-white.usdz",
       "scaleVerified": true,
-      "nativeDimensionsMm": { "widthMm": 622, "heightMm": 914, "depthMm": 240 }
+      "nativeDimensionsMm": {
+        "widthMm": 622,
+        "heightMm": 914,
+        "depthMm": 240
+      }
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/-/A-54376270",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -148,11 +321,28 @@
     "name": "Dorm 3 Shelf Bookcase — Black",
     "category": "bookcase",
     "priceUsd": 28,
-    "dimensions": { "widthMm": 622, "heightMm": 914, "depthMm": 240 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["black"],
-    "styles": ["minimalist", "slim"],
-    "keywords": ["bookcase", "bookshelf", "dorm", "adjustable"],
+    "dimensions": {
+      "widthMm": 622,
+      "heightMm": 914,
+      "depthMm": 240
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "black"
+    ],
+    "styles": [
+      "minimalist",
+      "slim"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "dorm",
+      "adjustable"
+    ],
     "imagePath": "/images/products/target-3-black.svg",
     "productUrl": "https://www.target.com/p/-/A-54376270",
     "verification": {
@@ -162,7 +352,17 @@
     "model": {
       "glbPath": "/models/glb/target-dorm-3-black.glb",
       "scaleVerified": true,
-      "nativeDimensionsMm": { "widthMm": 622, "heightMm": 914, "depthMm": 240 }
+      "nativeDimensionsMm": {
+        "widthMm": 622,
+        "heightMm": 914,
+        "depthMm": 240
+      }
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/-/A-54376270",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -171,16 +371,41 @@
     "name": "Dorm 3 Shelf Bookcase — Natural Wood",
     "category": "bookcase",
     "priceUsd": 28,
-    "dimensions": { "widthMm": 622, "heightMm": 914, "depthMm": 240 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["natural", "brown"],
-    "styles": ["warm", "minimalist", "narrow"],
-    "keywords": ["bookcase", "bookshelf", "oak", "dorm"],
+    "dimensions": {
+      "widthMm": 622,
+      "heightMm": 914,
+      "depthMm": 240
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "natural",
+      "brown"
+    ],
+    "styles": [
+      "warm",
+      "minimalist",
+      "narrow"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "oak",
+      "dorm"
+    ],
     "imagePath": "/images/products/target-3-natural.svg",
     "productUrl": "https://www.target.com/p/-/A-54376270",
     "verification": {
       "sourceUrl": "https://www.target.com/p/-/A-54376270",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/-/A-54376270",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -189,16 +414,39 @@
     "name": "Dorm 5 Shelf Bookcase — White",
     "category": "bookcase",
     "priceUsd": 40,
-    "dimensions": { "widthMm": 622, "heightMm": 1808, "depthMm": 294 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["white"],
-    "styles": ["minimalist", "narrow"],
-    "keywords": ["bookcase", "bookshelf", "tall", "adjustable"],
+    "dimensions": {
+      "widthMm": 622,
+      "heightMm": 1808,
+      "depthMm": 294
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "minimalist",
+      "narrow"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "tall",
+      "adjustable"
+    ],
     "imagePath": "/images/products/target-5-white.svg",
     "productUrl": "https://www.target.com/p/-/A-54376271",
     "verification": {
       "sourceUrl": "https://www.target.com/p/-/A-54376271",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/-/A-54376271",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -207,16 +455,39 @@
     "name": "Dorm 5 Shelf Bookcase — Black",
     "category": "bookcase",
     "priceUsd": 40,
-    "dimensions": { "widthMm": 622, "heightMm": 1808, "depthMm": 294 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["black"],
-    "styles": ["minimalist", "slim"],
-    "keywords": ["bookcase", "bookshelf", "tall", "adjustable"],
+    "dimensions": {
+      "widthMm": 622,
+      "heightMm": 1808,
+      "depthMm": 294
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "black"
+    ],
+    "styles": [
+      "minimalist",
+      "slim"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "tall",
+      "adjustable"
+    ],
     "imagePath": "/images/products/target-5-black.svg",
     "productUrl": "https://www.target.com/p/-/A-54376271",
     "verification": {
       "sourceUrl": "https://www.target.com/p/-/A-54376271",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/-/A-54376271",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -225,16 +496,40 @@
     "name": "Dorm 5 Shelf Bookcase — Natural Wood",
     "category": "bookcase",
     "priceUsd": 40,
-    "dimensions": { "widthMm": 622, "heightMm": 1808, "depthMm": 294 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["natural", "brown"],
-    "styles": ["warm", "minimalist"],
-    "keywords": ["bookcase", "bookshelf", "oak", "tall"],
+    "dimensions": {
+      "widthMm": 622,
+      "heightMm": 1808,
+      "depthMm": 294
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "natural",
+      "brown"
+    ],
+    "styles": [
+      "warm",
+      "minimalist"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "oak",
+      "tall"
+    ],
     "imagePath": "/images/products/target-5-natural.svg",
     "productUrl": "https://www.target.com/p/-/A-54376271",
     "verification": {
       "sourceUrl": "https://www.target.com/p/-/A-54376271",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "retailer-api",
+      "sourceUrl": "https://www.target.com/p/-/A-54376271",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -243,16 +538,39 @@
     "name": "Ebern 69-inch Fluted Bookcase — White",
     "category": "bookcase",
     "priceUsd": 99.99,
-    "dimensions": { "widthMm": 610, "heightMm": 1753, "depthMm": 231 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["white"],
-    "styles": ["modern", "slim"],
-    "keywords": ["bookcase", "bookshelf", "fluted", "narrow"],
+    "dimensions": {
+      "widthMm": 610,
+      "heightMm": 1753,
+      "depthMm": 231
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "modern",
+      "slim"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "fluted",
+      "narrow"
+    ],
     "imagePath": "/images/products/ebern-white.svg",
     "productUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-69-tall-bookshelf-with-fluted-doors-6-tier-modern-bookcase-and-storage-cabinet-display-shelves-with-anti-tip-kit-for-living-room-bedroom-and-home-office-decor-w112706923.html",
     "verification": {
       "sourceUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-69-tall-bookshelf-with-fluted-doors-6-tier-modern-bookcase-and-storage-cabinet-display-shelves-with-anti-tip-kit-for-living-room-bedroom-and-home-office-decor-w112706923.html",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-69-tall-bookshelf-with-fluted-doors-6-tier-modern-bookcase-and-storage-cabinet-display-shelves-with-anti-tip-kit-for-living-room-bedroom-and-home-office-decor-w112706923.html",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -261,11 +579,31 @@
     "name": "Ebern 69-inch Fluted Bookcase — Oak",
     "category": "bookcase",
     "priceUsd": 99.99,
-    "dimensions": { "widthMm": 610, "heightMm": 1753, "depthMm": 231 },
-    "materials": ["oak", "wood", "particleboard"],
-    "colors": ["natural", "brown"],
-    "styles": ["warm", "modern", "slim"],
-    "keywords": ["bookcase", "bookshelf", "fluted", "narrow"],
+    "dimensions": {
+      "widthMm": 610,
+      "heightMm": 1753,
+      "depthMm": 231
+    },
+    "materials": [
+      "oak",
+      "wood",
+      "particleboard"
+    ],
+    "colors": [
+      "natural",
+      "brown"
+    ],
+    "styles": [
+      "warm",
+      "modern",
+      "slim"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "fluted",
+      "narrow"
+    ],
     "imagePath": "/images/products/ebern-oak.svg",
     "productUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-69-tall-bookshelf-with-fluted-doors-6-tier-modern-bookcase-and-storage-cabinet-display-shelves-with-anti-tip-kit-for-living-room-bedroom-and-home-office-decor-w112706923.html",
     "verification": {
@@ -276,7 +614,17 @@
       "glbPath": "/models/glb/wayfair-ebern-oak.glb",
       "usdzPath": "/models/usdz/wayfair-ebern-oak.usdz",
       "scaleVerified": true,
-      "nativeDimensionsMm": { "widthMm": 610, "heightMm": 1753, "depthMm": 231 }
+      "nativeDimensionsMm": {
+        "widthMm": 610,
+        "heightMm": 1753,
+        "depthMm": 231
+      }
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-69-tall-bookshelf-with-fluted-doors-6-tier-modern-bookcase-and-storage-cabinet-display-shelves-with-anti-tip-kit-for-living-room-bedroom-and-home-office-decor-w112706923.html",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -285,11 +633,28 @@
     "name": "Ebern 69-inch Fluted Bookcase — Black",
     "category": "bookcase",
     "priceUsd": 99.99,
-    "dimensions": { "widthMm": 610, "heightMm": 1753, "depthMm": 231 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["black"],
-    "styles": ["modern", "slim"],
-    "keywords": ["bookcase", "bookshelf", "fluted", "narrow"],
+    "dimensions": {
+      "widthMm": 610,
+      "heightMm": 1753,
+      "depthMm": 231
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "black"
+    ],
+    "styles": [
+      "modern",
+      "slim"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "fluted",
+      "narrow"
+    ],
     "imagePath": "/images/products/ebern-black.svg",
     "productUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-69-tall-bookshelf-with-fluted-doors-6-tier-modern-bookcase-and-storage-cabinet-display-shelves-with-anti-tip-kit-for-living-room-bedroom-and-home-office-decor-w112706923.html",
     "verification": {
@@ -299,7 +664,17 @@
     "model": {
       "glbPath": "/models/glb/wayfair-ebern-black.glb",
       "scaleVerified": true,
-      "nativeDimensionsMm": { "widthMm": 610, "heightMm": 1753, "depthMm": 231 }
+      "nativeDimensionsMm": {
+        "widthMm": 610,
+        "heightMm": 1753,
+        "depthMm": 231
+      }
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-69-tall-bookshelf-with-fluted-doors-6-tier-modern-bookcase-and-storage-cabinet-display-shelves-with-anti-tip-kit-for-living-room-bedroom-and-home-office-decor-w112706923.html",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -308,16 +683,39 @@
     "name": "Ebern 8 Tier Narrow Bookcase",
     "category": "bookcase",
     "priceUsd": 73.99,
-    "dimensions": { "widthMm": 330, "heightMm": 1801, "depthMm": 300 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["white"],
-    "styles": ["slim", "minimalist"],
-    "keywords": ["bookcase", "bookshelf", "narrow", "tall"],
+    "dimensions": {
+      "widthMm": 330,
+      "heightMm": 1801,
+      "depthMm": 300
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "slim",
+      "minimalist"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "narrow",
+      "tall"
+    ],
     "imagePath": "/images/products/ebern-eight.svg",
     "productUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-8-tiers-narrow-bookshelf-71-wooden-open-bookcase-adjustable-shelf-white-w113358940.html",
     "verification": {
       "sourceUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-8-tiers-narrow-bookshelf-71-wooden-open-bookcase-adjustable-shelf-white-w113358940.html",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/ebern-designs-8-tiers-narrow-bookshelf-71-wooden-open-bookcase-adjustable-shelf-white-w113358940.html",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -326,16 +724,38 @@
     "name": "Latitude Run 8 Cube Bookcase",
     "category": "shelving-unit",
     "priceUsd": 209.99,
-    "dimensions": { "widthMm": 1100, "heightMm": 935, "depthMm": 239 },
-    "materials": ["particleboard", "wood"],
-    "colors": ["white"],
-    "styles": ["modern"],
-    "keywords": ["bookcase", "shelving", "cube storage", "wide"],
+    "dimensions": {
+      "widthMm": 1100,
+      "heightMm": 935,
+      "depthMm": 239
+    },
+    "materials": [
+      "particleboard",
+      "wood"
+    ],
+    "colors": [
+      "white"
+    ],
+    "styles": [
+      "modern"
+    ],
+    "keywords": [
+      "bookcase",
+      "shelving",
+      "cube storage",
+      "wide"
+    ],
     "imagePath": "/images/products/latitude-cube.svg",
     "productUrl": "https://www.wayfair.com/furniture/pdp/latitude-run-bookcase-8-cube-open-storage-display-bookshelf-with-legs-w111787022.html",
     "verification": {
       "sourceUrl": "https://www.wayfair.com/furniture/pdp/latitude-run-bookcase-8-cube-open-storage-display-bookshelf-with-legs-w111787022.html",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/latitude-run-bookcase-8-cube-open-storage-display-bookshelf-with-legs-w111787022.html",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   },
   {
@@ -344,16 +764,42 @@
     "name": "Jaen 5 Shelf Cube Bookcase — Walnut",
     "category": "bookcase",
     "priceUsd": 91.99,
-    "dimensions": { "widthMm": 500, "heightMm": 927, "depthMm": 239 },
-    "materials": ["walnut", "wood", "particleboard"],
-    "colors": ["brown", "natural"],
-    "styles": ["warm", "modern", "slim"],
-    "keywords": ["bookcase", "bookshelf", "cube", "narrow"],
+    "dimensions": {
+      "widthMm": 500,
+      "heightMm": 927,
+      "depthMm": 239
+    },
+    "materials": [
+      "walnut",
+      "wood",
+      "particleboard"
+    ],
+    "colors": [
+      "brown",
+      "natural"
+    ],
+    "styles": [
+      "warm",
+      "modern",
+      "slim"
+    ],
+    "keywords": [
+      "bookcase",
+      "bookshelf",
+      "cube",
+      "narrow"
+    ],
     "imagePath": "/images/products/jaen-walnut.svg",
     "productUrl": "https://www.wayfair.com/furniture/pdp/george-oliver-jaen-solid-and-manufactured-wood-cube-bookcase-w100562724.html",
     "verification": {
       "sourceUrl": "https://www.wayfair.com/furniture/pdp/george-oliver-jaen-solid-and-manufactured-wood-cube-bookcase-w100562724.html",
       "verifiedAt": "2026-07-24"
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/george-oliver-jaen-solid-and-manufactured-wood-cube-bookcase-w100562724.html",
+      "extractedAt": "2026-07-24",
+      "confidence": "high"
     }
   }
 ]

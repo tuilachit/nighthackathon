@@ -112,5 +112,11 @@ function createProduct(id: string, dimensions: CatalogProduct["dimensions"]): Ca
       sourceUrl: "https://example.com/product",
       verifiedAt: "2026-07-24",
     },
+    provenance: {
+      dimensionsSource: "json-ld",
+      sourceUrl: "https://example.com/product",
+      extractedAt: "2026-07-24",
+      confidence: "high",
+    },
   };
 }

@@ -39,6 +39,15 @@ export interface CatalogVerification {
   readonly verifiedAt: string;
 }
 
+export type DimensionsSource = "json-ld" | "llm-extracted" | "retailer-api";
+
+export interface CatalogProvenance {
+  readonly dimensionsSource: DimensionsSource;
+  readonly sourceUrl: string;
+  readonly extractedAt: string;
+  readonly confidence: "high";
+}
+
 export interface ProductModelAsset {
   readonly glbPath: string;
   readonly usdzPath?: string;
@@ -62,6 +71,7 @@ export interface CatalogProduct {
   readonly imageAttribution?: string;
   readonly productUrl: string;
   readonly verification: CatalogVerification;
+  readonly provenance: CatalogProvenance;
   readonly model?: ProductModelAsset;
 }
 

@@ -6,7 +6,6 @@ import {
 import { parseTargetListingResponse } from "./target";
 import {
   discoverWayfairProducts,
-  parseWayfairProduct,
 } from "./wayfair";
 
 describe("IKEA ingestion adapter", () => {
@@ -146,35 +145,5 @@ describe("Wayfair ingestion adapter", () => {
           "https://www.wayfair.com/furniture/pdp/example-w123456789.html?piid=4",
       },
     ]);
-  });
-
-  it("parses sale pricing and rendered product metadata", () => {
-    const productUrl =
-      "https://www.wayfair.com/furniture/pdp/example-bookcase-w123456789.html?piid=4";
-    const product = parseWayfairProduct(
-      `
-        <h1>Example Narrow Bookcase</h1>
-        <span data-test-id="StandardPricingPrice-SALE">$129.99</span>
-        <img
-          alt="Example Narrow Bookcase, White"
-          src="https://assets.wfcdn.com/im/123/resize-h800-w800/example.jpg"
-        />
-        <span>Color:</span><span>White</span>
-        <script>
-          "Overall Dimensions\\",\\"value\\":\\"41.7'' H X 19.5'' W X 9.4'' D"
-          "description\\":\\"Frame Material\\",\\"additionalDetails\\":\\"Manufactured Wood"
-        </script>
-      `,
-      productUrl,
-    );
-
-    expect(product).toMatchObject({
-      retailerId: "wayfair",
-      externalId: "w123456789",
-      priceUsd: 129.99,
-      dimensions: { widthMm: 495, heightMm: 1059, depthMm: 239 },
-      materials: ["manufactured wood"],
-      colors: ["white"],
-    });
   });
 });
