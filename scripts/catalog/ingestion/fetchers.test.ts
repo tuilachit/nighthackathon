@@ -100,6 +100,40 @@ describe("two-tier page fetching", () => {
     ).rejects.toBeInstanceOf(ProviderCreditExhaustedError);
     expect(browserCalled).toBe(false);
   });
+
+  it("can force the rendered tier after static extraction is incomplete", async () => {
+    const metrics = emptyMetrics();
+    const firecrawl = new FirecrawlClient(
+      "firecrawl-key",
+      metrics,
+      async () => {
+        throw new Error("The default tier should not run.");
+      },
+    );
+    const browserUse = new BrowserUseClient(
+      "browser-key",
+      metrics,
+      async () =>
+        jsonResponse({
+          id: "session-id",
+          status: "stopped",
+          isTaskSuccessful: true,
+          output: {
+            finalUrl: "https://example.com/product",
+            pageText: "Rendered dimensions and product facts",
+            links: [],
+          },
+        }),
+    );
+
+    const result = await new ProductPageFetcher(
+      firecrawl,
+      browserUse,
+    ).fetchRenderedPage("https://example.com/product");
+
+    expect(result.source).toBe("browser-use");
+    expect(metrics.browserUseSessions).toBe(1);
+  });
 });
 
 function emptyMetrics(): IngestionMetrics {

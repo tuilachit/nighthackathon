@@ -48,6 +48,7 @@ const REPORT_PATH = resolve(
 );
 const MAX_PHASE_NEW_PRODUCTS = 150;
 const DEFAULT_BATCH_SIZE = 25;
+const MAX_BROWSER_USE_SESSIONS_PER_RUN = 8;
 const TARGET_REQUEST_INTERVAL_MS = 500;
 const WAYFAIR_CATEGORY_URLS = [
   WAYFAIR_CATEGORY_URL,
@@ -146,11 +147,23 @@ async function main(): Promise<void> {
 
       try {
         const page = await fetcher.fetchPage(seed.productUrl);
-        const candidate = await buildCandidateFromPage(
+        let candidate = await buildCandidateFromPage(
           seed,
           page,
           claude,
         );
+        if (
+          candidate === undefined &&
+          page.source === "firecrawl" &&
+          metrics.browserUseSessions < MAX_BROWSER_USE_SESSIONS_PER_RUN
+        ) {
+          const renderedPage = await fetcher.fetchRenderedPage(seed.productUrl);
+          candidate = await buildCandidateFromPage(
+            seed,
+            renderedPage,
+            claude,
+          );
+        }
         if (candidate === undefined) {
           await state.markRejected(
             seed.productUrl,

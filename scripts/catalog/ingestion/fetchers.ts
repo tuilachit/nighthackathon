@@ -237,6 +237,11 @@ export class ProductPageFetcher {
       return this.browserUse.fetchPage(targetUrl);
     }
   }
+
+  /** Forces the rendered-browser tier after usable static text still fails extraction. */
+  public fetchRenderedPage(targetUrl: string): Promise<FetchedPage> {
+    return this.browserUse.fetchPage(targetUrl);
+  }
 }
 
 class RequestRateLimiter {

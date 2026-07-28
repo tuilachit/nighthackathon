@@ -24,10 +24,10 @@ flowchart LR
    with `dimensionsSource: "retailer-api"`.
 2. **Firecrawl:** Known product pages are fetched as markdown, raw HTML, and
    links. Firecrawl is the default page provider.
-3. **Browser Use:** If Firecrawl cannot return usable content for a
-   JavaScript-rendered or bot-defended page, one bounded Browser Use session
-   returns the visible page text. Credit or quota errors never trigger another
-   provider; they stop the run.
+3. **Browser Use:** If Firecrawl cannot return usable content, or the static
+   page still lacks the required product facts, one bounded Browser Use session
+   returns rendered visible text. A run creates at most eight sessions. Credit
+   or quota errors never trigger another provider; they stop the run.
 4. **JSON-LD:** `schema.org/Product` width, height, and depth are parsed before
    any model call. Explicit inches or centimetres are converted to whole
    millimetres.
