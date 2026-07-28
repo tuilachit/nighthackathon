@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Typecheck, lint, test, and build
+    name: Typecheck, lint, tests, build, and Playwright
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -32,5 +32,11 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Run quality gate
         run: npm run verify
+
+      - name: Run Pixel 5 Playwright flow
+        run: npm run e2e

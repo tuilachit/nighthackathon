@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { FitDemoClient } from "./FitDemoClient";
 import type { CatalogProduct, SpaceMeasurement } from "@/lib/catalog-types";
 
@@ -40,15 +40,18 @@ const product: CatalogProduct = {
 };
 
 describe("FitDemoClient", () => {
-  afterEach(() => {
-    window.sessionStorage.clear();
-    vi.unstubAllGlobals();
-    vi.useRealTimers();
-  });
-
   it("shows the AR viewer inline for a verified product instead of navigating away", () => {
-    render(<FitDemoClient measurement={measurement} products={[product]} catalogSource="bundled" />);
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
 
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use labeled demo measurement" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "View in room" }));
 
     expect(screen.getByRole("heading", { name: "LAIVA Bookcase", level: 2 })).toBeInTheDocument();
@@ -60,46 +63,23 @@ describe("FitDemoClient", () => {
     expect(screen.queryByRole("heading", { name: "LAIVA Bookcase", level: 2 })).not.toBeInTheDocument();
   });
 
-  it("generates a 3D preview from the catalog's own attributes when there is no verified model yet", async () => {
+  it("uses the exact-dimension placeholder when no cached model exists", () => {
     const productWithoutModel: CatalogProduct = { ...product, model: undefined };
 
-    const fetchMock = vi.fn().mockImplementation((url: string) => {
-      if (url === "/api/generate-model/start") {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              generation: { status: "pending", taskId: "task-9", mode: "text-to-3d", refinedMeshyPrompt: "LAIVA Bookcase" },
-            }),
-        });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            generation: {
-              status: "succeeded",
-              taskId: "task-9",
-              glbUrl: "https://assets.meshy.ai/task-9/output/model.glb",
-              usdzUrl: "https://assets.meshy.ai/task-9/output/model.usdz",
-            },
-          }),
-      });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-
-    render(<FitDemoClient measurement={measurement} products={[productWithoutModel]} catalogSource="bundled" />);
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[productWithoutModel]}
+        catalogSource="bundled"
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Use labeled demo measurement" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "View in room" }));
 
-    expect(await screen.findByText(/Generating a 3D preview of LAIVA Bookcase/)).toBeInTheDocument();
-
-    await vi.advanceTimersByTimeAsync(3000);
-    await vi.waitFor(() =>
-      expect(screen.getByRole("heading", { name: "LAIVA Bookcase", level: 2 })).toBeInTheDocument(),
-    );
-
     const viewer = document.querySelector("model-viewer");
-    expect(viewer).toHaveAttribute("src", "/api/model-asset?url=https%3A%2F%2Fassets.meshy.ai%2Ftask-9%2Foutput%2Fmodel.glb");
+    expect(viewer).toHaveAttribute("src", "/models/unit-box.glb");
+    expect(viewer).toHaveAttribute("scale", "0.619 1.651 0.241");
   });
 });

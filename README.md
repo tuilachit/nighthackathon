@@ -17,7 +17,7 @@
 ```mermaid
 flowchart LR
   subgraph Runtime["Browser runtime"]
-    Measure["Space measurement<br/>manual or WebXR"]
+    Measure["Space measurement<br/>manual entry; WebXR geometry isolated"]
     Intent["Voice or text intent"]
     Parse["Deterministic parser<br/>optional AI enrichment"]
     Fit["Destination fit predicate"]
@@ -188,7 +188,7 @@ Relevant environment variables:
 | `OPENAI_API_KEY` | Optional query enrichment, transcription, and legacy concept analysis |
 | `OPENAI_QUERY_MODEL` | Optional query-extraction model override |
 | `OPENAI_TRANSCRIPTION_MODEL` | Optional transcription model override |
-| `MESHY_API_KEY` | Offline or optional on-demand model generation |
+| `MESHY_API_KEY` | Offline cached-model generation |
 | `ENABLE_MESHY` | Enables Meshy generation when `true` |
 | `FIRECRAWL_API_KEY` | Default offline retailer-page extraction |
 | `BROWSER_USE_API_KEY` | Bounded rendered-page fallback for offline ingestion |
@@ -205,17 +205,17 @@ npm run e2e
 ```
 
 `npm run verify` runs TypeScript, ESLint, Vitest, and a production build.
-GitHub Actions runs that gate for every push to `main` and every pull request.
-Playwright covers the user flow separately.
+GitHub Actions runs that gate plus the Pixel 5 Playwright flow for every push
+to `main` and every pull request.
 
 ## Honest limitations
 
 - The bundled portfolio snapshot contains 77 IKEA, 40 Target, and 3 Wayfair
   products. Wayfair coverage is intentionally smaller because ingestion
   stopped at the first provider credit-exhaustion signal.
-- The deployed `/fit` route currently starts with a known demo measurement.
-  Measurement geometry exists, but live WebXR capture and first-class manual
-  entry still need to be wired into this route.
+- The deployed `/fit` route starts with first-class manual tape-measure entry.
+  A labeled demo fixture remains available for walkthroughs. WebXR measurement
+  geometry exists, but live capture is not wired into this portfolio build.
 - The access predicate models one narrowest opening. It does not simulate
   turns, stairs, packaging, disassembly, ceiling height, or a complete route.
 - AR behavior depends on device support. Android can use WebXR or Scene Viewer;
@@ -224,8 +224,9 @@ Playwright covers the user flow separately.
   use dimensionally accurate boxes.
 - Retailer adapters collect public factual product data for a prototype.
   Commercial use requires authorized feeds and a review of retailer terms.
-- Optional AI and Meshy endpoints require network access and credentials; the
-  fit and comparison path does not.
+- Optional AI enrichment and offline ingestion/asset tools require network
+  access and credentials; the fit, comparison, and placeholder-viewer path
+  does not.
 
 ## Award disclosure
 

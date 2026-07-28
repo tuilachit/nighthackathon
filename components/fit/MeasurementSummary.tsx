@@ -2,10 +2,12 @@ import type { SpaceMeasurement } from "@/lib/catalog-types";
 
 interface MeasurementSummaryProps {
   readonly measurement: SpaceMeasurement;
+  readonly onEdit?: () => void;
 }
 
 export function MeasurementSummary({
   measurement,
+  onEdit,
 }: MeasurementSummaryProps): React.JSX.Element {
   const dimensions = [
     { label: "Width", value: measurement.widthMm },
@@ -21,7 +23,7 @@ export function MeasurementSummary({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/55">
-            Confirmed envelope
+            Confirmed envelope · {formatSource(measurement.source)}
           </p>
           <h2 id="measurement-title" className="mt-2 text-2xl font-black tracking-[-0.03em]">
             Your space is the search filter.
@@ -52,6 +54,25 @@ export function MeasurementSummary({
           <strong>{measurement.accessWidthMm} mm</strong>
         </p>
       ) : null}
+      {onEdit === undefined ? null : (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="mt-4 min-h-11 rounded-xl border border-white/20 px-4 text-sm font-bold text-white"
+        >
+          Edit measurements
+        </button>
+      )}
     </section>
   );
+}
+
+function formatSource(source: SpaceMeasurement["source"]): string {
+  if (source === "manual") {
+    return "manual tape measurement";
+  }
+  if (source === "webxr") {
+    return "WebXR capture";
+  }
+  return "labeled demo fixture";
 }

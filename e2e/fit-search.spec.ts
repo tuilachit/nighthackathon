@@ -1,6 +1,38 @@
 import { expect, test } from "@playwright/test";
 
-test("fit-first mobile route is honest with AI disabled", async ({ page }) => {
+test("manual measurement is an honest first-class entry", async ({ page }) => {
+  await page.goto("/fit");
+
+  await expect(
+    page.getByRole("heading", { name: "Measure the space first." }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Live WebXR capture is not enabled"),
+  ).toBeVisible();
+
+  await page.getByRole("spinbutton", { name: /^Width/ }).fill("900");
+  await page.getByRole("spinbutton", { name: /^Height/ }).fill("1800");
+  await page.getByRole("spinbutton", { name: /^Depth/ }).fill("350");
+  await page
+    .getByRole("spinbutton", { name: /^Narrowest access opening/ })
+    .fill("820");
+  await page.getByRole("button", { name: "Use these measurements" }).click();
+
+  const measurement = page.getByRole("region", {
+    name: "Your space is the search filter.",
+  });
+  await expect(measurement).toContainText("manual tape measurement");
+  await expect(measurement).toContainText("820 mm");
+  await page.getByRole("button", { name: "Edit measurements" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Measure the space first." }),
+  ).toBeVisible();
+});
+
+test("fit-first mobile route is honest with AI disabled and remains usable offline", async ({
+  context,
+  page,
+}) => {
   await page.route("**/api/parse-query", async (route) => {
     await route.fulfill({
       status: 503,
@@ -10,6 +42,9 @@ test("fit-first mobile route is honest with AI disabled", async ({ page }) => {
   });
 
   await page.goto("/fit");
+  await page
+    .getByRole("button", { name: "Use labeled demo measurement" })
+    .click();
 
   await expect(page.getByRole("heading", { name: "Stop guessing. Shop what fits." })).toBeVisible();
   const measurement = page.getByRole("region", { name: "Your space is the search filter." });
@@ -30,6 +65,7 @@ test("fit-first mobile route is honest with AI disabled", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Near misses" })).toBeVisible();
   await expect(page.getByText("Dimensions verified").first()).toBeVisible();
 
+  await context.setOffline(true);
   await page.getByRole("button", { name: "white metal shelving unit under $30" }).click();
   await expect(page.getByLabel("Describe the furniture you want")).toHaveValue(
     "white metal shelving unit under $30",

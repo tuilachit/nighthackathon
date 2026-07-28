@@ -24,6 +24,7 @@ interface FitSearchClientProps extends FitSearchExperienceProps {
   readonly products: readonly CatalogProduct[];
   readonly catalogSource?: CatalogSource;
   readonly retailerCount?: number;
+  readonly onEditMeasurement?: () => void;
 }
 
 interface QueryEnhancementResponse {
@@ -37,6 +38,7 @@ export function FitSearchExperience({
   products,
   catalogSource,
   retailerCount = new Set(products.map((product) => product.retailer)).size,
+  onEditMeasurement,
 }: FitSearchClientProps): React.JSX.Element {
   const [input, setInput] = useState(initialQuery);
   const [submittedText, setSubmittedText] = useState(initialQuery);
@@ -118,7 +120,10 @@ export function FitSearchExperience({
           productCount={0}
           retailerCount={0}
         />
-        <MeasurementSummary measurement={measurement} />
+        <MeasurementSummary
+          measurement={measurement}
+          onEdit={onEditMeasurement}
+        />
         <section
           role="alert"
           data-testid="catalog-unavailable"
@@ -147,7 +152,10 @@ export function FitSearchExperience({
         retailerCount={retailerCount}
       />
 
-      <MeasurementSummary measurement={measurement} />
+      <MeasurementSummary
+        measurement={measurement}
+        onEdit={onEditMeasurement}
+      />
       <QueryInput
         value={input}
         isEnhancing={isEnhancing}

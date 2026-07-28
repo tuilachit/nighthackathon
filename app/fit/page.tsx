@@ -15,7 +15,7 @@ export default async function FitPage(): Promise<React.JSX.Element> {
 
   return (
     <FitDemoClient
-      measurement={DEMO_SPACE_MEASUREMENT}
+      demoMeasurement={DEMO_SPACE_MEASUREMENT}
       products={catalog.products}
       catalogSource={catalog.source}
       retailerCount={catalog.retailerCount}
