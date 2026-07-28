@@ -21,6 +21,7 @@ service-account*.json
 # build output
 dist/
 .cache/catalog-ingestion/
+.cache/meshy-batch/
 
 # testing
 coverage/

@@ -1,23 +1,13 @@
-import { readFile, writeFile, mkdir } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { Box3, Matrix4, Quaternion, Vector3 } from "three";
+import type { CatalogProduct } from "../../lib/catalog-types";
+import { requireValidCatalog } from "../../lib/catalog-validation";
 
 interface DimensionsMm {
   readonly widthMm: number;
   readonly heightMm: number;
   readonly depthMm: number;
-}
-
-interface CatalogProduct {
-  readonly id: string;
-  readonly name: string;
-  readonly imagePath: string;
-  readonly dimensions: DimensionsMm;
-  readonly model?: {
-    readonly glbPath: string;
-    readonly scaleVerified: true;
-    readonly nativeDimensionsMm: DimensionsMm;
-  };
 }
 
 interface MeshyTask {
@@ -31,6 +21,13 @@ interface MeshyTask {
   readonly task_error?: {
     readonly message?: string;
   };
+  readonly consumed_credits?: number;
+}
+
+interface MeshyGenerationResult {
+  readonly productId: string;
+  readonly consumedCredits: number;
+  readonly glbPath: string;
 }
 
 interface GlbChunk {
@@ -73,6 +70,7 @@ interface GltfNode {
 
 const MESHY_API = "https://api.meshy.ai/openapi/v1/image-to-3d";
 const CATALOG_PATH = resolve(process.cwd(), "public/catalog.json");
+const CATALOG_TEMP_PATH = `${CATALOG_PATH}.meshy.tmp`;
 const GLB_DIRECTORY = resolve(process.cwd(), "public/models/glb");
 const SELECTED_IDS = [
   "ikea-40178591", // LAIVA: dark, slim, visually distinctive
@@ -136,7 +134,8 @@ async function main(): Promise<void> {
 
   await mkdir(GLB_DIRECTORY, { recursive: true });
   for (const product of selected) {
-    await generateProduct(apiKey, product, products);
+    const result = await generateProduct(apiKey, product, products);
+    console.log(`MESHY_RESULT ${JSON.stringify(result)}`);
   }
 }
 
@@ -144,7 +143,7 @@ async function generateProduct(
   apiKey: string,
   product: CatalogProduct,
   products: CatalogProduct[],
-): Promise<void> {
+): Promise<MeshyGenerationResult> {
   const image = await fetchRequired(product.imagePath, "retailer image");
   const imageType = image.headers.get("content-type")?.split(";")[0];
   if (imageType === undefined || !/^image\/(png|jpe?g|webp)$/i.test(imageType)) {
@@ -164,7 +163,10 @@ async function generateProduct(
   assertBounds(scaled, product.dimensions, product.id);
 
   const filename = `meshy-${product.id}.glb`;
-  await writeFile(resolve(GLB_DIRECTORY, filename), scaled);
+  const glbPath = resolve(GLB_DIRECTORY, filename);
+  const temporaryGlbPath = `${glbPath}.tmp`;
+  await writeFile(temporaryGlbPath, scaled);
+  await rename(temporaryGlbPath, glbPath);
   const productIndex = products.findIndex((candidate) => candidate.id === product.id);
   products[productIndex] = {
     ...product,
@@ -174,8 +176,18 @@ async function generateProduct(
       nativeDimensionsMm: product.dimensions,
     },
   };
-  await writeFile(CATALOG_PATH, `${JSON.stringify(products, null, 2)}\n`);
+  const validated = requireValidCatalog(products);
+  await writeFile(
+    CATALOG_TEMP_PATH,
+    `${JSON.stringify(validated, null, 2)}\n`,
+  );
+  await rename(CATALOG_TEMP_PATH, CATALOG_PATH);
   console.log(`${product.id}: GLB cached and exact bounds verified.`);
+  return {
+    productId: product.id,
+    consumedCredits: task.consumed_credits ?? 0,
+    glbPath: `/models/glb/${filename}`,
+  };
 }
 
 async function createTask(apiKey: string, imageDataUrl: string): Promise<string> {
@@ -196,7 +208,15 @@ async function createTask(apiKey: string, imageDataUrl: string): Promise<string>
     }),
   });
   if (!response.ok) {
-    throw new Error(`Meshy create failed with HTTP ${response.status}.`);
+    const detail = (await response.text()).slice(0, 240);
+    if (response.status === 402) {
+      throw new MeshyCreditExhaustedError(
+        `Meshy create failed with HTTP 402: ${detail}`,
+      );
+    }
+    throw new Error(
+      `Meshy create failed with HTTP ${response.status}: ${detail}`,
+    );
   }
   const task = (await response.json()) as MeshyTask;
   if (task.result === undefined) {
@@ -414,10 +434,7 @@ function pad(buffer: Buffer, fill: number): Buffer {
 
 async function readCatalog(): Promise<CatalogProduct[]> {
   const parsed = JSON.parse(await readFile(CATALOG_PATH, "utf8")) as unknown;
-  if (!Array.isArray(parsed)) {
-    throw new Error("public/catalog.json must be an array.");
-  }
-  return parsed as CatalogProduct[];
+  return [...requireValidCatalog(parsed)];
 }
 
 function assertDimensions(dimensions: DimensionsMm, label: string): void {
@@ -437,7 +454,14 @@ function isHttpsUrl(value: string, extension: string): boolean {
   }
 }
 
+class MeshyCreditExhaustedError extends Error {
+  public constructor(message: string) {
+    super(message);
+    this.name = "MeshyCreditExhaustedError";
+  }
+}
+
 void main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : "Meshy hero generation failed.");
-  process.exitCode = 1;
+  process.exitCode = error instanceof MeshyCreditExhaustedError ? 2 : 1;
 });
