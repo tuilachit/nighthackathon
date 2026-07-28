@@ -36,6 +36,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-20522046/",
       "extractedAt": "2026-07-25T05:12:14.912Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-20522046.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 800,
+        "heightMm": 2019,
+        "depthMm": 279
+      }
     }
   },
   {
@@ -73,6 +82,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-blue-40594928/",
       "extractedAt": "2026-07-25T05:12:18.575Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-40594928.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 400,
+        "heightMm": 2019,
+        "depthMm": 279
+      }
     }
   },
   {
@@ -112,6 +130,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/billy-bookcase-white-90522043/",
       "extractedAt": "2026-07-25T05:12:22.068Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-90522043.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 800,
+        "heightMm": 1060,
+        "depthMm": 279
+      }
     }
   },
   {
@@ -155,6 +182,15 @@
       "sourceUrl": "https://www.ikea.com/us/en/p/hemnes-bookcase-white-stain-light-brown-60413502/",
       "extractedAt": "2026-07-25T05:12:24.815Z",
       "confidence": "high"
+    },
+    "model": {
+      "glbPath": "/models/glb/meshy-ikea-60413502.glb",
+      "scaleVerified": true,
+      "nativeDimensionsMm": {
+        "widthMm": 899,
+        "heightMm": 1969,
+        "depthMm": 371
+      }
     }
   },
   {
