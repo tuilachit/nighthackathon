@@ -132,26 +132,6 @@ async function main(): Promise<void> {
       products.map((product) => canonicalUrl(product.productUrl)),
     );
 
-    for (const candidate of discovery.directCandidates) {
-      if (addedThisRun >= batchLimit) {
-        break;
-      }
-      const product = toCatalogProduct(candidate);
-      if (
-        knownIds.has(product.id) ||
-        knownUrls.has(canonicalUrl(product.productUrl))
-      ) {
-        continue;
-      }
-      products = [...requireValidCatalog([...products, product])];
-      await writeCatalog(products);
-      await state.markAccepted(product.productUrl, product.id);
-      knownIds.add(product.id);
-      knownUrls.add(canonicalUrl(product.productUrl));
-      addedThisRun += 1;
-      reportProgress(products, addedThisRun, alreadyAdded, metrics);
-    }
-
     for (const seed of discovery.pageSeeds) {
       if (addedThisRun >= batchLimit) {
         break;
@@ -202,6 +182,26 @@ async function main(): Promise<void> {
           error instanceof Error ? error.message : String(error),
         );
       }
+    }
+
+    for (const candidate of discovery.directCandidates) {
+      if (addedThisRun >= batchLimit) {
+        break;
+      }
+      const product = toCatalogProduct(candidate);
+      if (
+        knownIds.has(product.id) ||
+        knownUrls.has(canonicalUrl(product.productUrl))
+      ) {
+        continue;
+      }
+      products = [...requireValidCatalog([...products, product])];
+      await writeCatalog(products);
+      await state.markAccepted(product.productUrl, product.id);
+      knownIds.add(product.id);
+      knownUrls.add(canonicalUrl(product.productUrl));
+      addedThisRun += 1;
+      reportProgress(products, addedThisRun, alreadyAdded, metrics);
     }
 
     const report = createReport(
