@@ -5429,5 +5429,108 @@
       "extractedAt": "2026-07-28T08:07:00.216Z",
       "confidence": "high"
     }
+  },
+  {
+    "id": "wayfair-hcho2477",
+    "name": "Kirklyn 73H Storage Bookcase with Doors Standard Bookcase with 8 Open Shelves",
+    "retailer": "Wayfair",
+    "category": "bookcase",
+    "priceUsd": 214.99,
+    "dimensions": {
+      "widthMm": 1151,
+      "heightMm": 1854,
+      "depthMm": 269
+    },
+    "materials": [
+      "manufactured wood"
+    ],
+    "colors": [
+      "white",
+      "black",
+      "blue",
+      "oak",
+      "sage green"
+    ],
+    "styles": [],
+    "keywords": [
+      "kirklyn",
+      "73h",
+      "storage",
+      "bookcase",
+      "with",
+      "doors",
+      "standard",
+      "open",
+      "shelves",
+      "manufactured",
+      "wood",
+      "white",
+      "black",
+      "blue",
+      "oak",
+      "sage",
+      "green"
+    ],
+    "imagePath": "https://assets.wfcdn.com/im/36874007/compr-r85/3620/362034526/default_name.jpg",
+    "imageSourceUrl": "https://assets.wfcdn.com/im/36874007/compr-r85/3620/362034526/default_name.jpg",
+    "imageAttribution": "Wayfair product photo",
+    "productUrl": "https://www.wayfair.com/furniture/pdp/harriet-bee-kirklyn-73h-storage-bookcase-with-doors-standard-bookcase-with-8-open-shelves-hcho2477.html?piid=101055693",
+    "verification": {
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/harriet-bee-kirklyn-73h-storage-bookcase-with-doors-standard-bookcase-with-8-open-shelves-hcho2477.html?piid=101055693",
+      "verifiedAt": "2026-07-28T08:09:19.543Z"
+    },
+    "provenance": {
+      "dimensionsSource": "llm-extracted",
+      "sourceUrl": "https://www.wayfair.com/furniture/pdp/harriet-bee-kirklyn-73h-storage-bookcase-with-doors-standard-bookcase-with-8-open-shelves-hcho2477.html?piid=101055693",
+      "extractedAt": "2026-07-28T08:09:19.543Z",
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "ikea-30508667",
+    "name": "BILLY Height extension unit - brown walnut effect 32x11x14\"",
+    "retailer": "IKEA",
+    "category": "bookcase",
+    "priceUsd": 35,
+    "dimensions": {
+      "widthMm": 800,
+      "heightMm": 349,
+      "depthMm": 279
+    },
+    "materials": [
+      "wood (including board)"
+    ],
+    "colors": [
+      "brown",
+      "walnut"
+    ],
+    "styles": [],
+    "keywords": [
+      "billy",
+      "height",
+      "extension",
+      "unit",
+      "brown",
+      "walnut",
+      "effect",
+      "32x11x14",
+      "wood",
+      "including",
+      "board"
+    ],
+    "imagePath": "https://www.ikea.com/us/en/images/products/billy-height-extension-unit-brown-walnut-effect__1134325_pe878755_s5.jpg",
+    "imageSourceUrl": "https://www.ikea.com/us/en/images/products/billy-height-extension-unit-brown-walnut-effect__1134325_pe878755_s5.jpg",
+    "imageAttribution": "IKEA product photo",
+    "productUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-brown-walnut-effect-30508667/",
+    "verification": {
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-brown-walnut-effect-30508667/",
+      "verifiedAt": "2026-07-28T08:10:49.276Z"
+    },
+    "provenance": {
+      "dimensionsSource": "json-ld",
+      "sourceUrl": "https://www.ikea.com/us/en/p/billy-height-extension-unit-brown-walnut-effect-30508667/",
+      "extractedAt": "2026-07-28T08:10:49.276Z",
+      "confidence": "high"
+    }
   }
 ]
