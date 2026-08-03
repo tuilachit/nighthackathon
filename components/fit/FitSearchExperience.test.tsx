@@ -1,11 +1,17 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FURNITURE_CATALOG } from "@/lib/catalog";
 import { DEMO_SPACE_MEASUREMENT } from "@/lib/fit-config";
+import { searchProducts } from "@/lib/product-ranker";
+import { parseFurnitureQuery } from "@/lib/query-parser";
 import { FitSearchExperience } from "./FitSearchExperience";
 
 describe("FitSearchExperience", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("renders verified fits, access failures, and space near misses separately", () => {
     render(
       <FitSearchExperience
@@ -127,6 +133,65 @@ describe("FitSearchExperience", () => {
     expect(
       screen.getByRole("button", { name: /IKEA \/ Target/ }),
     ).toBeInTheDocument();
+  });
+
+  it("copies an exact measurement, query, and comparison link", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window.navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    render(
+      <FitSearchExperience
+        measurement={DEMO_SPACE_MEASUREMENT}
+        products={FURNITURE_CATALOG}
+        onSelectProduct={vi.fn()}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Top IKEA \+ Target/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Share" }));
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const copiedUrl = new URL(String(writeText.mock.calls[0]?.[0]));
+    expect(copiedUrl.pathname).toBe("/fit");
+    expect(copiedUrl.searchParams.get("w")).toBe("900");
+    expect(copiedUrl.searchParams.get("a")).toBe("820");
+    expect(copiedUrl.searchParams.get("q")).toBe(
+      "white cube bookcase under $50",
+    );
+    expect(copiedUrl.searchParams.get("compare")?.split(",")).toHaveLength(2);
+    expect(
+      screen.getByRole("button", { name: "Link copied" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens an initial shared comparison without changing its selections", () => {
+    const productIds = searchProducts(
+      FURNITURE_CATALOG,
+      DEMO_SPACE_MEASUREMENT,
+      parseFurnitureQuery("white cube bookcase under $50"),
+    ).fits
+      .slice(0, 2)
+      .map((entry) => entry.product.id);
+    render(
+      <FitSearchExperience
+        measurement={DEMO_SPACE_MEASUREMENT}
+        products={FURNITURE_CATALOG}
+        initialComparedProductIds={productIds}
+        onSelectProduct={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByRole("region", { name: "Clearance comparison" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Comparing" })).toHaveLength(
+      productIds.length,
+    );
   });
 
   it("hands a passing product to the placement boundary", async () => {

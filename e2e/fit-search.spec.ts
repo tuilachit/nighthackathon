@@ -144,3 +144,49 @@ test("fit-first mobile route is honest with AI disabled and remains usable offli
   await expect(page.getByRole("button", { name: "View in AR" })).toBeVisible();
   await expect(page.getByRole("button", { name: "‹ Back to results" })).toBeVisible();
 });
+
+test("a shared comparison reproduces the exact products and clearances in a fresh context", async ({
+  browser,
+  context,
+  page,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/fit");
+  await page.getByRole("button", { name: "Try a demo space" }).click();
+  await page.getByRole("button", { name: /Top IKEA \+ Target/ }).click();
+
+  const comparison = page.getByRole("region", { name: "Clearance comparison" });
+  const expectedProducts = await comparison.locator("article h3").allTextContents();
+  const expectedClearances = await comparison
+    .locator(".fit-dimension-annotation__value")
+    .allTextContents();
+  await comparison.getByRole("button", { name: "Share" }).click();
+  await expect(
+    comparison.getByRole("button", { name: "Link copied" }),
+  ).toBeVisible();
+  const shareUrl = await page.evaluate(() => navigator.clipboard.readText());
+
+  const freshContext = await browser.newContext({
+    viewport: { width: 393, height: 851 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const freshPage = await freshContext.newPage();
+  await freshPage.goto(shareUrl);
+  const sharedComparison = freshPage.getByRole("region", {
+    name: "Clearance comparison",
+  });
+  await expect(sharedComparison).toBeVisible();
+  expect(await sharedComparison.locator("article h3").allTextContents()).toEqual(
+    expectedProducts,
+  );
+  expect(
+    await sharedComparison
+      .locator(".fit-dimension-annotation__value")
+      .allTextContents(),
+  ).toEqual(expectedClearances);
+  await expect(freshPage.getByLabel("Saved space")).toContainText(
+    "Current space",
+  );
+  await freshContext.close();
+});

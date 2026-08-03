@@ -9,6 +9,7 @@ import type {
 import type { CatalogSource } from "@/lib/catalog-source";
 import { catalogProductToPlacementCandidate } from "@/lib/catalog-to-placement";
 import type { PlacementCandidate } from "@/lib/model-scaling";
+import { parseFitShareParams } from "@/lib/fit-share-state";
 import {
   createSavedSpace,
   loadSavedSpaces,
@@ -39,9 +40,28 @@ export function FitDemoClient({
   const [savedSpaces, setSavedSpaces] = useState<readonly SavedSpace[]>([]);
   const [activeSpaceId, setActiveSpaceId] = useState<string | undefined>();
   const [hasLoadedSpaces, setHasLoadedSpaces] = useState(false);
+  const [sharedQuery, setSharedQuery] = useState<string | undefined>();
+  const [sharedComparedProductIds, setSharedComparedProductIds] = useState<
+    readonly string[]
+  >([]);
   const [activeCandidate, setActiveCandidate] = useState<PlacementCandidate | undefined>(undefined);
 
   useEffect(() => {
+    const shared = parseFitShareParams(
+      new URLSearchParams(window.location.search),
+    );
+    if (shared.status === "valid") {
+      setMeasurement(shared.state.measurement);
+      setSharedQuery(shared.state.query);
+      setSharedComparedProductIds(shared.state.comparedProductIds);
+      setHasLoadedSpaces(true);
+      return;
+    }
+    if (shared.status === "invalid") {
+      setMeasurement(undefined);
+      setHasLoadedSpaces(true);
+      return;
+    }
     const storedSpaces = loadSavedSpaces(window.localStorage);
     const latestSpace = storedSpaces[0];
     setSavedSpaces(storedSpaces);
@@ -60,6 +80,9 @@ export function FitDemoClient({
     nextMeasurement: SpaceMeasurement,
     name?: string,
   ): void {
+    clearSharedUrl();
+    setSharedQuery(undefined);
+    setSharedComparedProductIds([]);
     setMeasurement(nextMeasurement);
     setActiveCandidate(undefined);
     if (nextMeasurement.source !== "manual") {
@@ -79,6 +102,9 @@ export function FitDemoClient({
     if (selected === undefined) {
       return;
     }
+    clearSharedUrl();
+    setSharedQuery(undefined);
+    setSharedComparedProductIds([]);
     setMeasurement(selected.measurement);
     setActiveSpaceId(selected.id);
     setActiveCandidate(undefined);
@@ -104,6 +130,9 @@ export function FitDemoClient({
   }
 
   function handleNewSpace(): void {
+    clearSharedUrl();
+    setSharedQuery(undefined);
+    setSharedComparedProductIds([]);
     setMeasurement(undefined);
     setActiveSpaceId(undefined);
     setActiveCandidate(undefined);
@@ -131,6 +160,8 @@ export function FitDemoClient({
       ) : (
         <FitSearchExperience
           measurement={measurement}
+          initialQuery={sharedQuery}
+          initialComparedProductIds={sharedComparedProductIds}
           products={products}
           catalogSource={catalogSource}
           retailerCount={retailerCount}
@@ -177,4 +208,10 @@ export function FitDemoClient({
       ) : null}
     </main>
   );
+}
+
+function clearSharedUrl(): void {
+  if (window.location.search.length > 0) {
+    window.history.replaceState(null, "", "/fit");
+  }
 }

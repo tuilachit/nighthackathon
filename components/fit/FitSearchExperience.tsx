@@ -9,6 +9,7 @@ import type {
 } from "@/lib/catalog-types";
 import type { CatalogSource } from "@/lib/catalog-source";
 import { CACHED_FURNITURE_QUERIES } from "@/lib/fit-config";
+import { buildFitShareUrl } from "@/lib/fit-share-state";
 import type { SavedSpace } from "@/lib/saved-spaces";
 import { searchProducts } from "@/lib/product-ranker";
 import {
@@ -33,6 +34,7 @@ interface FitSearchClientProps extends FitSearchExperienceProps {
   readonly onRenameSpace?: (spaceId: string, name: string) => void;
   readonly onDeleteSpace?: (spaceId: string) => void;
   readonly onNewSpace?: () => void;
+  readonly initialComparedProductIds?: readonly string[];
 }
 
 interface QueryEnhancementResponse {
@@ -55,13 +57,18 @@ export function FitSearchExperience({
   onRenameSpace,
   onDeleteSpace,
   onNewSpace,
+  initialComparedProductIds = [],
 }: FitSearchClientProps): React.JSX.Element {
   const [input, setInput] = useState(initialQuery);
   const [submittedText, setSubmittedText] = useState(initialQuery);
   const [query, setQuery] = useState<FurnitureQuery>(() => parseFurnitureQuery(initialQuery));
   const [isEnhancing, setIsEnhancing] = useState(false);
-  const [comparedIds, setComparedIds] = useState<readonly string[]>([]);
-  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [comparedIds, setComparedIds] = useState<readonly string[]>(
+    initialComparedProductIds,
+  );
+  const [isComparisonOpen, setIsComparisonOpen] = useState(
+    initialComparedProductIds.length > 0,
+  );
   const [showAllFits, setShowAllFits] = useState(false);
   const results = useMemo(
     () => searchProducts(products, measurement, query),
@@ -171,6 +178,18 @@ export function FitSearchExperience({
     onSelectProduct(selection);
   }
 
+  async function shareComparison(): Promise<boolean> {
+    if (comparedEntries.length === 0) {
+      return false;
+    }
+    const shareUrl = buildFitShareUrl(window.location.origin, {
+      measurement,
+      query: submittedText,
+      comparedProductIds: comparedEntries.map((entry) => entry.product.id),
+    });
+    return copyText(shareUrl);
+  }
+
   if (resolvedCatalogSource === "unavailable") {
     return (
       <div className="mx-auto flex w-full max-w-[430px] flex-col gap-5">
@@ -261,6 +280,7 @@ export function FitSearchExperience({
           measurement={measurement}
           onClose={() => setIsComparisonOpen(false)}
           onRemove={(productId) => toggleComparison(productId)}
+          onShare={shareComparison}
         />
       ) : null}
 
@@ -432,4 +452,25 @@ function needsEnhancement(query: FurnitureQuery): boolean {
       query.styles.length === 0 &&
       query.keywords.length === 0)
   );
+}
+
+async function copyText(value: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText !== undefined) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.select();
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    return copied;
+  } catch {
+    return false;
+  }
 }

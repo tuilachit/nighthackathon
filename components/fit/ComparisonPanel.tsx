@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type {
   EvaluatedProduct,
   SpaceMeasurement,
@@ -8,6 +11,7 @@ interface ComparisonPanelProps {
   readonly measurement: SpaceMeasurement;
   readonly onClose: () => void;
   readonly onRemove: (productId: string) => void;
+  readonly onShare: () => Promise<boolean>;
 }
 
 export function ComparisonPanel({
@@ -15,7 +19,11 @@ export function ComparisonPanel({
   measurement,
   onClose,
   onRemove,
+  onShare,
 }: ComparisonPanelProps): React.JSX.Element | null {
+  const [shareStatus, setShareStatus] = useState<
+    "idle" | "copied" | "failed"
+  >("idle");
   if (entries.length === 0) {
     return null;
   }
@@ -45,6 +53,21 @@ export function ComparisonPanel({
           </span>
           <button
             type="button"
+            onClick={() => {
+              void onShare().then((copied) => {
+                setShareStatus(copied ? "copied" : "failed");
+              });
+            }}
+            className="min-h-11 px-2 text-xs font-bold underline decoration-[#17221f]/35 underline-offset-4"
+          >
+            {shareStatus === "copied"
+              ? "Link copied"
+              : shareStatus === "failed"
+                ? "Try sharing again"
+                : "Share"}
+          </button>
+          <button
+            type="button"
             onClick={onClose}
             className="min-h-11 px-2 text-xs font-bold underline decoration-[#17221f]/35 underline-offset-4"
           >
@@ -52,6 +75,13 @@ export function ComparisonPanel({
           </button>
         </div>
       </div>
+      <p className="sr-only" aria-live="polite">
+        {shareStatus === "copied"
+          ? "Comparison link copied to clipboard."
+          : shareStatus === "failed"
+            ? "Could not copy the comparison link."
+            : ""}
+      </p>
 
       <div className="fit-comparison-grid border-t border-[#17221f]/25">
         {entries.map((entry) => (

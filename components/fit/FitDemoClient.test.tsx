@@ -6,6 +6,7 @@ import {
   createSavedSpace,
   SAVED_SPACES_STORAGE_KEY,
 } from "@/lib/saved-spaces";
+import { buildFitShareUrl } from "@/lib/fit-share-state";
 
 const measurement: SpaceMeasurement = {
   widthMm: 900,
@@ -46,6 +47,7 @@ const product: CatalogProduct = {
 describe("FitDemoClient", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.history.replaceState(null, "", "/fit");
     vi.restoreAllMocks();
   });
 
@@ -168,6 +170,65 @@ describe("FitDemoClient", () => {
 
     expect(screen.getByRole("heading", { name: "Verified fits" })).toBeInTheDocument();
     expect(screen.getByLabelText("Saved space")).toHaveTextContent("Bedroom alcove");
+  });
+
+  it("opens valid shared state without reading or changing saved spaces", () => {
+    const getItem = vi.spyOn(Storage.prototype, "getItem");
+    const sharedUrl = buildFitShareUrl(window.location.origin, {
+      measurement,
+      query: "white bookcase under $50",
+      comparedProductIds: [product.id],
+    });
+    window.history.replaceState(null, "", new URL(sharedUrl).search);
+
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    expect(getItem).not.toHaveBeenCalled();
+    expect(screen.getByDisplayValue("white bookcase under $50")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Clearance comparison" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Saved space")).toHaveTextContent(
+      "Current space",
+    );
+  });
+
+  it("falls back to measurement entry for malformed shared state", () => {
+    const stored = createSavedSpace("Should stay untouched", measurement, {
+      id: "stored",
+      createdAt: "2026-08-02T00:00:00.000Z",
+    });
+    window.localStorage.setItem(
+      SAVED_SPACES_STORAGE_KEY,
+      JSON.stringify([stored]),
+    );
+    window.history.replaceState(
+      null,
+      "",
+      "/fit?w=0&h=1800&d=350&a=820&u=25&source=manual&q=shelf&compare=ikea-one",
+    );
+    const getItem = vi.spyOn(Storage.prototype, "getItem");
+
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    expect(getItem).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", {
+        name: "Measure the space furniture has to fit.",
+      }),
+    ).toBeInTheDocument();
   });
 });
 
