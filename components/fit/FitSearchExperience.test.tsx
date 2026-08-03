@@ -22,6 +22,31 @@ describe("FitSearchExperience", () => {
     expect(screen.getAllByText(/access opening\./i).length).toBeGreaterThanOrEqual(1);
   });
 
+  it("caps passing cards at six until the user expands the tier", async () => {
+    const user = userEvent.setup();
+    render(
+      <FitSearchExperience
+        measurement={DEMO_SPACE_MEASUREMENT}
+        products={FURNITURE_CATALOG}
+        onSelectProduct={vi.fn()}
+      />,
+    );
+
+    const fits = screen.getByRole("region", { name: "Verified fits" });
+    expect(within(fits).getAllByRole("article")).toHaveLength(6);
+
+    const expander = within(fits).getByRole("button", {
+      name: "Show all 25 fits",
+    });
+    expect(expander).toHaveAttribute("aria-expanded", "false");
+    await user.click(expander);
+
+    expect(within(fits).getAllByRole("article")).toHaveLength(25);
+    expect(
+      within(fits).getByRole("button", { name: "Show fewer fits" }),
+    ).toHaveAttribute("aria-expanded", "true");
+  });
+
   it("removes every access reference when access width is absent", () => {
     render(
       <FitSearchExperience

@@ -75,6 +75,28 @@ test("fit-first mobile route is honest with AI disabled and remains usable offli
   await expect(page.getByRole("heading", { name: "Near misses" })).toBeVisible();
   await expect(page.getByText("Dimensions verified").first()).toBeVisible();
 
+  const fits = page.getByRole("region", { name: "Verified fits" });
+  await expect(fits.locator("article")).toHaveCount(6);
+  await expect(
+    fits.getByRole("button", { name: "Show all 25 fits" }),
+  ).toBeVisible();
+  const collapsedTierDistance = await page.evaluate(() => {
+    const fitCards = document.querySelectorAll(
+      'section[aria-label="Verified fits"] article',
+    );
+    const accessHeading = Array.from(document.querySelectorAll("h2")).find(
+      (heading) => heading.textContent === "Fits the space, access issue",
+    );
+    const finalFitCard = fitCards.item(fitCards.length - 1);
+    if (!(finalFitCard instanceof HTMLElement) || !(accessHeading instanceof HTMLElement)) {
+      return Number.POSITIVE_INFINITY;
+    }
+    return accessHeading.getBoundingClientRect().top - finalFitCard.getBoundingClientRect().bottom;
+  });
+  expect(collapsedTierDistance).toBeLessThanOrEqual(
+    await page.evaluate(() => window.innerHeight),
+  );
+
   await context.setOffline(true);
   await page.getByRole("button", { name: "white metal shelving unit under $30" }).click();
   await expect(page.getByLabel("Describe the furniture you want")).toHaveValue(

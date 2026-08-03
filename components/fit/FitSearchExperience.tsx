@@ -32,6 +32,8 @@ interface QueryEnhancementResponse {
   readonly query?: unknown;
 }
 
+const COLLAPSED_FIT_LIMIT = 6;
+
 export function FitSearchExperience({
   measurement,
   initialQuery = CACHED_FURNITURE_QUERIES[0],
@@ -47,6 +49,7 @@ export function FitSearchExperience({
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [comparedIds, setComparedIds] = useState<readonly string[]>([]);
   const [isComparisonOpen, setIsComparisonOpen] = useState(false);
+  const [showAllFits, setShowAllFits] = useState(false);
   const results = useMemo(
     () => searchProducts(products, measurement, query),
     [measurement, products, query],
@@ -62,6 +65,9 @@ export function FitSearchExperience({
     [comparedIds, results.fits],
   );
   const filterChips = getFilterChips(query);
+  const visibleFits = showAllFits
+    ? results.fits
+    : results.fits.slice(0, COLLAPSED_FIT_LIMIT);
   const resolvedCatalogSource =
     catalogSource ?? (products.length > 0 ? "bundled" : "unavailable");
 
@@ -89,6 +95,7 @@ export function FitSearchExperience({
     setQuery(localQuery);
     setComparedIds([]);
     setIsComparisonOpen(false);
+    setShowAllFits(false);
 
     if (!needsEnhancement(localQuery)) {
       return;
@@ -241,7 +248,7 @@ export function FitSearchExperience({
         }
         entries={results.fits}
       >
-        {results.fits.map((entry) => (
+        {visibleFits.map((entry) => (
           <ProductCard
             key={entry.product.id}
             entry={entry}
@@ -258,6 +265,18 @@ export function FitSearchExperience({
             }
           />
         ))}
+        {results.fits.length > COLLAPSED_FIT_LIMIT ? (
+          <button
+            type="button"
+            aria-expanded={showAllFits}
+            onClick={() => setShowAllFits((current) => !current)}
+            className="min-h-12 border border-[#3f6b57] bg-white px-4 text-sm font-bold text-[#315544] hover:bg-[#3f6b57]/10"
+          >
+            {showAllFits
+              ? "Show fewer fits"
+              : `Show all ${results.fits.length} fits`}
+          </button>
+        ) : null}
       </ResultSection>
 
       {measurement.accessWidthMm !== undefined && results.fitsSpaceButFailsAccess.length > 0 ? (
