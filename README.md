@@ -1,4 +1,4 @@
-# Fit-First Furniture Search
+# Fitment
 
 **Only shows furniture that actually fits—your space and your front door.**
 
@@ -10,7 +10,7 @@
 [![Quality](https://github.com/tuilachit/nighthackathon/actions/workflows/quality.yml/badge.svg)](https://github.com/tuilachit/nighthackathon/actions/workflows/quality.yml)
 
 > **Demo GIF placeholder:** replace this block with
-> `docs/assets/fit-first-demo.gif` after recording the final phone walkthrough.
+> `docs/assets/fitment-demo.gif` after recording the final phone walkthrough.
 
 ## Architecture
 
@@ -141,7 +141,7 @@ The deployed application never scrapes a retailer during a user search.
 ## Repository structure
 
 ```text
-app/fit/                         Fit-first route and server catalog load
+app/fit/                         Fitment route and server catalog load
 components/fit/                  Search, results, comparison, and AR viewer UI
 lib/access-fit.ts                Pure access-opening predicate
 lib/fit-engine.ts                Pure destination-space predicate

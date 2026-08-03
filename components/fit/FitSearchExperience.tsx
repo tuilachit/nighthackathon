@@ -364,7 +364,7 @@ function ExperienceHeader({
     <header className="border-b border-[#17221f]/30 pb-5">
       <div className="flex items-start justify-between gap-4">
         <p className="fit-display text-xl font-bold tracking-[-0.035em]">
-          FIT / FIRST
+          FITMENT
         </p>
         <p
           className="fit-data max-w-[210px] text-right text-[9px] font-bold uppercase leading-4 tracking-[0.05em] text-[#17221f]/65"

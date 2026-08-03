@@ -4,7 +4,7 @@ import { loadFurnitureCatalog } from "@/lib/catalog-source";
 import { DEMO_SPACE_MEASUREMENT } from "@/lib/fit-config";
 
 export const metadata: Metadata = {
-  title: "Fit-first furniture search",
+  title: "Find furniture that fits",
   description: "Find verified furniture that fits your measured space and access opening.",
 };
 
