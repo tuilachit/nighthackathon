@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   CatalogProduct,
   ProductSelection,
@@ -9,6 +9,13 @@ import type {
 import type { CatalogSource } from "@/lib/catalog-source";
 import { catalogProductToPlacementCandidate } from "@/lib/catalog-to-placement";
 import type { PlacementCandidate } from "@/lib/model-scaling";
+import {
+  createSavedSpace,
+  loadSavedSpaces,
+  persistSavedSpaces,
+  renameSavedSpace,
+} from "@/lib/saved-spaces";
+import type { SavedSpace } from "@/lib/saved-spaces";
 import { ManualMeasurementForm } from "./ManualMeasurementForm";
 import { ProductQuickLookViewer } from "./ProductQuickLookViewer";
 import { FitSearchExperience } from "./FitSearchExperience";
@@ -29,11 +36,88 @@ export function FitDemoClient({
   const [measurement, setMeasurement] = useState<
     SpaceMeasurement | undefined
   >(undefined);
+  const [savedSpaces, setSavedSpaces] = useState<readonly SavedSpace[]>([]);
+  const [activeSpaceId, setActiveSpaceId] = useState<string | undefined>();
+  const [hasLoadedSpaces, setHasLoadedSpaces] = useState(false);
   const [activeCandidate, setActiveCandidate] = useState<PlacementCandidate | undefined>(undefined);
+
+  useEffect(() => {
+    const storedSpaces = loadSavedSpaces(window.localStorage);
+    const latestSpace = storedSpaces[0];
+    setSavedSpaces(storedSpaces);
+    setMeasurement(latestSpace?.measurement);
+    setActiveSpaceId(latestSpace?.id);
+    setHasLoadedSpaces(true);
+  }, []);
 
   function handleSelectProduct(selection: ProductSelection): void {
     setActiveCandidate(
       catalogProductToPlacementCandidate(selection.product, selection.fit),
+    );
+  }
+
+  function handleConfirmMeasurement(
+    nextMeasurement: SpaceMeasurement,
+    name?: string,
+  ): void {
+    setMeasurement(nextMeasurement);
+    setActiveCandidate(undefined);
+    if (nextMeasurement.source !== "manual") {
+      setActiveSpaceId(undefined);
+      return;
+    }
+
+    const savedSpace = createSavedSpace(name ?? "My space", nextMeasurement);
+    const nextSpaces = [savedSpace, ...savedSpaces];
+    setSavedSpaces(nextSpaces);
+    setActiveSpaceId(savedSpace.id);
+    persistSavedSpaces(window.localStorage, nextSpaces);
+  }
+
+  function handleSelectSpace(spaceId: string): void {
+    const selected = savedSpaces.find((space) => space.id === spaceId);
+    if (selected === undefined) {
+      return;
+    }
+    setMeasurement(selected.measurement);
+    setActiveSpaceId(selected.id);
+    setActiveCandidate(undefined);
+  }
+
+  function handleRenameSpace(spaceId: string, name: string): void {
+    const nextSpaces = renameSavedSpace(savedSpaces, spaceId, name);
+    setSavedSpaces(nextSpaces);
+    persistSavedSpaces(window.localStorage, nextSpaces);
+  }
+
+  function handleDeleteSpace(spaceId: string): void {
+    const nextSpaces = savedSpaces.filter((space) => space.id !== spaceId);
+    setSavedSpaces(nextSpaces);
+    persistSavedSpaces(window.localStorage, nextSpaces);
+    if (spaceId !== activeSpaceId) {
+      return;
+    }
+    const nextActiveSpace = nextSpaces[0];
+    setMeasurement(nextActiveSpace?.measurement);
+    setActiveSpaceId(nextActiveSpace?.id);
+    setActiveCandidate(undefined);
+  }
+
+  function handleNewSpace(): void {
+    setMeasurement(undefined);
+    setActiveSpaceId(undefined);
+    setActiveCandidate(undefined);
+  }
+
+  if (!hasLoadedSpaces) {
+    return (
+      <main
+        id="fit-main"
+        aria-busy="true"
+        className="min-h-screen bg-[#f4f7f5]"
+      >
+        <span className="sr-only">Loading saved spaces</span>
+      </main>
     );
   }
 
@@ -42,7 +126,7 @@ export function FitDemoClient({
       {measurement === undefined ? (
         <ManualMeasurementForm
           demoMeasurement={demoMeasurement}
-          onConfirm={setMeasurement}
+          onConfirm={handleConfirmMeasurement}
         />
       ) : (
         <FitSearchExperience
@@ -50,9 +134,14 @@ export function FitDemoClient({
           products={products}
           catalogSource={catalogSource}
           retailerCount={retailerCount}
+          savedSpaces={savedSpaces}
+          activeSpaceId={activeSpaceId}
+          onSelectSpace={handleSelectSpace}
+          onRenameSpace={handleRenameSpace}
+          onDeleteSpace={handleDeleteSpace}
+          onNewSpace={handleNewSpace}
           onEditMeasurement={() => {
-            setActiveCandidate(undefined);
-            setMeasurement(undefined);
+            handleNewSpace();
           }}
           onSelectProduct={handleSelectProduct}
         />

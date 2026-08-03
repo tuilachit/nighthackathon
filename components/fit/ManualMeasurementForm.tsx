@@ -9,7 +9,7 @@ import {
 
 interface ManualMeasurementFormProps {
   readonly demoMeasurement: SpaceMeasurement;
-  readonly onConfirm: (measurement: SpaceMeasurement) => void;
+  readonly onConfirm: (measurement: SpaceMeasurement, name?: string) => void;
 }
 
 type MeasurementUnit = "mm" | "cm";
@@ -70,6 +70,7 @@ export function ManualMeasurementForm({
     Partial<Record<MeasurementField, number>>
   >({});
   const [draft, setDraft] = useState("");
+  const [spaceName, setSpaceName] = useState("My space");
   const [error, setError] = useState<string | undefined>(undefined);
   const step = MEASUREMENT_STEPS[stepIndex];
 
@@ -135,7 +136,7 @@ export function ManualMeasurementForm({
       { widthMm, heightMm, depthMm },
       MANUAL_BASE_UNCERTAINTY_MM,
     );
-    onConfirm({ ...measurement, accessWidthMm });
+    onConfirm({ ...measurement, accessWidthMm }, spaceName);
   }
 
   return (
@@ -200,6 +201,20 @@ export function ManualMeasurementForm({
           ))}
         </div>
       </div>
+
+      <label htmlFor="manual-space-name" className="mt-4 block">
+        <span className="fit-data text-[9px] font-bold uppercase tracking-[0.1em] text-[#17221f]/60">
+          Space name
+        </span>
+        <input
+          id="manual-space-name"
+          type="text"
+          maxLength={80}
+          value={spaceName}
+          onChange={(event) => setSpaceName(event.target.value)}
+          className="mt-1 min-h-11 w-full rounded-sm border border-[#17221f]/35 bg-[#f4f7f5] px-3 text-sm font-semibold"
+        />
+      </label>
 
       <ol aria-label="Measurement progress" className="mt-4 grid grid-cols-4 gap-2">
         {MEASUREMENT_STEPS.map((candidateStep, index) => (

@@ -1,7 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FitDemoClient } from "./FitDemoClient";
 import type { CatalogProduct, SpaceMeasurement } from "@/lib/catalog-types";
+import {
+  createSavedSpace,
+  SAVED_SPACES_STORAGE_KEY,
+} from "@/lib/saved-spaces";
 
 const measurement: SpaceMeasurement = {
   widthMm: 900,
@@ -40,6 +44,11 @@ const product: CatalogProduct = {
 };
 
 describe("FitDemoClient", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
   it("shows the AR viewer inline for a verified product instead of navigating away", () => {
     render(
       <FitDemoClient
@@ -107,4 +116,75 @@ describe("FitDemoClient", () => {
       }),
     ).toBeInTheDocument();
   });
+
+  it("returns directly to the most recent saved space", () => {
+    const older = createSavedSpace("Bedroom alcove", measurement, {
+      id: "older",
+      createdAt: "2026-08-01T00:00:00.000Z",
+    });
+    const latest = createSavedSpace("Hallway", {
+      ...measurement,
+      widthMm: 880,
+      source: "manual",
+    }, {
+      id: "latest",
+      createdAt: "2026-08-02T00:00:00.000Z",
+    });
+    window.localStorage.setItem(
+      SAVED_SPACES_STORAGE_KEY,
+      JSON.stringify([older, latest]),
+    );
+
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    expect(screen.getByLabelText("Saved space")).toHaveValue("latest");
+    expect(screen.getByRole("region", { name: "Your space is the search filter." })).toHaveTextContent("880");
+    expect(
+      screen.queryByRole("heading", {
+        name: "Measure the space furniture has to fit.",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a new manual space usable when localStorage writes fail", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new DOMException("Quota", "QuotaExceededError");
+    });
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    submitManualSpace("Bedroom alcove");
+
+    expect(screen.getByRole("heading", { name: "Verified fits" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Saved space")).toHaveTextContent("Bedroom alcove");
+  });
 });
+
+function submitManualSpace(name: string): void {
+  fireEvent.change(screen.getByLabelText("Space name"), {
+    target: { value: name },
+  });
+  for (const value of ["900", "1800", "350"]) {
+    fireEvent.change(screen.getByRole("spinbutton"), {
+      target: { value },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  }
+  fireEvent.change(screen.getByRole("spinbutton"), {
+    target: { value: "820" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: "Find furniture that fits" }),
+  );
+}

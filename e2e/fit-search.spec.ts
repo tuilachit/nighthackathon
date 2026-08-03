@@ -34,7 +34,23 @@ test("first visit guides a real manual measurement before showing results", asyn
   await expect(measurement).toContainText("manual tape measurement");
   await expect(measurement).toContainText("820 mm");
   await expect(measurement).toContainText("±25 mm");
-  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByLabel("Saved space")).toContainText("My space");
+  await page.getByRole("button", { name: "Rename" }).click();
+  await page.getByLabel("Space name").fill("Bedroom alcove");
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Verified fits", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Saved space")).toContainText("Bedroom alcove");
+  await expect(
+    page.getByRole("heading", {
+      name: "Measure the space furniture has to fit.",
+    }),
+  ).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Measure new" }).click();
   await expect(
     page.getByRole("heading", {
       name: "Measure the space furniture has to fit.",

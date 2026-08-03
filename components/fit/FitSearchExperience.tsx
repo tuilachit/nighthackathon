@@ -9,6 +9,7 @@ import type {
 } from "@/lib/catalog-types";
 import type { CatalogSource } from "@/lib/catalog-source";
 import { CACHED_FURNITURE_QUERIES } from "@/lib/fit-config";
+import type { SavedSpace } from "@/lib/saved-spaces";
 import { searchProducts } from "@/lib/product-ranker";
 import {
   mergeFurnitureQueries,
@@ -26,6 +27,12 @@ interface FitSearchClientProps extends FitSearchExperienceProps {
   readonly catalogSource?: CatalogSource;
   readonly retailerCount?: number;
   readonly onEditMeasurement?: () => void;
+  readonly savedSpaces?: readonly SavedSpace[];
+  readonly activeSpaceId?: string;
+  readonly onSelectSpace?: (spaceId: string) => void;
+  readonly onRenameSpace?: (spaceId: string, name: string) => void;
+  readonly onDeleteSpace?: (spaceId: string) => void;
+  readonly onNewSpace?: () => void;
 }
 
 interface QueryEnhancementResponse {
@@ -42,6 +49,12 @@ export function FitSearchExperience({
   catalogSource,
   retailerCount = new Set(products.map((product) => product.retailer)).size,
   onEditMeasurement,
+  savedSpaces,
+  activeSpaceId,
+  onSelectSpace,
+  onRenameSpace,
+  onDeleteSpace,
+  onNewSpace,
 }: FitSearchClientProps): React.JSX.Element {
   const [input, setInput] = useState(initialQuery);
   const [submittedText, setSubmittedText] = useState(initialQuery);
@@ -169,6 +182,12 @@ export function FitSearchExperience({
         <MeasurementSummary
           measurement={measurement}
           onEdit={onEditMeasurement}
+          savedSpaces={savedSpaces}
+          activeSpaceId={activeSpaceId}
+          onSelectSpace={onSelectSpace}
+          onRenameSpace={onRenameSpace}
+          onDeleteSpace={onDeleteSpace}
+          onNewSpace={onNewSpace}
         />
         <section
           role="alert"
@@ -201,6 +220,12 @@ export function FitSearchExperience({
       <MeasurementSummary
         measurement={measurement}
         onEdit={onEditMeasurement}
+        savedSpaces={savedSpaces}
+        activeSpaceId={activeSpaceId}
+        onSelectSpace={onSelectSpace}
+        onRenameSpace={onRenameSpace}
+        onDeleteSpace={onDeleteSpace}
+        onNewSpace={onNewSpace}
       />
       <QueryInput
         value={input}

@@ -29,14 +29,17 @@ describe("ManualMeasurementForm", () => {
       screen.getByRole("button", { name: "Find furniture that fits" }),
     );
 
-    expect(onConfirm).toHaveBeenCalledWith({
-      widthMm: 812,
-      heightMm: 1600,
-      depthMm: 305,
-      uncertaintyMm: 25,
-      accessWidthMm: 760,
-      source: "manual",
-    });
+    expect(onConfirm).toHaveBeenCalledWith(
+      {
+        widthMm: 812,
+        heightMm: 1600,
+        depthMm: 305,
+        uncertaintyMm: 25,
+        accessWidthMm: 760,
+        source: "manual",
+      },
+      "My space",
+    );
   });
 
   it("accepts centimetres and normalizes every value to millimetres", async () => {
@@ -69,6 +72,7 @@ describe("ManualMeasurementForm", () => {
         depthMm: 305,
         accessWidthMm: 760,
       }),
+      "My space",
     );
   });
 
@@ -148,6 +152,33 @@ describe("ManualMeasurementForm", () => {
     );
 
     expect(onConfirm).toHaveBeenCalledWith(DEMO_SPACE_MEASUREMENT);
+  });
+
+  it("submits a user-entered space name", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    render(
+      <ManualMeasurementForm
+        demoMeasurement={DEMO_SPACE_MEASUREMENT}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    const name = screen.getByLabelText("Space name");
+    await user.clear(name);
+    await user.type(name, "Bedroom alcove");
+    await enterCurrentMeasurement(user, "812");
+    await enterCurrentMeasurement(user, "1600");
+    await enterCurrentMeasurement(user, "305");
+    await user.type(screen.getByRole("spinbutton"), "760");
+    await user.click(
+      screen.getByRole("button", { name: "Find furniture that fits" }),
+    );
+
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "manual" }),
+      "Bedroom alcove",
+    );
   });
 });
 

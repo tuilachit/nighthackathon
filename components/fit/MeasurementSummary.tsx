@@ -1,13 +1,27 @@
 import type { SpaceMeasurement } from "@/lib/catalog-types";
+import type { SavedSpace } from "@/lib/saved-spaces";
+import { SavedSpaceSwitcher } from "./SavedSpaceSwitcher";
 
 interface MeasurementSummaryProps {
   readonly measurement: SpaceMeasurement;
   readonly onEdit?: () => void;
+  readonly savedSpaces?: readonly SavedSpace[];
+  readonly activeSpaceId?: string;
+  readonly onSelectSpace?: (spaceId: string) => void;
+  readonly onRenameSpace?: (spaceId: string, name: string) => void;
+  readonly onDeleteSpace?: (spaceId: string) => void;
+  readonly onNewSpace?: () => void;
 }
 
 export function MeasurementSummary({
   measurement,
   onEdit,
+  savedSpaces = [],
+  activeSpaceId,
+  onSelectSpace,
+  onRenameSpace,
+  onDeleteSpace,
+  onNewSpace,
 }: MeasurementSummaryProps): React.JSX.Element {
   const dimensions = [
     { label: "Width", value: measurement.widthMm },
@@ -61,6 +75,19 @@ export function MeasurementSummary({
           </span>
           <strong className="fit-data text-xs">{measurement.accessWidthMm} mm</strong>
         </p>
+      ) : null}
+      {onSelectSpace !== undefined &&
+      onRenameSpace !== undefined &&
+      onDeleteSpace !== undefined &&
+      onNewSpace !== undefined ? (
+        <SavedSpaceSwitcher
+          spaces={savedSpaces}
+          activeSpaceId={activeSpaceId}
+          onSelect={onSelectSpace}
+          onRename={onRenameSpace}
+          onDelete={onDeleteSpace}
+          onNew={onNewSpace}
+        />
       ) : null}
     </section>
   );
