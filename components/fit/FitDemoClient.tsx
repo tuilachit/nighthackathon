@@ -28,7 +28,7 @@ export function FitDemoClient({
 }: FitDemoClientProps): React.JSX.Element {
   const [measurement, setMeasurement] = useState<
     SpaceMeasurement | undefined
-  >(demoMeasurement);
+  >(undefined);
   const [activeCandidate, setActiveCandidate] = useState<PlacementCandidate | undefined>(undefined);
 
   function handleSelectProduct(selection: ProductSelection): void {

@@ -1,38 +1,44 @@
 import { expect, test } from "@playwright/test";
 
-test("results land first and manual measurement remains a first-class edit", async ({ page }) => {
+test("first visit guides a real manual measurement before showing results", async ({ page }) => {
   await page.goto("/fit");
 
   await expect(
+    page.getByRole("heading", {
+      name: "Measure the space furniture has to fit.",
+    }),
+  ).toBeVisible();
+  await expect(
     page.getByRole("heading", { name: "Verified fits", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Enter measured dimensions." }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Edit" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Enter measured dimensions." }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Live WebXR capture is not enabled"),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try a demo space" })).toBeVisible();
 
-  await page.getByRole("spinbutton", { name: /^Width/ }).fill("900");
-  await page.getByRole("spinbutton", { name: /^Height/ }).fill("1800");
-  await page.getByRole("spinbutton", { name: /^Depth/ }).fill("350");
-  await page
-    .getByRole("spinbutton", { name: /^Narrowest access opening/ })
-    .fill("820");
-  await page.getByRole("button", { name: "Use these measurements" }).click();
+  await page.getByRole("spinbutton").fill("99");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(
+    page.getByText("Width must be at least 100 mm (10 cm).", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("spinbutton").fill("900");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText(/Step 2 of 4 · Height/)).toBeVisible();
+  await page.getByRole("spinbutton").fill("1800");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("spinbutton").fill("350");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("spinbutton").fill("820");
+  await page.getByRole("button", { name: "Find furniture that fits" }).click();
 
   const measurement = page.getByRole("region", {
     name: "Your space is the search filter.",
   });
   await expect(measurement).toContainText("manual tape measurement");
   await expect(measurement).toContainText("820 mm");
+  await expect(measurement).toContainText("±25 mm");
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(
-    page.getByRole("heading", { name: "Enter measured dimensions." }),
+    page.getByRole("heading", {
+      name: "Measure the space furniture has to fit.",
+    }),
   ).toBeVisible();
 });
 
@@ -49,6 +55,8 @@ test("fit-first mobile route is honest with AI disabled and remains usable offli
   });
 
   await page.goto("/fit");
+
+  await page.getByRole("button", { name: "Try a demo space" }).click();
 
   await expect(
     page.getByRole("heading", {

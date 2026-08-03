@@ -27,6 +27,10 @@
   outline-offset: 3px;
 }
 
+.fit-instrument input.fit-measurement-input:focus-visible {
+  outline: none;
+}
+
 .fit-dimension-annotation {
   position: relative;
   min-height: 31px;

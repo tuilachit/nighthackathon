@@ -135,6 +135,6 @@ describe("space measurement builders", () => {
     const space = manualSpaceMeasurement({ widthMm: 812, depthMm: 405, heightMm: 900 });
 
     expect(space.source).toBe("manual");
-    expect(space.uncertaintyMm).toBe(5);
+    expect(space.uncertaintyMm).toBe(25);
   });
 });

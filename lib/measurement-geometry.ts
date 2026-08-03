@@ -34,7 +34,7 @@ export interface FootprintMeasurement {
 }
 
 export const WEBXR_BASE_UNCERTAINTY_MM = 25;
-export const MANUAL_BASE_UNCERTAINTY_MM = 5;
+export const MANUAL_BASE_UNCERTAINTY_MM = 25;
 export const DEMO_MEASUREMENT_UNCERTAINTY_MM = 20;
 
 export function metersToMm(meters: number): number {
