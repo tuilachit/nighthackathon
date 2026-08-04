@@ -47,9 +47,8 @@ export function FitDemoClient({
   const [activeCandidate, setActiveCandidate] = useState<PlacementCandidate | undefined>(undefined);
 
   useEffect(() => {
-    const shared = parseFitShareParams(
-      new URLSearchParams(window.location.search),
-    );
+    const params = new URLSearchParams(window.location.search);
+    const shared = parseFitShareParams(params);
     if (shared.status === "valid") {
       setMeasurement(shared.state.measurement);
       setSharedQuery(shared.state.query);
@@ -63,12 +62,22 @@ export function FitDemoClient({
       return;
     }
     const storedSpaces = loadSavedSpaces(window.localStorage);
-    const latestSpace = storedSpaces[0];
     setSavedSpaces(storedSpaces);
+    if (params.get("new") === "1") {
+      setMeasurement(undefined);
+      setHasLoadedSpaces(true);
+      return;
+    }
+    if (params.get("demo") === "1") {
+      setMeasurement(demoMeasurement);
+      setHasLoadedSpaces(true);
+      return;
+    }
+    const latestSpace = storedSpaces[0];
     setMeasurement(latestSpace?.measurement);
     setActiveSpaceId(latestSpace?.id);
     setHasLoadedSpaces(true);
-  }, []);
+  }, [demoMeasurement]);
 
   function handleSelectProduct(selection: ProductSelection): void {
     setActiveCandidate(

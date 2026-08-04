@@ -119,6 +119,53 @@ describe("FitDemoClient", () => {
     ).toBeInTheDocument();
   });
 
+  it("opens the landing-page demo action directly in results", () => {
+    window.history.replaceState(null, "", "/fit?demo=1");
+
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Verified fits" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: "Measure the space furniture has to fit.",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the landing-page measurement action even when a space is saved", () => {
+    const stored = createSavedSpace("Bedroom alcove", measurement, {
+      id: "stored",
+      createdAt: "2026-08-02T00:00:00.000Z",
+    });
+    window.localStorage.setItem(
+      SAVED_SPACES_STORAGE_KEY,
+      JSON.stringify([stored]),
+    );
+    window.history.replaceState(null, "", "/fit?new=1");
+
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Measure the space furniture has to fit.",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("returns directly to the most recent saved space", () => {
     const older = createSavedSpace("Bedroom alcove", measurement, {
       id: "older",

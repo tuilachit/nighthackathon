@@ -1,5 +1,34 @@
 import { expect, test } from "@playwright/test";
 
+test("landing explains Fitment and routes both entry choices honestly", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByText("FITMENT", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText(
+      "only shows you furniture that actually fits, your space and your front door",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Measure your space" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Try a demo space" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Try a demo space" }).click();
+  await expect(page).toHaveURL(/\/fit\?demo=1$/);
+  await expect(
+    page.getByRole("heading", { name: "Verified fits", exact: true }),
+  ).toBeVisible();
+
+  await page.goto("/");
+  await page.getByRole("link", { name: "Measure your space" }).click();
+  await expect(page).toHaveURL(/\/fit\?new=1$/);
+  await expect(
+    page.getByRole("heading", {
+      name: "Measure the space furniture has to fit.",
+    }),
+  ).toBeVisible();
+});
+
 test("first visit guides a real manual measurement before showing results", async ({ page }) => {
   await page.goto("/fit");
 

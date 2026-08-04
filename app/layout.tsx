@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
+import { Space_Grotesk } from "next/font/google";
 import {
   PRODUCT_NAME,
   PRODUCT_PITCH,
   PRODUCTION_URL,
 } from "@/lib/site-config";
 import "./globals.css";
+import "./fit/fit.css";
+
+const fitDisplay = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  variable: "--font-fit-display",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(PRODUCTION_URL),
@@ -46,7 +55,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="flex min-h-full flex-col">
+      <body className={`${fitDisplay.variable} flex min-h-full flex-col`}>
         {children}
       </body>
     </html>

@@ -4,7 +4,7 @@
 
 2nd place out of 117 teams at Founders, Inc. Night Hack.
 
-[Live demo](https://app-input.vercel.app/fit) ·
+[Live demo](https://app-input.vercel.app) ·
 [CI](https://github.com/tuilachit/nighthackathon/actions/workflows/quality.yml)
 
 [![Quality](https://github.com/tuilachit/nighthackathon/actions/workflows/quality.yml/badge.svg)](https://github.com/tuilachit/nighthackathon/actions/workflows/quality.yml)
