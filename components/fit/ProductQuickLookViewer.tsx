@@ -30,8 +30,10 @@ type ModelViewerElement = HTMLElement & {
  */
 export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerProps): React.JSX.Element {
   const modelViewerRef = useRef<ModelViewerElement>(null);
+  const quickLookAnchorRef = useRef<HTMLAnchorElement>(null);
   const [modelLoaded, setModelLoaded] = useState<boolean>(false);
   const [canActivateAr, setCanActivateAr] = useState(false);
+  const [canUseQuickLook, setCanUseQuickLook] = useState(false);
   const [actionStatus, setActionStatus] = useState("");
   const needsMeasurement = needsRuntimeScaleMeasurement(model);
   const scaleAttribute = needsMeasurement ? undefined : formatScaleAttribute(getPlacementScale(model));
@@ -56,6 +58,16 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
   }, [model, needsMeasurement]);
 
   useEffect(() => {
+    const probe = document.createElement("a");
+    let supportsArLink = false;
+    try {
+      supportsArLink =
+        typeof probe.relList.supports === "function" && probe.relList.supports("ar");
+    } catch {
+      // DOM shims and non-Safari browsers can expose supports() without an AR token list.
+    }
+    setCanUseQuickLook(model.iosUsdzUrl !== undefined && supportsArLink);
+
     if (process.env.NODE_ENV !== "test") {
       void import("@google/model-viewer").then(() => {
         window.requestAnimationFrame(() => {
@@ -63,7 +75,7 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
         });
       });
     }
-  }, []);
+  }, [model.iosUsdzUrl]);
 
   useEffect(() => {
     const element = modelViewerRef.current;
@@ -73,6 +85,14 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
 
   async function handlePrimaryAction(): Promise<void> {
     const element = modelViewerRef.current;
+    if (canUseQuickLook) {
+      // Use Safari's native rel="ar" handoff for the authored USDZ. Calling
+      // model-viewer's activateAR() can route iOS through a temporary generated
+      // blob instead, which loses the verified file metadata and fixed scale.
+      quickLookAnchorRef.current?.click();
+      return;
+    }
+
     if (canActivateAr) {
       await element?.activateAR?.();
       return;
@@ -124,8 +144,22 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
           className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-sm bg-[#17221f] px-4 py-3 text-sm font-bold text-white hover:bg-[#26332f]"
         >
           <CubeIcon size={14} color="#fff" />
-          {modelLoaded && canActivateAr ? "View in your room" : "View in 3D"}
+          {modelLoaded && (canActivateAr || canUseQuickLook) ? "View in your room" : "View in 3D"}
         </button>
+        {model.iosUsdzUrl !== undefined ? (
+          <a
+            ref={quickLookAnchorRef}
+            href={model.iosUsdzUrl}
+            rel="ar"
+            aria-hidden="true"
+            tabIndex={-1}
+            className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
+          >
+            {/* Safari requires a direct image child to recognize a rel="ar" link. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/icons/fitment-192.svg" alt="" width="1" height="1" />
+          </a>
+        ) : null}
         <p className="sr-only" aria-live="polite">
           {actionStatus}
         </p>

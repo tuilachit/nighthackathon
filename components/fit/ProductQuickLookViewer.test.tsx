@@ -63,4 +63,44 @@ describe("ProductQuickLookViewer", () => {
     );
     expect(activateAR).toHaveBeenCalledTimes(1);
   });
+
+  it("hands an authored USDZ directly to iOS Quick Look", async () => {
+    const user = userEvent.setup();
+    const supports = vi
+      .spyOn(DOMTokenList.prototype, "supports")
+      .mockImplementation((token) => token === "ar");
+    const anchorClick = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    const activateAR = vi.fn();
+    const model: PlacementModel = {
+      dimensions: { widthMm: 778, depthMm: 280, heightMm: 840 },
+      glbUrl: "/models/oakridge-3-shelf.glb",
+      iosUsdzUrl: "/models/oakridge-3-shelf.usdz",
+      placeholderBoxGlbUrl: "/models/unit-box.glb",
+    };
+    const { container } = render(
+      <ProductQuickLookViewer name="Oakridge 3-Shelf" model={model} />,
+    );
+    const viewer = container.querySelector("model-viewer");
+    expect(viewer).not.toBeNull();
+    Object.defineProperties(viewer, {
+      canActivateAR: { configurable: true, value: true },
+      activateAR: { configurable: true, value: activateAR },
+    });
+    fireEvent.load(viewer as Element);
+
+    await user.click(
+      await screen.findByRole("button", { name: "View in your room" }),
+    );
+
+    const quickLookLink = container.querySelector('a[rel="ar"]');
+    expect(quickLookLink).toHaveAttribute("href", "/models/oakridge-3-shelf.usdz");
+    expect(quickLookLink?.querySelector(":scope > img")).not.toBeNull();
+    expect(anchorClick).toHaveBeenCalledTimes(1);
+    expect(activateAR).not.toHaveBeenCalled();
+
+    supports.mockRestore();
+    anchorClick.mockRestore();
+  });
 });
