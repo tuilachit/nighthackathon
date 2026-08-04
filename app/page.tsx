@@ -44,6 +44,12 @@ export default function RootPage(): React.JSX.Element {
                 Try a demo space
               </Link>
             </div>
+            <Link
+              href="/how-it-works"
+              className="fit-data mt-5 inline-flex min-h-11 items-center text-[11px] font-bold uppercase tracking-[0.08em] text-[#17221f] underline decoration-[#17221f]/35 underline-offset-4 hover:decoration-[#17221f]"
+            >
+              How Fitment works
+            </Link>
           </section>
 
           <figure

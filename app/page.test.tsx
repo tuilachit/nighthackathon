@@ -19,5 +19,8 @@ describe("Fitment landing page", () => {
     expect(
       screen.getByRole("link", { name: "Try a demo space" }),
     ).toHaveAttribute("href", "/fit?demo=1");
+    expect(
+      screen.getByRole("link", { name: "How Fitment works" }),
+    ).toHaveAttribute("href", "/how-it-works");
   });
 });
