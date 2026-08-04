@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Find verified furniture that fits your measured space and access opening.",
 };
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
 export default async function FitPage(): Promise<React.JSX.Element> {
   const catalog = await loadFurnitureCatalog();
