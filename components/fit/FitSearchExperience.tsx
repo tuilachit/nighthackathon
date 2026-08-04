@@ -178,16 +178,19 @@ export function FitSearchExperience({
     onSelectProduct(selection);
   }
 
-  async function shareComparison(): Promise<boolean> {
+  async function shareComparison(): Promise<{
+    readonly copied: boolean;
+    readonly url?: string;
+  }> {
     if (comparedEntries.length === 0) {
-      return false;
+      return { copied: false };
     }
     const shareUrl = buildFitShareUrl(window.location.origin, {
       measurement,
       query: submittedText,
       comparedProductIds: comparedEntries.map((entry) => entry.product.id),
     });
-    return copyText(shareUrl);
+    return { copied: await copyText(shareUrl), url: shareUrl };
   }
 
   if (resolvedCatalogSource === "unavailable") {

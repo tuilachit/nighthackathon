@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import type {
   EvaluatedProduct,
@@ -12,7 +13,10 @@ interface ComparisonPanelProps {
   readonly onClose: () => void;
   readonly onRemove: (productId: string) => void;
   readonly onView: (entry: EvaluatedProduct) => void;
-  readonly onShare: () => Promise<boolean>;
+  readonly onShare: () => Promise<{
+    readonly copied: boolean;
+    readonly url?: string;
+  }>;
 }
 
 export function ComparisonPanel({
@@ -24,8 +28,10 @@ export function ComparisonPanel({
   onShare,
 }: ComparisonPanelProps): React.JSX.Element | null {
   const [shareStatus, setShareStatus] = useState<
-    "idle" | "copied" | "failed"
+    "idle" | "preparing" | "copied" | "ready" | "failed"
   >("idle");
+  const [qrImageUrl, setQrImageUrl] = useState<string>();
+  const [shareUrl, setShareUrl] = useState<string>();
   if (entries.length === 0) {
     return null;
   }
@@ -56,14 +62,37 @@ export function ComparisonPanel({
           <button
             type="button"
             onClick={() => {
-              void onShare().then((copied) => {
-                setShareStatus(copied ? "copied" : "failed");
-              });
+              setShareStatus("preparing");
+              void Promise.all([import("qrcode"), onShare()])
+                .then(async ([QRCode, result]) => {
+                  if (result.url === undefined) {
+                    setShareStatus("failed");
+                    return;
+                  }
+                  const svg = await QRCode.default.toString(result.url, {
+                    type: "svg",
+                    width: 960,
+                    margin: 2,
+                    errorCorrectionLevel: "M",
+                    color: { dark: "#17221f", light: "#ffffff" },
+                  });
+                  setShareUrl(result.url);
+                  setQrImageUrl(
+                    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+                  );
+                  setShareStatus(result.copied ? "copied" : "ready");
+                })
+                .catch(() => setShareStatus("failed"));
             }}
+            disabled={shareStatus === "preparing"}
             className="min-h-11 px-2 text-xs font-bold underline decoration-[#17221f]/35 underline-offset-4"
           >
-            {shareStatus === "copied"
+            {shareStatus === "preparing"
+              ? "Preparing…"
+              : shareStatus === "copied"
               ? "Link copied"
+              : shareStatus === "ready"
+                ? "QR ready"
               : shareStatus === "failed"
                 ? "Try sharing again"
                 : "Share"}
@@ -84,6 +113,49 @@ export function ComparisonPanel({
             ? "Could not copy the comparison link."
             : ""}
       </p>
+
+      {qrImageUrl !== undefined && shareUrl !== undefined ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="share-qr-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#17221f]/95 p-4 sm:p-8"
+        >
+          <div className="flex max-h-full w-full max-w-[760px] flex-col items-center overflow-auto bg-white p-4 text-center text-[#17221f] sm:p-8">
+            <div className="flex w-full items-start justify-between gap-4 border-b border-[#17221f]/25 pb-4 text-left">
+              <div>
+                <p className="fit-data text-[10px] font-bold uppercase tracking-[0.12em] text-[#17221f]/60">
+                  Exact measured comparison
+                </p>
+                <h3
+                  id="share-qr-title"
+                  className="fit-display mt-1 text-2xl font-bold tracking-[-0.035em] sm:text-3xl"
+                >
+                  Scan to compare on your phone
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQrImageUrl(undefined)}
+                className="min-h-11 shrink-0 px-2 text-xs font-bold underline decoration-[#17221f]/35 underline-offset-4"
+              >
+                Close
+              </button>
+            </div>
+            <Image
+              src={qrImageUrl}
+              alt="QR code for this exact furniture comparison"
+              width={640}
+              height={640}
+              unoptimized
+              className="mt-5 aspect-square w-full max-w-[min(70vh,640px)] bg-white"
+            />
+            <p className="fit-data mt-4 max-w-full break-all text-[10px] font-semibold leading-4 text-[#17221f]/65">
+              {shareUrl}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="fit-comparison-grid border-t border-[#17221f]/25">
         {entries.map((entry) => (

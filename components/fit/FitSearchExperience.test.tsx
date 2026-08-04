@@ -7,6 +7,14 @@ import { searchProducts } from "@/lib/product-ranker";
 import { parseFurnitureQuery } from "@/lib/query-parser";
 import { FitSearchExperience } from "./FitSearchExperience";
 
+vi.mock("qrcode", () => ({
+  default: {
+    toString: vi.fn().mockResolvedValue(
+      '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h10v10H0z"/></svg>',
+    ),
+  },
+}));
+
 describe("FitSearchExperience", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -196,6 +204,14 @@ describe("FitSearchExperience", () => {
     expect(
       screen.getByRole("button", { name: "Link copied" }),
     ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("dialog", { name: "Scan to compare on your phone" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", {
+        name: "QR code for this exact furniture comparison",
+      }),
+    ).toHaveAttribute("src", expect.stringMatching(/^data:image\/svg\+xml/));
   });
 
   it("opens an initial shared comparison without changing its selections", () => {
