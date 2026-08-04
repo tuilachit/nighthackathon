@@ -87,6 +87,30 @@ test("first visit guides a real manual measurement before showing results", asyn
   ).toBeVisible();
 });
 
+test("manual measurement is keyboard-completable in under twenty seconds", async ({ page }) => {
+  await page.goto("/fit?new=1");
+  const startedAt = Date.now();
+
+  for (const [value, enterKeyHint] of [
+    ["900", "next"],
+    ["1800", "next"],
+    ["350", "next"],
+    ["820", "done"],
+  ] as const) {
+    const input = page.getByRole("spinbutton");
+    await expect(input).toBeFocused();
+    await expect(input).toHaveAttribute("inputmode", "numeric");
+    await expect(input).toHaveAttribute("enterkeyhint", enterKeyHint);
+    await input.fill(value);
+    await input.press("Enter");
+  }
+
+  await expect(
+    page.getByRole("heading", { name: "Verified fits", exact: true }),
+  ).toBeVisible();
+  expect(Date.now() - startedAt).toBeLessThan(20_000);
+});
+
 test("fit-first mobile route is honest with AI disabled and remains usable offline", async ({
   context,
   page,

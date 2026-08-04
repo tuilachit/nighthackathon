@@ -5,6 +5,32 @@ import { DEMO_SPACE_MEASUREMENT } from "@/lib/fit-config";
 import { ManualMeasurementForm } from "./ManualMeasurementForm";
 
 describe("ManualMeasurementForm", () => {
+  it("keeps the numeric entry focused through the fast four-step path", async () => {
+    const user = userEvent.setup();
+    render(
+      <ManualMeasurementForm
+        demoMeasurement={DEMO_SPACE_MEASUREMENT}
+        onConfirm={vi.fn()}
+      />,
+    );
+
+    const firstInput = screen.getByRole("spinbutton");
+    expect(firstInput).toHaveFocus();
+    expect(firstInput).toHaveAttribute("inputmode", "numeric");
+    expect(firstInput).toHaveAttribute("enterkeyhint", "next");
+
+    await user.type(firstInput, "900{Enter}");
+    const nextInput = screen.getByRole("spinbutton");
+    expect(nextInput).toHaveFocus();
+    expect(nextInput).toHaveValue(null);
+
+    await user.click(screen.getByRole("button", { name: "cm" }));
+    expect(screen.getByRole("spinbutton")).toHaveAttribute(
+      "inputmode",
+      "decimal",
+    );
+  });
+
   it("collects measurements in order and submits millimetres with conservative uncertainty", async () => {
     const user = userEvent.setup();
     const onConfirm = vi.fn();

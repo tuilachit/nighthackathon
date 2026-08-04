@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SpaceMeasurement } from "@/lib/catalog-types";
 import {
   MANUAL_BASE_UNCERTAINTY_MM,
@@ -72,7 +72,13 @@ export function ManualMeasurementForm({
   const [draft, setDraft] = useState("");
   const [spaceName, setSpaceName] = useState("My space");
   const [error, setError] = useState<string | undefined>(undefined);
+  const measurementInputRef = useRef<HTMLInputElement>(null);
   const step = MEASUREMENT_STEPS[stepIndex];
+
+  useEffect(() => {
+    measurementInputRef.current?.focus();
+    measurementInputRef.current?.select();
+  }, [stepIndex]);
 
   function changeUnit(nextUnit: MeasurementUnit): void {
     if (nextUnit === unit) {
@@ -242,12 +248,17 @@ export function ManualMeasurementForm({
           </span>
           <span className="mt-4 flex items-baseline rounded-sm border border-[#17221f]/35 bg-[#f4f7f5] px-4 focus-within:border-[#17221f] focus-within:ring-1 focus-within:ring-[#17221f]">
             <input
+              ref={measurementInputRef}
               id="measurement-value"
               aria-describedby="measurement-range"
               aria-invalid={error !== undefined}
               autoFocus
+              autoComplete="off"
               type="number"
-              inputMode="decimal"
+              inputMode={unit === "mm" ? "numeric" : "decimal"}
+              enterKeyHint={
+                stepIndex === MEASUREMENT_STEPS.length - 1 ? "done" : "next"
+              }
               step={unit === "cm" ? "0.1" : "1"}
               value={draft}
               onChange={(event) => {
