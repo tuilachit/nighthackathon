@@ -1,7 +1,13 @@
 import type React from "react";
 
 interface ModelViewerElementAttributes extends React.HTMLAttributes<HTMLElement> {
-  readonly ref?: React.Ref<HTMLElement & { activateAR?: () => Promise<void> | void }>;
+  readonly ref?: React.Ref<
+    HTMLElement & {
+      readonly canActivateAR?: boolean;
+      activateAR?: () => Promise<void> | void;
+      getDimensions?: () => { readonly x: number; readonly y: number; readonly z: number };
+    }
+  >;
   readonly src?: string;
   readonly "ios-src"?: string;
   readonly alt?: string;

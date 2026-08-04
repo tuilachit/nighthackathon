@@ -280,6 +280,13 @@ export function FitSearchExperience({
           measurement={measurement}
           onClose={() => setIsComparisonOpen(false)}
           onRemove={(productId) => toggleComparison(productId)}
+          onView={(entry) =>
+            handleSelection({
+              product: entry.product,
+              fit: entry.fit,
+              access: entry.access,
+            })
+          }
           onShare={shareComparison}
         />
       ) : null}

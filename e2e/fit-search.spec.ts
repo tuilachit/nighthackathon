@@ -170,7 +170,7 @@ test("fit-first mobile route is honest with AI disabled and remains usable offli
   await expect(page.getByRole("button", { name: "Comparing" })).toHaveCount(2);
 
   await page.getByRole("button", { name: "View in room" }).first().click();
-  await expect(page.getByRole("button", { name: "View in AR" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "View in 3D" })).toBeVisible();
   await expect(page.getByRole("button", { name: "‹ Back to results" })).toBeVisible();
 });
 

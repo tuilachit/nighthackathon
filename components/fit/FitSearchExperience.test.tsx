@@ -112,6 +112,35 @@ describe("FitSearchExperience", () => {
     expect(screen.getAllByRole("button", { name: "Comparing" })).toHaveLength(2);
   });
 
+  it("hands a compared product directly to the placement boundary", async () => {
+    const user = userEvent.setup();
+    const onSelectProduct = vi.fn();
+    render(
+      <FitSearchExperience
+        measurement={DEMO_SPACE_MEASUREMENT}
+        products={FURNITURE_CATALOG}
+        onSelectProduct={onSelectProduct}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Top IKEA \+ Target/ }),
+    );
+    const comparison = screen.getByRole("region", {
+      name: "Clearance comparison",
+    });
+    await user.click(
+      within(comparison).getAllByRole("button", { name: "View in room" })[0],
+    );
+
+    expect(onSelectProduct).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fit: expect.objectContaining({ fits: true }),
+        access: expect.objectContaining({ passes: true }),
+      }),
+    );
+  });
+
   it("keeps the comparison tray visible after closing the detail view", async () => {
     const user = userEvent.setup();
     render(

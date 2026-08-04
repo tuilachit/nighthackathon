@@ -39,6 +39,7 @@ describe("runtime furniture catalog", () => {
             `${model.usdzPath} should exist`,
           ).toBe(true);
         }
+        expect(model.usdzPath, `${product.id} hero should have an iOS USDZ`).toBeDefined();
       }
     }
   });

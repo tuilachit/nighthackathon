@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CubeIcon } from "@/components/ui/Icon";
 import {
   computeScaleFromMeasuredSize,
@@ -18,6 +18,7 @@ export interface ProductQuickLookViewerProps {
 }
 
 type ModelViewerElement = HTMLElement & {
+  readonly canActivateAR?: boolean;
   activateAR?: () => Promise<void> | void;
   getDimensions?: () => { readonly x: number; readonly y: number; readonly z: number };
 };
@@ -30,23 +31,15 @@ type ModelViewerElement = HTMLElement & {
 export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerProps): React.JSX.Element {
   const modelViewerRef = useRef<ModelViewerElement>(null);
   const [modelLoaded, setModelLoaded] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "test") {
-      void import("@google/model-viewer");
-    }
-  }, []);
-
+  const [canActivateAr, setCanActivateAr] = useState(false);
+  const [actionStatus, setActionStatus] = useState("");
   const needsMeasurement = needsRuntimeScaleMeasurement(model);
   const scaleAttribute = needsMeasurement ? undefined : formatScaleAttribute(getPlacementScale(model));
   const trustsIosScale = iosTrueScaleAvailable(model);
 
-  function handleArLaunch(): void {
-    void modelViewerRef.current?.activateAR?.();
-  }
-
-  function handleLoad(): void {
+  const handleLoad = useCallback((): void => {
     setModelLoaded(true);
+    setCanActivateAr(modelViewerRef.current?.canActivateAR === true);
 
     // Generated (Meshy) models have no trustworthy native scale: measure the loaded
     // model's own bounding box and stretch it to the declared real dimensions instead
@@ -60,6 +53,39 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
     const measuredMm = { widthMm: dimensions.x * 1000, depthMm: dimensions.z * 1000, heightMm: dimensions.y * 1000 };
     const scale = computeScaleFromMeasuredSize(model.dimensions, measuredMm);
     element?.setAttribute("scale", formatScaleAttribute(scale));
+  }, [model, needsMeasurement]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "test") {
+      void import("@google/model-viewer").then(() => {
+        window.requestAnimationFrame(() => {
+          setCanActivateAr(modelViewerRef.current?.canActivateAR === true);
+        });
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const element = modelViewerRef.current;
+    element?.addEventListener("load", handleLoad);
+    return () => element?.removeEventListener("load", handleLoad);
+  }, [handleLoad]);
+
+  async function handlePrimaryAction(): Promise<void> {
+    const element = modelViewerRef.current;
+    if (canActivateAr) {
+      await element?.activateAR?.();
+      return;
+    }
+
+    element?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+    element?.focus();
+    try {
+      await element?.requestFullscreen?.();
+    } catch {
+      // Fullscreen is an enhancement; the inline, focusable 3D viewer remains usable.
+    }
+    setActionStatus("Interactive 3D view ready.");
   }
 
   return (
@@ -78,8 +104,8 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
           shadow-intensity="0.8"
           exposure="0.9"
           loading="eager"
+          tabIndex={0}
           class="relative z-10 h-[320px] w-full bg-transparent sm:h-[380px]"
-          onLoad={handleLoad}
         />
         {!modelLoaded ? (
           <div className="fit-data pointer-events-none absolute inset-0 flex items-center justify-center text-[11px] font-medium uppercase tracking-[0.08em] text-[#17221f]/65">
@@ -94,12 +120,15 @@ export function ProductQuickLookViewer({ name, model }: ProductQuickLookViewerPr
         </p>
         <button
           type="button"
-          onClick={handleArLaunch}
+          onClick={() => void handlePrimaryAction()}
           className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-sm bg-[#17221f] px-4 py-3 text-sm font-bold text-white hover:bg-[#26332f]"
         >
           <CubeIcon size={14} color="#fff" />
-          View in AR
+          {modelLoaded && canActivateAr ? "View in your room" : "View in 3D"}
         </button>
+        <p className="sr-only" aria-live="polite">
+          {actionStatus}
+        </p>
       </div>
     </div>
   );

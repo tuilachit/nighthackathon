@@ -39,6 +39,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-20522046.glb",
+      "usdzPath": "/models/usdz/ikea-20522046.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 800,
@@ -85,6 +86,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-40594928.glb",
+      "usdzPath": "/models/usdz/ikea-40594928.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 400,
@@ -133,6 +135,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-90522043.glb",
+      "usdzPath": "/models/usdz/ikea-90522043.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 800,
@@ -185,6 +188,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-60413502.glb",
+      "usdzPath": "/models/usdz/ikea-60413502.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 899,
@@ -233,6 +237,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-40301223.glb",
+      "usdzPath": "/models/usdz/ikea-40301223.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 600,
@@ -281,6 +286,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-89581514.glb",
+      "usdzPath": "/models/usdz/ikea-89581514.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 1600,
@@ -333,6 +339,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-59638673.glb",
+      "usdzPath": "/models/usdz/ikea-59638673.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 800,
@@ -384,6 +391,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-09483367.glb",
+      "usdzPath": "/models/usdz/ikea-09483367.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 800,
@@ -433,6 +441,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-19581517.glb",
+      "usdzPath": "/models/usdz/ikea-19581517.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 2400,
@@ -482,6 +491,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-20436713.glb",
+      "usdzPath": "/models/usdz/ikea-20436713.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 498,
@@ -530,6 +540,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-10522037.glb",
+      "usdzPath": "/models/usdz/ikea-10522037.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 400,
@@ -584,6 +595,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-20323805.glb",
+      "usdzPath": "/models/usdz/ikea-20323805.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 800,
@@ -632,6 +644,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-70261131.glb",
+      "usdzPath": "/models/usdz/ikea-70261131.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 600,
@@ -687,6 +700,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-09581891.glb",
+      "usdzPath": "/models/usdz/ikea-09581891.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 400,
@@ -935,6 +949,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-40178591.glb",
+      "usdzPath": "/models/usdz/ikea-40178591.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 619,
@@ -1114,6 +1129,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-ikea-50481172.glb",
+      "usdzPath": "/models/usdz/ikea-50481172.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 600,
@@ -1909,6 +1925,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-target-93209258.glb",
+      "usdzPath": "/models/usdz/target-93209258.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 610,
@@ -2223,6 +2240,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-target-83817772.glb",
+      "usdzPath": "/models/usdz/target-83817772.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 292,
@@ -2274,6 +2292,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-target-54358443.glb",
+      "usdzPath": "/models/usdz/target-54358443.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 622,
@@ -2389,6 +2408,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-target-1010820888.glb",
+      "usdzPath": "/models/usdz/target-1010820888.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 254,
@@ -2453,6 +2473,7 @@
     },
     "model": {
       "glbPath": "/models/glb/meshy-target-1001317520.glb",
+      "usdzPath": "/models/usdz/target-1001317520.usdz",
       "scaleVerified": true,
       "nativeDimensionsMm": {
         "widthMm": 660,

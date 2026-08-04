@@ -11,6 +11,7 @@ interface ComparisonPanelProps {
   readonly measurement: SpaceMeasurement;
   readonly onClose: () => void;
   readonly onRemove: (productId: string) => void;
+  readonly onView: (entry: EvaluatedProduct) => void;
   readonly onShare: () => Promise<boolean>;
 }
 
@@ -19,6 +20,7 @@ export function ComparisonPanel({
   measurement,
   onClose,
   onRemove,
+  onView,
   onShare,
 }: ComparisonPanelProps): React.JSX.Element | null {
   const [shareStatus, setShareStatus] = useState<
@@ -123,13 +125,22 @@ export function ComparisonPanel({
                 mm min
               </span>
             </p>
-            <button
-              type="button"
-              onClick={() => onRemove(entry.product.id)}
-              className="mt-4 min-h-11 text-xs font-bold text-[#17221f] underline decoration-[#17221f]/40 underline-offset-4"
-            >
-              Remove
-            </button>
+            <div className="mt-3 grid gap-2">
+              <button
+                type="button"
+                onClick={() => onView(entry)}
+                className="min-h-11 rounded-sm bg-[#17221f] px-2 text-[11px] font-bold text-white hover:bg-[#26332f]"
+              >
+                View in room
+              </button>
+              <button
+                type="button"
+                onClick={() => onRemove(entry.product.id)}
+                className="min-h-11 text-xs font-bold text-[#17221f] underline decoration-[#17221f]/40 underline-offset-4"
+              >
+                Remove
+              </button>
+            </div>
           </article>
         ))}
       </div>
