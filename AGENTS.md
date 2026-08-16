@@ -113,6 +113,17 @@ to the repository.
 - Full doorway/delivery-path geometry or fit guarantees.
 - Supporting every furniture category or retailer.
 
+### Post-hackathon live-search exception
+
+The owner later approved an isolated Australian live-search lane at `/agent`.
+For that lane only, runtime Browser Use discovery, Supabase guest Auth and
+workflow persistence, durable PGMQ jobs, and approval-gated Meshy generation are
+in scope. IKEA Australia and Kmart Australia are the only initial retailers.
+The bundled `/fit` catalog remains the deterministic fallback, and none of this
+exception permits changes to the existing fit, access, parser, ranking, or XR
+internals. See `docs/live-search-backend.md` for the binding security and state
+boundaries.
+
 When time is tight, cut breadth, animation, and AI sophistication before cutting
 measurement, fit correctness, comparison, or demo reliability.
 

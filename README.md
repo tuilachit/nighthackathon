@@ -24,7 +24,7 @@ flowchart LR
     Access["Access-opening predicate"]
     Rank["Preference ranking"]
     Compare["Cross-retailer comparison"]
-    AR["True-scale AR placement"]
+    AR["Outer-dimension 3D / AR placement"]
 
     Measure --> Fit
     Intent --> Parse --> Rank
@@ -43,7 +43,7 @@ flowchart LR
   subgraph Assets["Offline 3D asset pipeline"]
     Photos["Verified retailer photos"]
     Meshy["Meshy image-to-3D"]
-    Scale["Rescale and verify bounds"]
+    Scale["Rescale and check outer bounds"]
     Models["Cached GLB / USDZ assets"]
 
     Photos --> Meshy --> Scale --> Models
@@ -58,6 +58,17 @@ flowchart LR
 Retailer fetching and model generation are kept off the search request path.
 The deployed app reads a validated catalog snapshot and cached hero assets, so
 fit and comparison remain deterministic when external APIs are unavailable.
+
+The post-hackathon `/agent` lane adds an asynchronous Australian search path
+without weakening that fallback: Turnstile-protected guest commands are
+committed with a durable Supabase queue message, Browser Use returns
+schema-constrained IKEA AU and Kmart AU observations, the same pure fit/access
+predicates run server-side, and Meshy starts only after explicit user approval.
+Provider notifications trigger canonical task re-fetches, and generated GLBs
+are published only after their outer bounds match the approved listed
+dimensions. See
+[`docs/live-search-backend.md`](docs/live-search-backend.md) for the state,
+security, and recovery design.
 
 ### Catalog provenance
 
@@ -113,13 +124,14 @@ Ranking then considers category, budget, preference matches, fit confidence,
 minimum clearance, price, and stable ID. Up to three products can be compared
 across retailers using the same dimensions and clearance metrics.
 
-### 5. The selected product is placed at verified scale
+### 5. The selected product is placed at checked outer dimensions
 
 Hero product photos are converted to GLBs through Meshy outside the critical
-search path. Each mesh is rescaled to the catalog record's verified
-width/height/depth and its scene bounds are checked before the asset path is
-attached. Products without a cached mesh use a unit box scaled to the same
-verified dimensions rather than an invented model size.
+search path. Each AI-generated mesh is rescaled to the catalog record's listed
+width/height/depth and its outer scene bounds are checked before the asset path
+is attached. This validates bounding-box scale, not the inferred geometry or
+internal proportions. Products without a cached mesh use a unit box scaled to
+the same dimensions rather than an invented model size.
 
 ## Catalog ingestion
 
@@ -195,6 +207,12 @@ Relevant environment variables:
 | `ANTHROPIC_API_KEY` | Strict structured extraction for missing retailer facts |
 | `NOTION_TOKEN` | Optional legacy waitlist integration |
 
+The isolated `/agent` backend additionally requires a Sydney Supabase project,
+Turnstile, Browser Use, Meshy, and random webhook/reconciler secrets. The full
+variable list, durable scheduler setup, and security boundaries are documented
+in [`docs/live-search-backend.md`](docs/live-search-backend.md). It is disabled
+unless every required value is present; `/fit` remains available without them.
+
 Never commit `.env.local` or generated credential files.
 
 ## Verification
@@ -222,6 +240,12 @@ to `main` and every pull request.
   fixed-scale iPhone Quick Look requires a verified USDZ asset.
 - Only selected hero products have shape-accurate cached meshes. Other products
   use dimensionally accurate boxes.
+- Live `/agent` dimensions are agent-extracted from axis-labelled retailer
+  evidence and checked for internal numeric consistency. They are not an
+  independent physical measurement; users should confirm the retailer page
+  before purchase.
+- Meshy output is AI-generated. The live pipeline verifies only its outer
+  bounding-box dimensions, not shape fidelity or moving/internal parts.
 - Retailer adapters collect public factual product data for a prototype.
   Commercial use requires authorized feeds and a review of retailer terms.
 - Optional AI enrichment and offline ingestion/asset tools require network
@@ -232,5 +256,5 @@ to `main` and every pull request.
 
 The generic concept-to-3D prototype routes predate Night Hack. The fit-first
 catalog validation, conservative fit/access predicates, cross-retailer
-comparison, verified model scaling, and furniture workflow were the hackathon
+comparison, dimension-checked model scaling, and furniture workflow were the hackathon
 submission. Baseline tags remain in Git for provenance.
