@@ -5,8 +5,13 @@ create extension if not exists pg_cron with schema pg_catalog;
 create extension if not exists pg_net;
 create extension if not exists supabase_vault;
 
--- pg_cron and pg_net expose privileged capabilities. Only the database owner
--- needs them; browser and server application roles must not call them directly.
+-- On local/self-hosted databases where the migration principal owns these
+-- extension objects, the following REVOKEs keep application roles away from
+-- privileged cron and networking primitives. Hosted Supabase owns pg_net as
+-- supabase_admin, so project migrations cannot change its platform-managed
+-- ACLs; the net schema is not exposed through PostgREST there. Fitment's hosted
+-- boundary is therefore the private wrapper invoked only by the postgres-owned
+-- cron job; these ACL statements remain defense in depth where ownership allows.
 revoke all on schema cron from public, anon, authenticated, service_role;
 revoke all on all tables in schema cron from public, anon, authenticated, service_role;
 revoke execute on all functions in schema cron from public, anon, authenticated, service_role;
