@@ -524,10 +524,27 @@ grant usage on schema pgmq to service_role;
 revoke all on all tables in schema pgmq from public, anon, authenticated;
 grant select, insert, update, delete on all tables in schema pgmq to service_role;
 revoke execute on all functions in schema pgmq from public, anon, authenticated;
-grant execute on function pgmq.send(text, jsonb, integer) to service_role;
-grant execute on function pgmq.read(text, integer, integer) to service_role;
-grant execute on function pgmq.archive(text, bigint) to service_role;
-grant execute on function pgmq.delete(text, bigint) to service_role;
+-- PGMQ minor releases may add optional parameters or overloads. Grant only
+-- the four queue primitives Fitment wraps, resolving their installed
+-- signatures from the catalog rather than pinning a version-specific shape.
+do $$
+declare
+  v_function regprocedure;
+begin
+  for v_function in
+    select p.oid::regprocedure
+    from pg_catalog.pg_proc as p
+    join pg_catalog.pg_namespace as n on n.oid = p.pronamespace
+    where n.nspname = 'pgmq'
+      and p.proname in ('send', 'read', 'archive', 'delete')
+  loop
+    execute pg_catalog.format(
+      'grant execute on function %s to service_role',
+      v_function
+    );
+  end loop;
+end;
+$$;
 grant usage, select on all sequences in schema pgmq to service_role;
 
 create policy spaces_select_own on public.spaces for select to authenticated
