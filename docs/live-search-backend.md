@@ -1,8 +1,11 @@
 # Live-search backend
 
-Fitment's live-search lane is an isolated, asynchronous workflow for Australian
-retailers. It does not replace the bundled catalog used by `/fit`, and it does
-not change the pure destination-fit or access-fit predicates.
+Fitment's canonical `/fit` journey is an asynchronous decision workflow for
+Australian furniture. Prompt searches are bounded to IKEA Australia and Kmart
+Australia; exact-link checks may inspect one safe public retailer page. The
+legacy US catalog remains isolated behind explicit demo compatibility and never
+mixes with live observations. Both paths use the same pure destination-fit and
+access predicates.
 
 ## Architecture
 
@@ -11,15 +14,18 @@ flowchart LR
   Phone["Browser\nSupabase guest session"]
   BFF["Next.js BFF\nVercel Sydney"]
   DB["Supabase Postgres\nSydney + RLS"]
+  Cache["Exact discovery cache\n24-hour TTL"]
   Q["Supabase Queues\nPGMQ"]
   Browser["Browser Use\nAU residential proxy"]
   Meshy["Meshy\nimage to 3D"]
   Scheduler["Supabase Cron + Vault\nevery-minute recovery"]
-  Store["Supabase Storage\ncontent-addressed GLB"]
+  Store["Supabase Storage\ncontent-addressed images + GLB"]
+  Share["Hashed public snapshots\n30-day TTL"]
 
   Phone -->|"commands + Idempotency-Key"| BFF
   BFF -->|"verified JWT; service RPC"| DB
   DB --> Q
+  DB --> Cache
   Scheduler -->|"Bearer-authenticated HTTPS"| BFF
   Q -->|"reconciler"| BFF
   BFF -->|"bounded structured task"| Browser
@@ -32,6 +38,7 @@ flowchart LR
   BFF -->|"canonical task re-fetch"| Meshy
   BFF -->|"download, rescale, check bounds"| Store
   Store --> Phone
+  Phone -->|"explicit share"| Share
   DB -->|"owner-scoped reads"| Phone
 ```
 
@@ -41,6 +48,11 @@ is the durable retry authority. A private Supabase Cron job reads its HTTPS URL
 and bearer token from Vault and invokes the reconciler every minute. Each call
 does at most one network-expensive operation and alternates queue work with
 provider polling so neither path can starve.
+
+An exact cache key includes normalized intent, sorted retailer scope, and the
+extraction-schema version. A hit no older than 24 hours creates no Browser Use
+task; stored dimensions are re-evaluated against the current measurement.
+`force-refresh` deliberately bypasses that reuse path.
 
 ## Workflow
 
@@ -65,23 +77,31 @@ stateDiagram-v2
 1. `POST /api/v1/session` creates or reuses a Supabase anonymous Auth session.
    Creating a new guest requires Cloudflare Turnstile; an existing signed-in
    guest is reused without another challenge.
-2. `POST /api/v1/search-jobs` validates the measurement and retailer scope,
-   requires an idempotency key, and commits the workflow plus its PGMQ message.
+2. `POST /api/v1/search-jobs` accepts a prompt or exact product-link intent,
+   validates the measurement and cache policy, requires an idempotency key, and
+   either completes from an exact recent observation or commits a PGMQ message.
 3. Browser Use receives one stateless task, an Australian proxy, a strict JSON
    output schema, a hard result limit, and a hard USD cost ceiling. It may read
-   only IKEA Australia and Kmart Australia product pages.
+   only IKEA Australia and Kmart Australia product pages for prompts. A link
+   task may visit only the submitted product page and a same-site canonical
+   redirect; returned facts must remain on its registrable domain.
 4. A signed Browser Use webhook is stored idempotently. The BFF re-fetches the
    canonical provider task; webhook data never becomes product data directly.
-5. Records missing an exact assembled width, height, or depth, an allowlisted
-   retailer URL and image host, an explicit axis-labelled evidence excerpt,
-   AUD price, or provider-declared high confidence are rejected. The server
+5. Records missing an exact assembled width, height, or depth, a safe retailer
+   URL, an explicit axis-labelled evidence excerpt, a valid ISO-4217 listed
+   currency, or high-confidence extraction are rejected. The server
    checks that evidence numbers agree with the structured dimensions. This is
    an agent-extraction consistency gate, not an independent measurement of the
-   physical product. Accepted observations are immutable.
-6. The existing pure fit and access predicates partition products into fits,
-   access issues, and near misses. Only fits can be approved.
-7. Approval freezes the product snapshot and enqueues Meshy generation. No 3D
-   task is created before this user decision.
+   physical product. Images are fetched with pinned public DNS, redirect and
+   byte limits, magic-byte/MIME checks, then cached under a content hash.
+6. The pure destination predicate and package-aware access wrapper partition
+   products into fits, access issues, and near misses. Listed packages control
+   when complete; otherwise assembled dimensions are explicitly advisory.
+   Only destination fits without a known access failure can be approved.
+7. Approval freezes the product snapshot. An existing GLB is reused only when
+   snapshot hash, source-image hash, dimensions, Meshy settings, and processing
+   version match exactly. A miss enqueues generation only while the private
+   model circuit breaker is deliberately enabled.
 8. Meshy webhooks are treated as untrusted notifications because Meshy does not
    document request signing. The endpoint has a high-entropy URL token and the
    BFF always re-fetches the task with the server-side Meshy key.
@@ -91,6 +111,10 @@ stateDiagram-v2
    listed dimensions within 0.1 mm. This verifies the bounding box, not Meshy's
    inferred shape or internal proportions. The result is stored under a
    content-addressed path.
+10. `POST /api/v1/search-jobs/:id/cancel` terminalizes owner work before a
+    best-effort Browser Use stop request. Ambiguous paid submissions are never
+    blindly resubmitted. Public comparisons store only an immutable sanitized
+    snapshot behind a hashed opaque token and expire after 30 days.
 
 ## Data ownership
 
@@ -104,9 +128,14 @@ stateDiagram-v2
   the exact workflow hash and product-snapshot hash used by model generation.
 - Provider payloads have size caps. Authorization, cookies, API keys, and raw
   webhook signature headers are never persisted.
-- Product images are restricted to the exact retailer and retailer-controlled
-  CDN hosts. The public model bucket allows public reads but has no browser
-  write policy; only the server worker owns content-hash paths.
+- Product and image URLs are treated as untrusted. Exact-link hosts are checked
+  before dispatch; server image fetches pin public DNS on every redirect and
+  validate MIME and magic bytes. Public image/model buckets allow reads but no
+  browser writes; only the service worker owns content-hash paths.
+- Share rows, discovery cache, reusable-model metadata, raw product events, and
+  daily aggregates live in the private schema. Share tokens are stored only as
+  SHA-256 hashes. Raw events expire after 30 days and never include raw queries,
+  measurements, room names, product/workflow IDs, URLs, tokens, or free text.
 - Paid actions are guarded independently by owner, HMAC-pseudonymized network,
   and global quotas plus database circuit breakers. Raw client IP addresses are
   never stored.
@@ -129,6 +158,8 @@ stateDiagram-v2
   a 20-minute deadline.
 - Workflows expire after 24 hours. Partial retailer coverage is stored and shown
   instead of silently presenting an incomplete comparison as complete.
+- Active job identity is persisted in the URL and session storage. Realtime is
+  a latency optimization; owner-scoped polling remains the recovery path.
 
 ## Provider configuration
 
@@ -171,6 +202,11 @@ select vault.create_secret(
 );
 ```
 
+On hosted projects, prefer **Supabase Dashboard → Database → Vault → New
+secret** for these two entries. The hosted automation/Postgres role may not be
+allowed to call `vault.create_secret()` directly; the Dashboard Vault UI uses
+the platform-owned path without putting either value in a migration.
+
 ## Operational checks
 
 Before enabling live traffic:
@@ -184,8 +220,8 @@ Before enabling live traffic:
 4. Test owner isolation with two guest users and test idempotent concurrent
    search, approval, and duplicate-webhook requests.
 5. Send each provider's webhook test event and confirm the inbox is processed.
-6. Run one IKEA-only and one Kmart-only task under the configured cost ceiling.
-7. Approve one fit, check the stored GLB bounding box, and verify a non-owner
+6. With explicit provider-budget approval, run one bounded live-search smoke.
+7. With separate Meshy-credit approval, approve one fit, check the stored GLB bounding box, and verify a non-owner
    cannot read the workflow or asset record.
 8. Alert on terminal failures, reconciliation backlog, provider spend, and
    workflows that remain non-terminal beyond their expiry window.
@@ -194,3 +230,11 @@ Expected user-perceived time is provider-dependent: retailer browsing is
 normally tens of seconds; Meshy generation happens only after approval and can
 take several minutes. The UI exposes those as separate durable stages and never
 holds an HTTP request open for either operation.
+
+The unified migration leaves `model_generation_enabled = false`. Cache hits may
+reuse an already verified asset while the circuit is closed, but no new paid
+Meshy task can be created until an operator explicitly changes that control.
+
+The matching Turnstile secret belongs in Supabase Dashboard → Authentication →
+Attack Protection → CAPTCHA. It is deliberately not a Vercel application
+environment variable because Supabase Auth performs token verification.

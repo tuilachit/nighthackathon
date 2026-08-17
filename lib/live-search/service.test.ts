@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  cacheRetailerImage: vi.fn(),
   claimModelDispatch: vi.fn(),
   claimSearchDispatch: vi.fn(),
   completeModelAsset: vi.fn(),
@@ -17,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   getPublicUrl: vi.fn(),
   markWebhookProcessed: vi.fn(),
   recordBrowserSubmission: vi.fn(),
+  recordCachedSearchResults: vi.fn(),
+  recordDiscoveryCache: vi.fn(),
   recordMeshySubmission: vi.fn(),
   recordSearchResults: vi.fn(),
   rescaleGlbToDimensions: vi.fn(),
@@ -38,6 +41,10 @@ vi.mock("./model-processing/glb", () => ({
   rescaleGlbToDimensions: mocks.rescaleGlbToDimensions,
 }));
 
+vi.mock("./image-cache", () => ({
+  cacheRetailerImage: mocks.cacheRetailerImage,
+}));
+
 vi.mock("./repository", () => ({
   claimModelDispatch: mocks.claimModelDispatch,
   claimSearchDispatch: mocks.claimSearchDispatch,
@@ -47,6 +54,8 @@ vi.mock("./repository", () => ({
   getWorkflowCommand: mocks.getWorkflowCommand,
   markWebhookProcessed: mocks.markWebhookProcessed,
   recordBrowserSubmission: mocks.recordBrowserSubmission,
+  recordCachedSearchResults: mocks.recordCachedSearchResults,
+  recordDiscoveryCache: mocks.recordDiscoveryCache,
   recordMeshySubmission: mocks.recordMeshySubmission,
   recordSearchResults: mocks.recordSearchResults,
 }));
@@ -71,6 +80,7 @@ vi.mock("./providers/meshy", async (importOriginal) => {
 
 import { ProviderRequestError } from "./providers/browser-use";
 import {
+  completeCachedSearchWorkflow,
   dispatchModelWorkflow,
   dispatchSearchWorkflow,
   reconcileBrowserUseTask,
@@ -99,7 +109,9 @@ function rawObservation(
 ): Record<string, unknown> {
   const ikea = retailer === "ikea-au";
   return {
-    retailer,
+    retailer: ikea
+      ? { key: "ikea-au", label: "IKEA Australia", host: "ikea.com" }
+      : { key: "kmart-au", label: "Kmart Australia", host: "kmart.com.au" },
     retailerProductId: ikea ? "ikea-001" : "kmart-001",
     name: ikea ? "BILLY bookcase" : "Oak-look bookcase",
     category: "bookcase",
@@ -113,7 +125,7 @@ function rawObservation(
     currency: "AUD",
     availability: "in_stock",
     assembledDimensions: DIMENSIONS,
-    packageDimensions: null,
+    packages: [],
     dimensionsSource: "retailer-page",
     dimensionsEvidence: "Width: 70 cm; Height: 160 cm; Depth: 28 cm",
     confidence: "high",
@@ -137,7 +149,11 @@ const EVALUATED_CANDIDATES = [{
     confidence: "high" as const,
     reasons: [],
   },
-  access: { status: "skipped" as const, passes: true as const },
+  access: {
+    status: "skipped" as const,
+    passes: true as const,
+    basis: "unknown" as const,
+  },
   rank: 0,
   snapshotHash: "b".repeat(64),
 }];
@@ -167,8 +183,15 @@ function browserCommand(retailers: readonly ("ikea-au" | "kmart-au")[] = ["ikea-
   return {
     id: WORKFLOW_ID,
     queryText: "narrow oak bookcase",
+    intent: {
+      kind: "prompt" as const,
+      text: "narrow oak bookcase",
+      retailers,
+    },
     measurement: MEASUREMENT,
     retailers,
+    cachePolicy: "prefer-recent" as const,
+    cacheKey: "c".repeat(64),
     requestHash: REQUEST_HASH,
   } as const;
 }
@@ -202,8 +225,12 @@ function successfulMeshyTask(overrides: Readonly<Record<string, unknown>> = {}) 
 describe("live-search service orchestration", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://test-project.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
     mocks.failWorkflowStage.mockResolvedValue(undefined);
     mocks.recordBrowserSubmission.mockResolvedValue(undefined);
+    mocks.recordCachedSearchResults.mockResolvedValue(1);
+    mocks.recordDiscoveryCache.mockResolvedValue(undefined);
     mocks.recordMeshySubmission.mockResolvedValue(undefined);
     mocks.recordSearchResults.mockResolvedValue(1);
     mocks.completeModelAsset.mockResolvedValue("44444444-4444-4444-8444-444444444444");
@@ -213,6 +240,11 @@ describe("live-search service orchestration", () => {
     );
     mocks.getWorkflowCommand.mockResolvedValue(browserCommand());
     mocks.evaluateLiveProducts.mockReturnValue(EVALUATED_CANDIDATES);
+    mocks.cacheRetailerImage.mockImplementation(async (url: string) => ({
+      publicUrl: `https://test-project.supabase.co/storage/v1/object/public/product-images-public/${"d".repeat(64)}.jpg`,
+      sha256: "d".repeat(64),
+      sourceUrl: url,
+    }));
     mocks.upload.mockResolvedValue({ error: null });
     mocks.download.mockResolvedValue({ data: null, error: null });
     mocks.getPublicUrl.mockReturnValue({
@@ -230,6 +262,7 @@ describe("live-search service orchestration", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -266,8 +299,14 @@ describe("live-search service orchestration", () => {
       expect(mocks.evaluateLiveProducts).toHaveBeenCalledWith(
         expect.objectContaining({
           products: expect.arrayContaining([
-            expect.objectContaining({ retailer: "ikea-au", confidence: "high" }),
-            expect.objectContaining({ retailer: "kmart-au", confidence: "high" }),
+            expect.objectContaining({
+              retailer: expect.objectContaining({ key: "ikea-au" }),
+              confidence: "high",
+            }),
+            expect.objectContaining({
+              retailer: expect.objectContaining({ key: "kmart-au" }),
+              confidence: "high",
+            }),
           ]),
           partial: false,
           notes: [],
@@ -283,6 +322,11 @@ describe("live-search service orchestration", () => {
         { totalCostUsd: 0.12, stepCount: 7, notes: [] },
       );
       expect(mocks.failWorkflowStage).not.toHaveBeenCalled();
+      expect(mocks.recordDiscoveryCache).toHaveBeenCalledWith(
+        "c".repeat(64),
+        expect.any(Number),
+        expect.objectContaining({ partial: false }),
+      );
     });
 
     it("persists explicit partial coverage notes unchanged", async () => {
@@ -408,6 +452,58 @@ describe("live-search service orchestration", () => {
         errorMessage: "Retailer blocked the final page.",
         retryable: false,
       });
+    });
+
+    it("re-evaluates an exact cached observation against the current workflow measurement", async () => {
+      const currentMeasurement = {
+        ...MEASUREMENT,
+        widthMm: 760,
+        accessWidthMm: 710,
+      };
+      const observedAt = new Date().toISOString();
+      const sourceImageHash = "d".repeat(64);
+      const cachedImageUrl = `https://test-project.supabase.co/storage/v1/object/public/product-images-public/${sourceImageHash}.jpg`;
+      const cachedOutput = {
+        products: [
+          rawObservation("ikea-au", { observedAt, cachedImageUrl, sourceImageHash }),
+          rawObservation("kmart-au", { observedAt, cachedImageUrl, sourceImageHash }),
+        ],
+        partial: false,
+        notes: [],
+      };
+      mocks.getWorkflowCommand.mockResolvedValue({
+        ...browserCommand(),
+        measurement: currentMeasurement,
+      });
+
+      await expect(
+        completeCachedSearchWorkflow(WORKFLOW_ID, cachedOutput),
+      ).resolves.toEqual({
+        state: "ready_for_approval",
+        checkedAt: observedAt,
+      });
+
+      expect(mocks.evaluateLiveProducts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          products: expect.arrayContaining([
+            expect.objectContaining({ retailer: expect.objectContaining({ key: "ikea-au" }) }),
+            expect.objectContaining({ retailer: expect.objectContaining({ key: "kmart-au" }) }),
+          ]),
+        }),
+        currentMeasurement,
+      );
+      expect(mocks.recordCachedSearchResults).toHaveBeenCalledWith(
+        WORKFLOW_ID,
+        EVALUATED_CANDIDATES,
+        false,
+        [],
+        {
+          cacheKey: "c".repeat(64),
+          extractionSchemaVersion: expect.any(Number),
+        },
+      );
+      expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
+      expect(mocks.cacheRetailerImage).not.toHaveBeenCalled();
     });
   });
 
@@ -622,6 +718,32 @@ describe("live-search service orchestration", () => {
       expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
       expect(mocks.recordBrowserSubmission).not.toHaveBeenCalled();
       expect(mocks.failWorkflowStage).not.toHaveBeenCalled();
+    });
+
+    it("preserves an exact product-link intent when submitting Browser Use", async () => {
+      const intent = {
+        kind: "product-link" as const,
+        url: "https://furniture.example/products/oak-shelf",
+      };
+      mocks.claimSearchDispatch.mockResolvedValue({
+        providerTaskId: PROVIDER_TASK_ID,
+        shouldSubmit: true,
+      });
+      mocks.getWorkflowCommand.mockResolvedValue({
+        ...browserCommand([]),
+        queryText: intent.url,
+        intent,
+        retailers: [],
+      });
+      mocks.createBrowserSearchSession.mockResolvedValue({
+        id: BROWSER_SESSION_ID,
+        status: "created",
+      });
+
+      await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
+
+      expect(mocks.createBrowserSearchSession).toHaveBeenCalledWith(intent, MEASUREMENT);
+      expect(mocks.recordBrowserSubmission).toHaveBeenCalledOnce();
     });
 
     it("classifies an ambiguous Browser Use POST failure as non-retryable", async () => {

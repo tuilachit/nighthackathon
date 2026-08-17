@@ -6,9 +6,12 @@ import {
   MANUAL_BASE_UNCERTAINTY_MM,
   manualSpaceMeasurement,
 } from "@/lib/measurement-geometry";
+import { captureProductEvent } from "@/lib/product-events-client";
 
 interface ManualMeasurementFormProps {
   readonly demoMeasurement: SpaceMeasurement;
+  readonly initialMeasurement?: SpaceMeasurement;
+  readonly initialName?: string;
   readonly onConfirm: (measurement: SpaceMeasurement, name?: string) => void;
 }
 
@@ -24,6 +27,7 @@ interface MeasurementStep {
   readonly label: string;
   readonly prompt: string;
   readonly help: string;
+  readonly optional?: boolean;
 }
 
 const MEASUREMENT_STEPS: readonly MeasurementStep[] = [
@@ -49,7 +53,8 @@ const MEASUREMENT_STEPS: readonly MeasurementStep[] = [
     field: "accessWidthMm",
     label: "Narrowest access opening",
     prompt: "What is the narrowest opening on the delivery path?",
-    help: "Check doorways, stair turns and lifts between the entrance and this space.",
+    help: "Check doorways, stair turns and lifts between the entrance and this space. If you do not know it yet, leave it unassessed.",
+    optional: true,
   },
 ] as const;
 
@@ -62,17 +67,22 @@ const MAX_MEASUREMENT_MM = 10_000;
  */
 export function ManualMeasurementForm({
   demoMeasurement,
+  initialMeasurement,
+  initialName,
   onConfirm,
 }: ManualMeasurementFormProps): React.JSX.Element {
   const [unit, setUnit] = useState<MeasurementUnit>("mm");
   const [stepIndex, setStepIndex] = useState(0);
   const [completedValues, setCompletedValues] = useState<
     Partial<Record<MeasurementField, number>>
-  >({});
-  const [draft, setDraft] = useState("");
-  const [spaceName, setSpaceName] = useState("My space");
+  >(() => measurementValues(initialMeasurement));
+  const [draft, setDraft] = useState(() =>
+    initialMeasurement === undefined ? "" : String(initialMeasurement.widthMm),
+  );
+  const [spaceName, setSpaceName] = useState(initialName ?? "My space");
   const [error, setError] = useState<string | undefined>(undefined);
   const measurementInputRef = useRef<HTMLInputElement>(null);
+  const measurementStartedAt = useRef(Date.now());
   const step = MEASUREMENT_STEPS[stepIndex];
 
   useEffect(() => {
@@ -125,16 +135,23 @@ export function ManualMeasurementForm({
       return;
     }
 
-    const widthMm = nextValues.widthMm;
-    const heightMm = nextValues.heightMm;
-    const depthMm = nextValues.depthMm;
-    const accessWidthMm = nextValues.accessWidthMm;
-    if (
-      widthMm === undefined ||
-      heightMm === undefined ||
-      depthMm === undefined ||
-      accessWidthMm === undefined
-    ) {
+    confirmMeasurement(nextValues);
+  }
+
+  function skipAccessMeasurement(): void {
+    if (step.field !== "accessWidthMm") {
+      return;
+    }
+    confirmMeasurement(completedValues);
+  }
+
+  function confirmMeasurement(
+    values: Partial<Record<MeasurementField, number>>,
+  ): void {
+    const widthMm = values.widthMm;
+    const heightMm = values.heightMm;
+    const depthMm = values.depthMm;
+    if (widthMm === undefined || heightMm === undefined || depthMm === undefined) {
       return;
     }
 
@@ -142,7 +159,26 @@ export function ManualMeasurementForm({
       { widthMm, heightMm, depthMm },
       MANUAL_BASE_UNCERTAINTY_MM,
     );
-    onConfirm({ ...measurement, accessWidthMm }, spaceName);
+    const confirmed = values.accessWidthMm === undefined
+      ? measurement
+      : { ...measurement, accessWidthMm: values.accessWidthMm };
+    captureProductEvent("measurement_completed", {
+      source: "manual",
+      unit,
+      access_provided: values.accessWidthMm !== undefined,
+      duration_bucket: measurementDurationBucket(measurementStartedAt.current),
+    });
+    onConfirm(confirmed, spaceName);
+  }
+
+  function useDemoMeasurement(): void {
+    captureProductEvent("measurement_completed", {
+      source: "demo",
+      unit,
+      access_provided: demoMeasurement.accessWidthMm !== undefined,
+      duration_bucket: measurementDurationBucket(measurementStartedAt.current),
+    });
+    onConfirm(demoMeasurement);
   }
 
   return (
@@ -154,7 +190,9 @@ export function ManualMeasurementForm({
         id="manual-measurement-title"
         className="fit-display text-[34px] font-bold leading-[1.02] tracking-[-0.04em]"
       >
-        Measure the space furniture has to fit.
+        {initialMeasurement === undefined
+          ? "Measure the space furniture has to fit."
+          : "Update this saved space."}
       </h1>
       <p className="mt-3 max-w-md text-sm leading-6 text-[#17221f]/75">
         Four tape measurements turn the catalog into furniture sized for your
@@ -164,7 +202,7 @@ export function ManualMeasurementForm({
       <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 border-l-2 border-[#17221f]/25 pl-3">
         <button
           type="button"
-          onClick={() => onConfirm(demoMeasurement)}
+          onClick={useDemoMeasurement}
           className="min-h-11 rounded-sm border border-[#17221f]/35 bg-[#f4f7f5] px-4 text-sm font-bold hover:border-[#17221f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17221f]"
         >
           Try a demo space
@@ -241,7 +279,7 @@ export function ManualMeasurementForm({
       <form onSubmit={handleSubmit} className="mt-6">
         <label htmlFor="measurement-value" className="block">
           <span className="fit-display block text-xl font-bold tracking-[-0.02em]">
-            {step.prompt}
+            {step.prompt}{step.optional ? " (optional)" : ""}
           </span>
           <span className="mt-2 block text-xs leading-5 text-[#17221f]/68">
             {step.help}
@@ -300,10 +338,21 @@ export function ManualMeasurementForm({
             className="min-h-12 flex-1 rounded-sm bg-[#17221f] px-5 text-sm font-bold text-white hover:bg-[#26332f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17221f]"
           >
             {stepIndex === MEASUREMENT_STEPS.length - 1
-              ? "Find furniture that fits"
+              ? initialMeasurement === undefined
+                ? "Find furniture that fits"
+                : "Update saved space"
               : "Continue"}
           </button>
         </div>
+        {step.optional ? (
+          <button
+            type="button"
+            onClick={skipAccessMeasurement}
+            className="mt-3 min-h-11 w-full text-sm font-bold text-[#17221f] underline decoration-[#17221f]/35 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17221f]"
+          >
+            I don&apos;t know — check the room only
+          </button>
+        ) : null}
       </form>
 
       <dl className="mt-6 grid grid-cols-3 gap-2 border-t border-[#17221f]/20 pt-4">
@@ -337,6 +386,20 @@ function parseMeasurement(value: string, unit: MeasurementUnit): number | undefi
   return Math.round(unit === "cm" ? parsed * 10 : parsed);
 }
 
+function measurementValues(
+  measurement?: SpaceMeasurement,
+): Partial<Record<MeasurementField, number>> {
+  if (measurement === undefined) return {};
+  return {
+    widthMm: measurement.widthMm,
+    heightMm: measurement.heightMm,
+    depthMm: measurement.depthMm,
+    ...(measurement.accessWidthMm === undefined
+      ? {}
+      : { accessWidthMm: measurement.accessWidthMm }),
+  };
+}
+
 function validateMeasurement(
   measurementMm: number | undefined,
   label: string,
@@ -362,4 +425,11 @@ function formatForUnit(
     return String(Math.round(millimetres));
   }
   return String(Number((millimetres / 10).toFixed(1)));
+}
+
+function measurementDurationBucket(startedAt: number): "under_20s" | "20_60s" | "over_60s" {
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < 20_000) return "under_20s";
+  if (elapsed < 60_000) return "20_60s";
+  return "over_60s";
 }

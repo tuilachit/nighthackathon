@@ -28,5 +28,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: ["/agent/:path*", "/api/v1/session", "/api/v1/search-jobs/:path*"],
+  matcher: [
+    "/agent/:path*",
+    "/api/v1/session",
+    "/api/v1/search-jobs/:path*",
+    "/api/v1/comparison-shares/:path*",
+  ],
 };

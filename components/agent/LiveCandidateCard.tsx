@@ -5,14 +5,13 @@ interface LiveCandidateCardProps {
   readonly candidate: LiveCandidate;
   readonly workflowState: LiveSearchWorkflow["state"];
   readonly approvedCandidateId?: string;
-  readonly approvalPending: boolean;
-  readonly onApprove: (candidateId: string) => void;
+  readonly isCompared: boolean;
+  readonly compareDisabled: boolean;
+  readonly relation?: "linked" | "alternative";
+  readonly onToggleCompare: (candidateId: string) => void;
+  readonly onReview: (candidateId: string) => void;
+  readonly onRetailerOutbound: () => void;
 }
-
-const RETAILER_LABELS = {
-  "ikea-au": "IKEA Australia",
-  "kmart-au": "Kmart Australia",
-} as const;
 
 const SOURCE_LABELS = {
   "retailer-page": "retailer page",
@@ -25,8 +24,12 @@ export function LiveCandidateCard({
   candidate,
   workflowState,
   approvedCandidateId,
-  approvalPending,
-  onApprove,
+  isCompared,
+  compareDisabled,
+  relation,
+  onToggleCompare,
+  onReview,
+  onRetailerOutbound,
 }: LiveCandidateCardProps): React.JSX.Element {
   const { observation, fit, access } = candidate;
   const isFit = candidate.fitStatus === "fits";
@@ -70,18 +73,23 @@ export function LiveCandidateCard({
         />
         <div>
           <div className={styles.badges}>
-            <span className={styles.badge}>{RETAILER_LABELS[observation.retailer]}</span>
-            <span className={`${styles.badge} ${styles.verifiedBadge}`}>
-              Source evidence captured
-            </span>
+            <span className={styles.badge}>{observation.retailer.label}</span>
+            {relation === undefined ? null : (
+              <span className={`${styles.badge} ${styles.verifiedBadge}`}>
+                {relation === "linked" ? "Linked product" : "Alternative"}
+              </span>
+            )}
             <span className={styles.badge}>{availabilityLabel(observation.availability)}</span>
           </div>
           <h3>{observation.name}</h3>
-          <p className={styles.price}>{formatAud(observation.priceMinor)}</p>
+          <p className={styles.price}>{formatMoney(observation.priceMinor, observation.currency)}</p>
           <p className={styles.dimensions}>
             {formatDimensions(observation.assembledDimensions)}
           </p>
           <p className={`${styles.reason} ${reasonClass}`}>{statusReason}</p>
+          {access.status === "skipped" ? (
+            <p className={styles.accessUnchecked}>Access not checked</p>
+          ) : null}
         </div>
       </div>
 
@@ -96,17 +104,30 @@ export function LiveCandidateCard({
       <details className={styles.metadata}>
         <summary>Source and fit details</summary>
         <p>
-          Agent-extracted assembled dimensions from {SOURCE_LABELS[observation.dimensionsSource]},
-          captured {observedDate}. Evidence consistency check: passed.
+          Retailer-listed assembled dimensions captured from {SOURCE_LABELS[observation.dimensionsSource]} on {observedDate}.
+          This is source validation, not an independent physical measurement.
         </p>
         <p>{observation.dimensionsEvidence}</p>
         <p>
           Orientation: {fit.orientation === "rotated-90" ? "rotated 90 degrees" : "default"}.
-          {access.status === "passed" ? ` Access clearance: ${access.clearanceMm} mm.` : ""}
+          {access.status === "passed" && access.basis === "package"
+            ? ` Package access clearance: ${access.clearanceMm} mm.`
+            : access.status === "passed"
+              ? ` Assembled-size access clearance: ${access.clearanceMm} mm; package data was unavailable.`
+              : ""}
         </p>
       </details>
 
       <div className={styles.cardActions}>
+        <button
+          type="button"
+          className={isCompared ? styles.compareButtonActive : styles.compareButton}
+          disabled={compareDisabled && !isCompared}
+          aria-pressed={isCompared}
+          onClick={() => onToggleCompare(candidate.id)}
+        >
+          {isCompared ? "Comparing" : "Compare"}
+        </button>
         {isFit ? (
           isApproved ? (
             <span className={styles.approvedLabel}>Approved for model generation</span>
@@ -116,12 +137,11 @@ export function LiveCandidateCard({
               className={styles.approveButton}
               disabled={
                 workflowState !== "ready_for_approval" ||
-                approvalPending ||
                 anotherCandidateIsApproved
               }
-              onClick={() => onApprove(candidate.id)}
+              onClick={() => onReview(candidate.id)}
             >
-              {approvalPending ? "Submitting approval…" : "Approve and generate 3D"}
+              Review for 3D
             </button>
           )
         ) : null}
@@ -130,6 +150,7 @@ export function LiveCandidateCard({
           target="_blank"
           rel="noopener noreferrer"
           className={styles.retailerLink}
+          onClick={onRetailerOutbound}
         >
           View at retailer ↗
         </a>
@@ -161,10 +182,10 @@ function formatDimensions(dimensions: LiveCandidate["observation"]["assembledDim
   return `${dimensions.widthMm} W × ${dimensions.heightMm} H × ${dimensions.depthMm} D mm`;
 }
 
-function formatAud(priceMinor: number): string {
+function formatMoney(priceMinor: number, currency: string): string {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
-    currency: "AUD",
+    currency,
     minimumFractionDigits: 2,
   }).format(priceMinor / 100);
 }

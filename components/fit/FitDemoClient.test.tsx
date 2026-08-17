@@ -1,9 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FitDemoClient } from "./FitDemoClient";
 import type { CatalogProduct, SpaceMeasurement } from "@/lib/catalog-types";
 import {
   createSavedSpace,
+  loadSavedSpaces,
   SAVED_SPACES_STORAGE_KEY,
 } from "@/lib/saved-spaces";
 import { buildFitShareUrl } from "@/lib/fit-share-state";
@@ -47,11 +48,12 @@ const product: CatalogProduct = {
 describe("FitDemoClient", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.sessionStorage.clear();
     window.history.replaceState(null, "", "/fit");
     vi.restoreAllMocks();
   });
 
-  it("shows the AR viewer inline for a verified product instead of navigating away", () => {
+  it("shows the AR viewer inline for a verified product instead of navigating away", async () => {
     render(
       <FitDemoClient
         demoMeasurement={measurement}
@@ -64,6 +66,7 @@ describe("FitDemoClient", () => {
     fireEvent.click(screen.getByRole("button", { name: "View in room" }));
 
     expect(screen.getByRole("heading", { name: "LAIVA Bookcase", level: 2 })).toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector("model-viewer")).not.toBeNull());
     const viewer = document.querySelector("model-viewer");
     expect(viewer).toHaveAttribute("src", "/models/glb/ikea-laiva.glb");
     expect(viewer).toHaveAttribute("scale", "1 1 1");
@@ -72,7 +75,7 @@ describe("FitDemoClient", () => {
     expect(screen.queryByRole("heading", { name: "LAIVA Bookcase", level: 2 })).not.toBeInTheDocument();
   });
 
-  it("uses the exact-dimension placeholder when no cached model exists", () => {
+  it("uses the exact-dimension placeholder when no cached model exists", async () => {
     const productWithoutModel: CatalogProduct = { ...product, model: undefined };
 
     render(
@@ -85,6 +88,7 @@ describe("FitDemoClient", () => {
     fireEvent.click(screen.getByRole("button", { name: "Try a demo space" }));
     fireEvent.click(screen.getByRole("button", { name: "View in room" }));
 
+    await waitFor(() => expect(document.querySelector("model-viewer")).not.toBeNull());
     const viewer = document.querySelector("model-viewer");
     expect(viewer).toHaveAttribute("src", "/models/unit-box.glb");
     expect(viewer).toHaveAttribute("scale", "0.619 1.651 0.241");
@@ -166,7 +170,43 @@ describe("FitDemoClient", () => {
     ).toBeInTheDocument();
   });
 
-  it("returns directly to the most recent saved space", () => {
+  it("lets an explicit new-space action override a session-stored job", () => {
+    window.sessionStorage.setItem(
+      "fitment.live-workflow-id",
+      "00000000-0000-4000-8000-000000000099",
+    );
+    window.history.replaceState(null, "", "/fit?new=1");
+
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Measure the space furniture has to fit." })).toBeInTheDocument();
+  });
+
+  it("lets an explicit demo action override a session-stored job", () => {
+    window.sessionStorage.setItem(
+      "fitment.live-workflow-id",
+      "00000000-0000-4000-8000-000000000099",
+    );
+    window.history.replaceState(null, "", "/fit?demo=1");
+
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Verified fits" })).toBeInTheDocument();
+  });
+
+  it("returns directly to the most recent saved space", async () => {
     const older = createSavedSpace("Bedroom alcove", measurement, {
       id: "older",
       createdAt: "2026-08-01T00:00:00.000Z",
@@ -192,7 +232,7 @@ describe("FitDemoClient", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Saved space")).toHaveValue("latest");
+    expect(await screen.findByLabelText("Saved space")).toHaveValue("latest");
     expect(screen.getByRole("region", { name: "Your space is the search filter." })).toHaveTextContent("880");
     expect(
       screen.queryByRole("heading", {
@@ -201,7 +241,59 @@ describe("FitDemoClient", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps a new manual space usable when localStorage writes fail", () => {
+  it("prefills and updates the current saved space without creating a duplicate", async () => {
+    const latest = createSavedSpace("Hallway", {
+      ...measurement,
+      widthMm: 880,
+      heightMm: 1800,
+      depthMm: 350,
+      accessWidthMm: 760,
+      source: "manual",
+    }, {
+      id: "latest",
+      createdAt: "2026-08-02T00:00:00.000Z",
+    });
+    window.localStorage.setItem(
+      SAVED_SPACES_STORAGE_KEY,
+      JSON.stringify([latest]),
+    );
+
+    render(
+      <FitDemoClient
+        demoMeasurement={measurement}
+        products={[product]}
+        catalogSource="bundled"
+      />,
+    );
+
+    expect(await screen.findByLabelText("Saved space")).toHaveValue("latest");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(screen.getByRole("heading", { name: "Update this saved space." })).toBeInTheDocument();
+    expect(screen.getByLabelText("Space name")).toHaveValue("Hallway");
+    expect(screen.getByRole("spinbutton")).toHaveValue(880);
+
+    fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "910" } });
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("spinbutton")).toHaveValue(1800);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("spinbutton")).toHaveValue(350);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByRole("spinbutton")).toHaveValue(760);
+    fireEvent.change(screen.getByLabelText("Space name"), { target: { value: "Front hall" } });
+    fireEvent.click(screen.getByRole("button", { name: "Update saved space" }));
+
+    expect(await screen.findByRole("heading", { name: "Search the live market" })).toBeInTheDocument();
+    const stored = loadSavedSpaces(window.localStorage);
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toMatchObject({
+      id: "latest",
+      name: "Front hall",
+      createdAt: "2026-08-02T00:00:00.000Z",
+      measurement: { widthMm: 910, heightMm: 1800, depthMm: 350, accessWidthMm: 760 },
+    });
+  });
+
+  it("keeps a new manual space usable when localStorage writes fail", async () => {
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new DOMException("Quota", "QuotaExceededError");
     });
@@ -215,7 +307,7 @@ describe("FitDemoClient", () => {
 
     submitManualSpace("Bedroom alcove");
 
-    expect(screen.getByRole("heading", { name: "Verified fits" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Search the live market" })).toBeInTheDocument();
     expect(screen.getByLabelText("Saved space")).toHaveTextContent("Bedroom alcove");
   });
 

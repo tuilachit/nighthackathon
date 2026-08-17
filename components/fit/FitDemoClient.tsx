@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import type {
   CatalogProduct,
@@ -18,8 +19,35 @@ import {
 } from "@/lib/saved-spaces";
 import type { SavedSpace } from "@/lib/saved-spaces";
 import { ManualMeasurementForm } from "./ManualMeasurementForm";
-import { ProductQuickLookViewer } from "./ProductQuickLookViewer";
 import { FitSearchExperience } from "./FitSearchExperience";
+
+const LiveSearchExperience = dynamic(
+  () =>
+    import("@/components/agent/LiveSearchExperience").then(
+      (module) => module.LiveSearchExperience,
+    ),
+  {
+    loading: () => (
+      <section
+        aria-busy="true"
+        className="mx-auto min-h-[560px] w-full max-w-[430px] border border-[#17221f]/30 bg-white p-5"
+      >
+        <p className="fit-data text-xs font-bold">Preparing search controls…</p>
+      </section>
+    ),
+    ssr: false,
+  },
+);
+
+const ProductQuickLookViewer = dynamic(
+  () =>
+    import("./ProductQuickLookViewer").then(
+      (module) => module.ProductQuickLookViewer,
+    ),
+  { ssr: false },
+);
+
+type ExperienceMode = "measurement" | "live" | "legacy";
 
 interface FitDemoClientProps {
   readonly demoMeasurement: SpaceMeasurement;
@@ -37,6 +65,9 @@ export function FitDemoClient({
   const [measurement, setMeasurement] = useState<
     SpaceMeasurement | undefined
   >(undefined);
+  const [mode, setMode] = useState<ExperienceMode>("measurement");
+  const [restoreWorkflowId, setRestoreWorkflowId] = useState<string>();
+  const [editingSpaceId, setEditingSpaceId] = useState<string>();
   const [savedSpaces, setSavedSpaces] = useState<readonly SavedSpace[]>([]);
   const [activeSpaceId, setActiveSpaceId] = useState<string | undefined>();
   const [hasLoadedSpaces, setHasLoadedSpaces] = useState(false);
@@ -48,16 +79,25 @@ export function FitDemoClient({
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const urlWorkflowId = params.get("job");
+    if (isWorkflowId(urlWorkflowId)) {
+      setRestoreWorkflowId(urlWorkflowId);
+      setMode("live");
+      setHasLoadedSpaces(true);
+      return;
+    }
     const shared = parseFitShareParams(params);
     if (shared.status === "valid") {
       setMeasurement(shared.state.measurement);
       setSharedQuery(shared.state.query);
       setSharedComparedProductIds(shared.state.comparedProductIds);
+      setMode("legacy");
       setHasLoadedSpaces(true);
       return;
     }
     if (shared.status === "invalid") {
       setMeasurement(undefined);
+      setMode("measurement");
       setHasLoadedSpaces(true);
       return;
     }
@@ -65,17 +105,32 @@ export function FitDemoClient({
     setSavedSpaces(storedSpaces);
     if (params.get("new") === "1") {
       setMeasurement(undefined);
+      setMode("measurement");
       setHasLoadedSpaces(true);
       return;
     }
-    if (params.get("demo") === "1") {
+    if (params.get("demo") === "1" || params.get("legacy") === "1") {
       setMeasurement(demoMeasurement);
+      setMode("legacy");
+      setHasLoadedSpaces(true);
+      return;
+    }
+    let storedWorkflowId: string | null = null;
+    try {
+      storedWorkflowId = window.sessionStorage.getItem("fitment.live-workflow-id");
+    } catch {
+      // The URL and measurement entry remain available without session storage.
+    }
+    if (isWorkflowId(storedWorkflowId)) {
+      setRestoreWorkflowId(storedWorkflowId);
+      setMode("live");
       setHasLoadedSpaces(true);
       return;
     }
     const latestSpace = storedSpaces[0];
     setMeasurement(latestSpace?.measurement);
     setActiveSpaceId(latestSpace?.id);
+    setMode(latestSpace === undefined ? "measurement" : "live");
     setHasLoadedSpaces(true);
   }, [demoMeasurement]);
 
@@ -90,19 +145,42 @@ export function FitDemoClient({
     name?: string,
   ): void {
     clearSharedUrl();
+    clearLiveWorkflowHandle();
     setSharedQuery(undefined);
+    setRestoreWorkflowId(undefined);
     setSharedComparedProductIds([]);
     setMeasurement(nextMeasurement);
+    setMode(nextMeasurement.source === "demo" ? "legacy" : "live");
     setActiveCandidate(undefined);
     if (nextMeasurement.source !== "manual") {
+      setEditingSpaceId(undefined);
       setActiveSpaceId(undefined);
       return;
+    }
+
+    if (editingSpaceId !== undefined) {
+      const existing = savedSpaces.find((space) => space.id === editingSpaceId);
+      if (existing !== undefined) {
+        const updated = createSavedSpace(name ?? existing.name, nextMeasurement, {
+          id: existing.id,
+          createdAt: existing.createdAt,
+        });
+        const nextSpaces = savedSpaces.map((space) =>
+          space.id === editingSpaceId ? updated : space,
+        );
+        setSavedSpaces(nextSpaces);
+        setActiveSpaceId(updated.id);
+        setEditingSpaceId(undefined);
+        persistSavedSpaces(window.localStorage, nextSpaces);
+        return;
+      }
     }
 
     const savedSpace = createSavedSpace(name ?? "My space", nextMeasurement);
     const nextSpaces = [savedSpace, ...savedSpaces];
     setSavedSpaces(nextSpaces);
     setActiveSpaceId(savedSpace.id);
+    setEditingSpaceId(undefined);
     persistSavedSpaces(window.localStorage, nextSpaces);
   }
 
@@ -112,9 +190,13 @@ export function FitDemoClient({
       return;
     }
     clearSharedUrl();
+    clearLiveWorkflowHandle();
     setSharedQuery(undefined);
+    setRestoreWorkflowId(undefined);
     setSharedComparedProductIds([]);
+    setEditingSpaceId(undefined);
     setMeasurement(selected.measurement);
+    setMode("live");
     setActiveSpaceId(selected.id);
     setActiveCandidate(undefined);
   }
@@ -133,17 +215,40 @@ export function FitDemoClient({
       return;
     }
     const nextActiveSpace = nextSpaces[0];
+    clearLiveWorkflowHandle();
+    setRestoreWorkflowId(undefined);
     setMeasurement(nextActiveSpace?.measurement);
+    setMode(nextActiveSpace === undefined ? "measurement" : "live");
     setActiveSpaceId(nextActiveSpace?.id);
     setActiveCandidate(undefined);
+    setEditingSpaceId(undefined);
   }
 
   function handleNewSpace(): void {
     clearSharedUrl();
+    clearLiveWorkflowHandle();
     setSharedQuery(undefined);
+    setRestoreWorkflowId(undefined);
     setSharedComparedProductIds([]);
     setMeasurement(undefined);
+    setMode("measurement");
     setActiveSpaceId(undefined);
+    setEditingSpaceId(undefined);
+    setActiveCandidate(undefined);
+  }
+
+  function handleEditMeasurement(): void {
+    const activeSpace = savedSpaces.find((space) => space.id === activeSpaceId);
+    if (activeSpace === undefined) {
+      handleNewSpace();
+      return;
+    }
+    clearSharedUrl();
+    clearLiveWorkflowHandle();
+    setRestoreWorkflowId(undefined);
+    setEditingSpaceId(activeSpace.id);
+    setMeasurement(undefined);
+    setMode("measurement");
     setActiveCandidate(undefined);
   }
 
@@ -159,14 +264,18 @@ export function FitDemoClient({
     );
   }
 
+  const editingSpace = savedSpaces.find((space) => space.id === editingSpaceId);
+
   return (
     <main id="fit-main" className="min-h-screen bg-[#f4f7f5] px-4 pb-20 pt-20 text-[#17221f] sm:px-6">
-      {measurement === undefined ? (
+      {mode === "measurement" ? (
         <ManualMeasurementForm
           demoMeasurement={demoMeasurement}
+          initialMeasurement={editingSpace?.measurement}
+          initialName={editingSpace?.name}
           onConfirm={handleConfirmMeasurement}
         />
-      ) : (
+      ) : mode === "legacy" && measurement !== undefined ? (
         <FitSearchExperience
           measurement={measurement}
           initialQuery={sharedQuery}
@@ -184,6 +293,20 @@ export function FitDemoClient({
             handleNewSpace();
           }}
           onSelectProduct={handleSelectProduct}
+        />
+      ) : (
+        <LiveSearchExperience
+          key={measurementKey(measurement, activeSpaceId)}
+          initialMeasurement={measurement}
+          initialWorkflowId={restoreWorkflowId}
+          embedded
+          savedSpaces={savedSpaces}
+          activeSpaceId={activeSpaceId}
+          onSelectSpace={handleSelectSpace}
+          onRenameSpace={handleRenameSpace}
+          onDeleteSpace={handleDeleteSpace}
+          onNewSpace={handleNewSpace}
+          onEditMeasurement={handleEditMeasurement}
         />
       )}
 
@@ -217,6 +340,34 @@ export function FitDemoClient({
       ) : null}
     </main>
   );
+}
+
+function isWorkflowId(value: string | null): value is string {
+  return value !== null && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function clearLiveWorkflowHandle(): void {
+  try {
+    window.sessionStorage.removeItem("fitment.live-workflow-id");
+  } catch {
+    // The current screen state still resets if session storage is unavailable.
+  }
+}
+
+function measurementKey(
+  measurement: SpaceMeasurement | undefined,
+  activeSpaceId: string | undefined,
+): string {
+  if (measurement === undefined) {
+    return "workflow-restore";
+  }
+  return [
+    activeSpaceId ?? measurement.source,
+    measurement.widthMm,
+    measurement.heightMm,
+    measurement.depthMm,
+    measurement.accessWidthMm ?? "unknown-access",
+  ].join(":");
 }
 
 function clearSharedUrl(): void {

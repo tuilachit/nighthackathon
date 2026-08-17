@@ -35,6 +35,11 @@ describe("get live-search workflow route", () => {
       id: workflowId,
       state: "searching",
       queryText: "narrow shelf",
+      intent: {
+        kind: "prompt",
+        text: "narrow shelf",
+        retailers: ["ikea-au"],
+      },
       measurement: {
         widthMm: 900,
         heightMm: 1800,
@@ -43,6 +48,9 @@ describe("get live-search workflow route", () => {
         source: "manual",
       },
       retailers: ["ikea-au"],
+      cachePolicy: "prefer-recent",
+      cacheHit: false,
+      freshness: "live",
       candidates: [],
       createdAt: "2026-08-16T00:00:00.000Z",
       updatedAt: "2026-08-16T00:00:00.000Z",
@@ -68,7 +76,17 @@ describe("get live-search workflow route", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store, private");
-    await expect(response.json()).resolves.toMatchObject({ id: workflowId, state: "searching" });
+    await expect(response.json()).resolves.toMatchObject({
+      id: workflowId,
+      state: "searching",
+      intent: {
+        kind: "prompt",
+        text: "narrow shelf",
+        retailers: ["ikea-au"],
+      },
+      cacheHit: false,
+      freshness: "live",
+    });
     expect(mocks.getWorkflow).toHaveBeenCalledWith(workflowId, "owner-1");
   });
 

@@ -5,7 +5,7 @@ import { DEMO_SPACE_MEASUREMENT } from "@/lib/fit-config";
 
 export const metadata: Metadata = {
   title: "Find furniture that fits",
-  description: "Find verified furniture that fits your measured space and access opening.",
+  description: "Compare source-backed furniture against your measured space and access opening.",
 };
 
 export const dynamic = "force-static";

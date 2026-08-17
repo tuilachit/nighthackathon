@@ -1,0 +1,80 @@
+import { describe, expect, it, vi } from "vitest";
+import sharp from "sharp";
+import {
+  fetchBoundedPublicImage,
+  normalizeImageForModel,
+  validateImageBytes,
+} from "./image-cache";
+
+const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00]);
+const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+const webp = Buffer.from("RIFF0000WEBPpayload", "ascii");
+
+describe("validateImageBytes", () => {
+  it.each([
+    ["image/jpeg", jpeg],
+    ["image/png", png],
+    ["image/webp", webp],
+  ])("accepts matching %s bytes", (contentType, body) => {
+    expect(validateImageBytes(contentType, body)).toBe(contentType);
+  });
+
+  it("rejects SVG and MIME/signature disagreement", () => {
+    expect(() => validateImageBytes("image/svg+xml", Buffer.from("<svg/>"))).toThrow();
+    expect(() => validateImageBytes("image/png", jpeg)).toThrow();
+  });
+});
+
+describe("normalizeImageForModel", () => {
+  it("converts validated WebP bytes to a Meshy-compatible bounded PNG", async () => {
+    const source = await sharp({
+      create: {
+        width: 2,
+        height: 2,
+        channels: 4,
+        background: { r: 30, g: 60, b: 90, alpha: 1 },
+      },
+    }).webp().toBuffer();
+
+    const normalized = await normalizeImageForModel(source, "image/webp");
+
+    expect(normalized.contentType).toBe("image/png");
+    expect(validateImageBytes("image/png", normalized.body)).toBe("image/png");
+  });
+
+  it("keeps supported PNG bytes unchanged after decoding under the pixel cap", async () => {
+    const source = await sharp({
+      create: {
+        width: 2,
+        height: 2,
+        channels: 3,
+        background: { r: 30, g: 60, b: 90 },
+      },
+    }).png().toBuffer();
+
+    const normalized = await normalizeImageForModel(source, "image/png");
+
+    expect(normalized).toEqual({ body: source, contentType: "image/png" });
+  });
+});
+
+describe("fetchBoundedPublicImage", () => {
+  it("pins DNS again after validating a redirect target", async () => {
+    const resolve = vi.fn()
+      .mockResolvedValueOnce({ address: "1.1.1.1", family: 4 })
+      .mockResolvedValueOnce({ address: "8.8.8.8", family: 4 });
+    const request = vi.fn()
+      .mockResolvedValueOnce({ status: 302, headers: { location: "https://cdn.example.net/photo.jpg" }, body: Buffer.alloc(0) })
+      .mockResolvedValueOnce({ status: 200, headers: { "content-type": "image/jpeg" }, body: jpeg });
+    const result = await fetchBoundedPublicImage("https://shop.example.com/item.jpg", { resolve, request });
+    expect(result.finalUrl).toBe("https://cdn.example.net/photo.jpg");
+    expect(resolve).toHaveBeenNthCalledWith(1, "shop.example.com");
+    expect(resolve).toHaveBeenNthCalledWith(2, "cdn.example.net");
+  });
+
+  it("rejects a fourth redirect", async () => {
+    const resolve = vi.fn().mockResolvedValue({ address: "1.1.1.1", family: 4 });
+    const request = vi.fn().mockResolvedValue({ status: 302, headers: { location: "https://example.com/again" }, body: Buffer.alloc(0) });
+    await expect(fetchBoundedPublicImage("https://example.com/image", { resolve, request })).rejects.toThrow("redirect limit");
+  });
+});

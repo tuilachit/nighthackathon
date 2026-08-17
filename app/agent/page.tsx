@@ -1,12 +1,11 @@
-import type { Metadata } from "next";
-import { LiveSearchExperience } from "@/components/agent/LiveSearchExperience";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Live Australian furniture search",
-  description:
-    "Search current IKEA Australia and Kmart Australia products, check their listed dimensions, and approve an AI-generated 3D model rescaled to those outer bounds.",
-};
-
-export default function AgentPage(): React.JSX.Element {
-  return <LiveSearchExperience />;
+export default async function AgentPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ readonly job?: string | readonly string[] }>;
+}): Promise<never> {
+  const resolved = await searchParams;
+  const job = Array.isArray(resolved.job) ? resolved.job[0] : resolved.job;
+  redirect(job === undefined ? "/fit" : `/fit?job=${encodeURIComponent(job)}`);
 }

@@ -5,7 +5,7 @@ import { PRODUCT_NAME } from "@/lib/site-config";
 export const metadata: Metadata = {
   title: "How it works",
   description:
-    "Measure a space, search verified furniture, compare clearances, check the delivery opening, and buy with confidence.",
+    "Measure a space, check source-backed furniture dimensions, compare clearances, and review delivery risk before buying.",
 };
 
 const STEPS = [
@@ -18,8 +18,8 @@ const STEPS = [
   {
     number: "02",
     title: "Search",
-    copy: "Describe the furniture you want. Fitment checks only products with verified dimensions.",
-    readout: "verified dimensions only",
+    copy: "Describe what you need or paste a product link. Fitment accepts only source-backed listings with all three assembled dimensions.",
+    readout: "source checked",
   },
   {
     number: "03",
@@ -30,14 +30,14 @@ const STEPS = [
   {
     number: "04",
     title: "Check the doorway",
-    copy: "A separate access check tests the product's smallest transport cross-section before it reaches the room.",
+    copy: "A separate advisory check tests complete package dimensions when available, otherwise the assembled product's smallest cross-section, against one known opening.",
     readout: "820 mm access opening",
   },
   {
     number: "05",
     title: "Place or buy",
-    copy: "Inspect a dimensionally scaled model in 3D or AR, then continue to the original retailer page.",
-    readout: "scale 1 : 1",
+    copy: "Inspect an AI-generated appearance whose outer bounding box is scaled to the listed dimensions, then continue to the original retailer page.",
+    readout: "outer scale checked",
   },
 ] as const;
 
@@ -64,8 +64,8 @@ export default function HowItWorksPage(): React.JSX.Element {
             to a measured decision.
           </h1>
           <p className="mt-5 max-w-[600px] text-base leading-7 text-[#17221f]/74">
-            Five steps. The same verified dimensions drive search, comparison,
-            access checking, and real-scale placement.
+            Five steps. The same source-backed dimensions drive fit comparison,
+            an advisory single-opening check, and outer-scale placement.
           </p>
         </section>
 
@@ -103,10 +103,10 @@ export default function HowItWorksPage(): React.JSX.Element {
             Measure your space
           </Link>
           <Link
-            href="/fit?demo=1"
+            href="/fit?mode=link"
             className="flex min-h-12 items-center justify-center rounded-sm border border-[#17221f]/35 bg-white px-5 text-sm font-bold text-[#17221f] hover:border-[#17221f]"
           >
-            Try a demo space
+            Check a product
           </Link>
         </footer>
       </article>

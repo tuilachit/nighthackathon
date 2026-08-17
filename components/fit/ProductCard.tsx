@@ -58,7 +58,7 @@ export function ProductCard({
               {product.retailer}
             </span>
             <span className="border border-[#3f6b57]/25 bg-[#3f6b57]/10 px-2 py-1 text-[9px] font-bold text-[#315544]">
-              Dimensions verified
+              Source checked
             </span>
           </div>
           <h3 className="mt-2 text-[15px] font-bold leading-[1.18] tracking-[-0.015em]">{product.name}</h3>
@@ -81,6 +81,11 @@ export function ProductCard({
           >
             {statusCopy}
           </p>
+          {access.status === "skipped" ? (
+            <p className="fit-data mt-1 text-[9px] font-bold uppercase tracking-[0.06em] text-[#755426]">
+              Access not checked
+            </p>
+          ) : null}
         </div>
       </div>
 
@@ -93,7 +98,7 @@ export function ProductCard({
       ) : null}
 
       <div className="flex items-center gap-2 bg-[#f4f7f5]/60 p-3">
-        {status === "fit" && onToggleCompare !== undefined ? (
+        {onToggleCompare !== undefined ? (
           <button
             type="button"
             onClick={onToggleCompare}

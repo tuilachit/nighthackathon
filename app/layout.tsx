@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import { Space_Grotesk } from "next/font/google";
+import { AnalyticsPrivacy } from "@/components/AnalyticsPrivacy";
 import {
   PRODUCT_NAME,
   PRODUCT_PITCH,
@@ -58,7 +58,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className={`${fitDisplay.variable} flex min-h-full flex-col`}>
         {children}
-        <Analytics />
+        <AnalyticsPrivacy />
       </body>
     </html>
   );

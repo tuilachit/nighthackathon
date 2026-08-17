@@ -1,7 +1,10 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { EXTRACTION_SCHEMA_VERSION } from "./discovery-cache";
+import { getPublicSupabaseEnvironment } from "./env";
 import { evaluateLiveProducts } from "./evaluate";
+import { cacheRetailerImage } from "./image-cache";
 import { sha256Hex, stableJson } from "./hashing";
 import { rescaleGlbToDimensions } from "./model-processing/glb";
 import {
@@ -13,6 +16,8 @@ import {
   getWorkflowCommand,
   markWebhookProcessed,
   recordBrowserSubmission,
+  recordCachedSearchResults,
+  recordDiscoveryCache,
   recordMeshySubmission,
   recordSearchResults,
 } from "./repository";
@@ -23,12 +28,16 @@ import {
   getBrowserSearchSession,
   parseCompletedBrowserOutput,
 } from "./providers/browser-use";
+import { hasSameRegistrableDomain } from "./url-security";
 import { createMeshyImageTask, getMeshyTask } from "./providers/meshy";
 import {
   MAX_COVERAGE_NOTES,
   type BrowserSearchOutput,
+  type LiveProductObservation,
+  type LiveSearchIntent,
   type VerifiedLiveCandidateRecord,
 } from "./types";
+import { validateBrowserSearchOutput } from "./validation";
 
 const MODEL_BUCKET = "models-public";
 const MAX_MODEL_BYTES = 25 * 1024 * 1024;
@@ -48,8 +57,7 @@ export async function dispatchSearchWorkflow(
       return;
     }
     const session = await createBrowserSearchSession(
-      command.queryText,
-      command.retailers,
+      command.intent,
       command.measurement,
     );
     externalTaskId = session.id;
@@ -143,27 +151,22 @@ export async function reconcileBrowserUseTask(
   let output: BrowserSearchOutput;
   let candidates: readonly VerifiedLiveCandidateRecord[];
   try {
-    output = parseCompletedBrowserOutput(session.output);
-    const unrequestedRetailer = output.products.find(
-      (product) => !command.retailers.includes(product.retailer),
-    );
-    if (unrequestedRetailer !== undefined) {
-      throw new ProviderResponseError(
-        `Browser search returned unrequested retailer ${unrequestedRetailer.retailer}.`,
+    output = await cacheValidatedImages(parseCompletedBrowserOutput(session.output));
+    assertOutputMatchesIntent(output, command.intent);
+    if (command.intent.kind === "prompt") {
+      const missingRetailers = command.intent.retailers.filter(
+        (retailer) => !output.products.some((product) => product.retailer.key === retailer),
       );
-    }
-    const missingRetailers = command.retailers.filter(
-      (retailer) => !output.products.some((product) => product.retailer === retailer),
-    );
-    if (missingRetailers.length > 0) {
-      output = {
-        ...output,
-        partial: true,
-        notes: [
-          ...output.notes,
-          `No validated results returned for: ${missingRetailers.join(", ")}.`,
-        ].slice(0, MAX_COVERAGE_NOTES),
-      };
+      if (missingRetailers.length > 0) {
+        output = {
+          ...output,
+          partial: true,
+          notes: [
+            ...output.notes,
+            `No validated results returned for: ${missingRetailers.join(", ")}.`,
+          ].slice(0, MAX_COVERAGE_NOTES),
+        };
+      }
     }
     candidates = evaluateLiveProducts(output, command.measurement);
   } catch (error) {
@@ -192,7 +195,196 @@ export async function reconcileBrowserUseTask(
       notes: output.notes,
     },
   );
+  try {
+    await recordDiscoveryCache(
+      command.cacheKey,
+      EXTRACTION_SCHEMA_VERSION,
+      createDiscoveryCachePayload(output),
+    );
+  } catch (error) {
+    console.error("Could not update the discovery cache", error);
+  }
   return { complete: true, providerStatus: session.status };
+}
+
+/** Completes a workflow from a validated exact cache hit without provider work. */
+export async function completeCachedSearchWorkflow(
+  workflowId: string,
+  rawCachePayload: unknown,
+): Promise<{ readonly state: "partial" | "ready_for_approval"; readonly checkedAt: string }> {
+  const command = await getWorkflowCommand(workflowId);
+  const validation = validateBrowserSearchOutput(rawCachePayload);
+  if (!validation.ok || validation.value === undefined) {
+    throw new ProviderResponseError(`Cached observation failed validation: ${validation.errors.join(" ")}`);
+  }
+  const output = restoreControlledCacheImages(validation.value, rawCachePayload);
+  assertOutputMatchesIntent(output, command.intent);
+  const candidates = evaluateLiveProducts(output, command.measurement);
+  const notes = output.partial
+    ? (output.notes.length > 0 ? output.notes : ["The cached observation has partial retailer coverage."])
+    : [];
+  await recordCachedSearchResults(workflowId, candidates, output.partial, notes, {
+    cacheKey: command.cacheKey,
+    extractionSchemaVersion: EXTRACTION_SCHEMA_VERSION,
+  });
+  const checkedAt = output.products.reduce(
+    (latest, product) => Date.parse(product.observedAt) > Date.parse(latest) ? product.observedAt : latest,
+    output.products[0]?.observedAt ?? new Date().toISOString(),
+  );
+  return { state: output.partial ? "partial" : "ready_for_approval", checkedAt };
+}
+
+function assertOutputMatchesIntent(
+  output: BrowserSearchOutput,
+  intent: LiveSearchIntent,
+): void {
+  if (intent.kind === "prompt") {
+    const unrequested = output.products.find(
+      (product) => !intent.retailers.includes(product.retailer.key as "ikea-au" | "kmart-au"),
+    );
+    if (unrequested !== undefined) {
+      throw new ProviderResponseError(
+        `Browser search returned unrequested retailer ${unrequested.retailer.key}.`,
+      );
+    }
+    return;
+  }
+  if (output.products.length > 1) {
+    throw new ProviderResponseError("Exact product-link research returned more than one product.");
+  }
+  const product = output.products[0];
+  if (
+    product !== undefined &&
+    (!hasSameRegistrableDomain(intent.url, product.productUrl) ||
+      !hasSameRegistrableDomain(intent.url, `https://${product.retailer.host}`))
+  ) {
+    throw new ProviderResponseError("Linked product escaped the submitted retailer domain.");
+  }
+}
+
+async function cacheValidatedImages(output: BrowserSearchOutput): Promise<BrowserSearchOutput> {
+  const results = await Promise.allSettled(
+    output.products.map(async (product) => {
+      const cached = await cacheRetailerImage(product.imageUrl);
+      return {
+        ...product,
+        imageUrl: cached.publicUrl,
+        sourceImageUrl: product.imageUrl,
+        sourceImageHash: cached.sha256,
+      } as LiveProductObservation & ControlledImageFacts;
+    }),
+  );
+  const products: LiveProductObservation[] = [];
+  const failures: string[] = [];
+  for (const [index, result] of results.entries()) {
+    if (result.status === "fulfilled") {
+      products.push(result.value);
+    } else {
+      failures.push(`Rejected product ${index + 1}: source image could not be safely cached.`);
+    }
+  }
+  if (products.length === 0 && output.products.length > 0) {
+    throw new ProviderResponseError("No validated product image passed controlled caching.");
+  }
+  return {
+    products,
+    partial: output.partial || failures.length > 0,
+    notes: [...output.notes, ...failures].slice(0, MAX_COVERAGE_NOTES),
+  };
+}
+
+interface ControlledImageFacts {
+  readonly sourceImageUrl: string;
+  readonly sourceImageHash: string;
+}
+
+interface DiscoveryCacheImageFacts {
+  readonly cachedImageUrl: string;
+  readonly sourceImageHash: string;
+}
+
+/** Stores source facts for revalidation alongside a content-addressed display image. */
+function createDiscoveryCachePayload(output: BrowserSearchOutput): unknown {
+  return {
+    ...output,
+    products: output.products.map((product) => {
+      const controlled = product as LiveProductObservation & Partial<ControlledImageFacts>;
+      if (
+        controlled.sourceImageUrl === undefined ||
+        controlled.sourceImageHash === undefined ||
+        !/^[0-9a-f]{64}$/.test(controlled.sourceImageHash)
+      ) {
+        throw new ProviderResponseError("Controlled image provenance was missing from a validated product.");
+      }
+      const { sourceImageUrl, sourceImageHash, ...publicFacts } = controlled;
+      return {
+        ...publicFacts,
+        imageUrl: sourceImageUrl,
+        cachedImageUrl: product.imageUrl,
+        sourceImageHash,
+      };
+    }),
+  };
+}
+
+/** Revalidates retailer facts, then restores only our exact content-addressed image URL. */
+function restoreControlledCacheImages(
+  output: BrowserSearchOutput,
+  rawPayload: unknown,
+): BrowserSearchOutput {
+  if (!isRecord(rawPayload)) {
+    throw new ProviderResponseError("Cached observation image metadata was malformed.");
+  }
+  const rawProducts = rawPayload.products;
+  if (!Array.isArray(rawProducts) || rawProducts.length !== output.products.length) {
+    throw new ProviderResponseError("Cached observation image metadata was malformed.");
+  }
+  const products = output.products.map((product, index) => {
+    const raw = rawProducts[index];
+    if (!isRecord(raw)) {
+      throw new ProviderResponseError("Cached product image metadata was malformed.");
+    }
+    const facts: DiscoveryCacheImageFacts = {
+      cachedImageUrl: typeof raw.cachedImageUrl === "string" ? raw.cachedImageUrl : "",
+      sourceImageHash: typeof raw.sourceImageHash === "string" ? raw.sourceImageHash : "",
+    };
+    assertControlledCacheImage(facts.cachedImageUrl, facts.sourceImageHash);
+    return {
+      ...product,
+      imageUrl: facts.cachedImageUrl,
+      sourceImageUrl: product.imageUrl,
+      sourceImageHash: facts.sourceImageHash,
+    } as LiveProductObservation & ControlledImageFacts;
+  });
+  return { ...output, products };
+}
+
+function assertControlledCacheImage(urlValue: string, sha256: string): void {
+  if (!/^[0-9a-f]{64}$/.test(sha256)) {
+    throw new ProviderResponseError("Cached product image hash was invalid.");
+  }
+  let url: URL;
+  try {
+    url = new URL(urlValue);
+  } catch {
+    throw new ProviderResponseError("Cached product image URL was invalid.");
+  }
+  const expectedOrigin = getPublicSupabaseEnvironment().url;
+  const expectedPath = `/storage/v1/object/public/product-images-public/${sha256}.`;
+  if (
+    url.protocol !== "https:" ||
+    url.origin !== expectedOrigin ||
+    url.search.length > 0 ||
+    url.hash.length > 0 ||
+    !url.pathname.startsWith(expectedPath) ||
+    !/\.(?:jpg|png)$/.test(url.pathname)
+  ) {
+    throw new ProviderResponseError("Cached product image was not a controlled content-addressed asset.");
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Polls canonical Meshy state and publishes only a dimension-verified terminal asset. */

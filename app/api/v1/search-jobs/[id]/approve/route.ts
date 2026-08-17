@@ -38,16 +38,21 @@ export async function POST(request: Request, context: RouteContext): Promise<Nex
     }
     const user = await requireAuthenticatedUser();
     const approval = await approveCandidate(user.id, id, candidateId, idempotencyKey);
-    after(async () => {
-      try {
-        await dispatchModelWorkflow(approval.workflowId, approval.requestHash);
-      } catch (error) {
-        console.error("Deferred model dispatch failed", error);
-      }
-    });
+    if (approval.state !== "asset_ready") {
+      after(async () => {
+        try {
+          await dispatchModelWorkflow(approval.workflowId, approval.requestHash);
+        } catch (error) {
+          console.error("Deferred model dispatch failed", error);
+        }
+      });
+    }
     return NextResponse.json(
       { workflowId: approval.workflowId, candidateId: approval.candidateId, state: approval.state },
-      { status: 202, headers: { "Cache-Control": "no-store" } },
+      {
+        status: approval.state === "asset_ready" ? 200 : 202,
+        headers: { "Cache-Control": "no-store" },
+      },
     );
   } catch (error) {
     return handleRouteError(error);

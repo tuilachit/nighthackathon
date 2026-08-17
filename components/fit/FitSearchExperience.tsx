@@ -74,15 +74,23 @@ export function FitSearchExperience({
     () => searchProducts(products, measurement, query),
     [measurement, products, query],
   );
+  const allEntries = useMemo(
+    () => [
+      ...results.fits,
+      ...results.fitsSpaceButFailsAccess,
+      ...results.nearMisses,
+    ],
+    [results],
+  );
   const comparedEntries = useMemo(
     () =>
       comparedIds.flatMap((productId) => {
-        const entry = results.fits.find(
+        const entry = allEntries.find(
           (candidate) => candidate.product.id === productId,
         );
         return entry === undefined ? [] : [entry];
       }),
-    [comparedIds, results.fits],
+    [allEntries, comparedIds],
   );
   const filterChips = getFilterChips(query);
   const visibleFits = showAllFits
@@ -342,7 +350,14 @@ export function FitSearchExperience({
           tone="warning"
         >
           {results.fitsSpaceButFailsAccess.map((entry) => (
-            <ProductCard key={entry.product.id} entry={entry} status="access" />
+            <ProductCard
+              key={entry.product.id}
+              entry={entry}
+              status="access"
+              isCompared={comparedIds.includes(entry.product.id)}
+              compareDisabled={comparedIds.length >= 3}
+              onToggleCompare={() => toggleComparison(entry.product.id)}
+            />
           ))}
         </ResultSection>
       ) : null}
@@ -354,7 +369,14 @@ export function FitSearchExperience({
         tone="danger"
       >
         {results.nearMisses.slice(0, 6).map((entry) => (
-          <ProductCard key={entry.product.id} entry={entry} status="near-miss" />
+          <ProductCard
+            key={entry.product.id}
+            entry={entry}
+            status="near-miss"
+            isCompared={comparedIds.includes(entry.product.id)}
+            compareDisabled={comparedIds.length >= 3}
+            onToggleCompare={() => toggleComparison(entry.product.id)}
+          />
         ))}
       </ResultSection>
     </div>

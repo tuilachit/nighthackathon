@@ -124,6 +124,33 @@ describe("approve live-search candidate route", () => {
     expect(mocks.dispatch).toHaveBeenCalledWith(workflowId, "model-request-hash");
   });
 
+  it("returns an already reusable asset without scheduling another Meshy dispatch", async () => {
+    mocks.approve.mockResolvedValueOnce({
+      workflowId,
+      candidateId,
+      state: "asset_ready",
+      requestHash: "reused-model-request-hash",
+    });
+
+    const response = await POST(approvalRequest(), context());
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await expect(response.json()).resolves.toEqual({
+      workflowId,
+      candidateId,
+      state: "asset_ready",
+    });
+    expect(mocks.approve).toHaveBeenCalledWith(
+      "owner-1",
+      workflowId,
+      candidateId,
+      idempotencyKey,
+    );
+    expect(mocks.after).not.toHaveBeenCalled();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+
   it("maps auth, idempotency, and invalid-state failures without scheduling work", async () => {
     mocks.authenticate.mockRejectedValueOnce(new AuthenticationRequiredError());
     const unauthenticated = await POST(approvalRequest(), context());

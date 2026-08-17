@@ -34,9 +34,13 @@ function browserOutput(product: Record<string, unknown>): Record<string, unknown
 }
 
 describe("validateCreateLiveSearchRequest", () => {
-  it("normalizes a valid request and de-duplicates retailer selection", () => {
+  it("normalizes a prompt intent and de-duplicates the bounded retailer selection", () => {
     const result = validateCreateLiveSearchRequest({
-      queryText: "  narrow oak bookcase  ",
+      intent: {
+        kind: "prompt",
+        text: "  narrow oak bookcase  ",
+        retailers: ["ikea-au", "kmart-au", "ikea-au"],
+      },
       measurement: {
         widthMm: 900,
         heightMm: 1_800,
@@ -45,13 +49,17 @@ describe("validateCreateLiveSearchRequest", () => {
         accessWidthMm: null,
         source: "manual",
       },
-      retailers: ["ikea-au", "kmart-au", "ikea-au"],
+      cachePolicy: "prefer-recent",
     });
 
     expect(result).toEqual({
       ok: true,
       value: {
-        queryText: "narrow oak bookcase",
+        intent: {
+          kind: "prompt",
+          text: "narrow oak bookcase",
+          retailers: ["ikea-au", "kmart-au"],
+        },
         measurement: {
           widthMm: 900,
           heightMm: 1_800,
@@ -59,15 +67,76 @@ describe("validateCreateLiveSearchRequest", () => {
           uncertaintyMm: 25,
           source: "manual",
         },
-        retailers: ["ikea-au", "kmart-au"],
+        cachePolicy: "prefer-recent",
       },
       errors: [],
     });
   });
 
+  it("accepts a syntactically valid HTTPS product-link intent without retailer allowlisting", () => {
+    const result = validateCreateLiveSearchRequest({
+      intent: {
+        kind: "product-link",
+        url: "https://furniture.example/products/oak-shelf#dimensions",
+      },
+      measurement: {
+        widthMm: 900,
+        heightMm: 1_800,
+        depthMm: 350,
+        uncertaintyMm: 25,
+        source: "manual",
+      },
+      cachePolicy: "force-refresh",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        intent: {
+          kind: "product-link",
+          url: "https://furniture.example/products/oak-shelf",
+        },
+        measurement: {
+          widthMm: 900,
+          heightMm: 1_800,
+          depthMm: 350,
+          uncertaintyMm: 25,
+          source: "manual",
+        },
+        cachePolicy: "force-refresh",
+      },
+      errors: [],
+    });
+  });
+
+  it.each([
+    "not a URL",
+    "http://furniture.example/products/oak-shelf",
+    "https://user:secret@furniture.example/products/oak-shelf",
+  ])("rejects malformed or unsafe product-link syntax: %s", (url) => {
+    const result = validateCreateLiveSearchRequest({
+      intent: { kind: "product-link", url },
+      measurement: {
+        widthMm: 900,
+        heightMm: 1_800,
+        depthMm: 350,
+        uncertaintyMm: 25,
+        source: "manual",
+      },
+      cachePolicy: "prefer-recent",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(" ")).toContain("intent.url");
+  });
+
   it("rejects malformed, implausible, and unsupported request fields", () => {
     const result = validateCreateLiveSearchRequest({
-      queryText: "   ",
+      intent: {
+        kind: "prompt",
+        text: "   ",
+        retailers: ["ikea-au", "evil-retailer"],
+      },
       measurement: {
         widthMm: 99,
         heightMm: 10_001,
@@ -76,12 +145,12 @@ describe("validateCreateLiveSearchRequest", () => {
         accessWidthMm: 0,
         source: "camera",
       },
-      retailers: ["ikea-au", "evil-retailer"],
+      cachePolicy: "stale-forever",
     });
 
     expect(result.ok).toBe(false);
     expect(result.errors).toEqual(expect.arrayContaining([
-      expect.stringContaining("queryText"),
+      expect.stringContaining("intent.text"),
       expect.stringContaining("measurement.widthMm"),
       expect.stringContaining("measurement.heightMm"),
       expect.stringContaining("measurement.depthMm"),
@@ -89,21 +158,53 @@ describe("validateCreateLiveSearchRequest", () => {
       expect.stringContaining("measurement.accessWidthMm"),
       expect.stringContaining("measurement.source"),
       "Unsupported retailer: evil-retailer.",
+      expect.stringContaining("cachePolicy"),
     ]));
   });
 });
 
 describe("validateBrowserSearchOutput", () => {
   it("accepts a complete current observation from an approved retailer host", () => {
-    const result = validateBrowserSearchOutput(JSON.stringify(browserOutput(validObservation())));
+    const result = validateBrowserSearchOutput(JSON.stringify(browserOutput(validObservation({
+      retailer: {
+        key: "ikea-au",
+        label: "IKEA Australia",
+        host: "ikea.com",
+      },
+    }))));
 
     expect(result.ok).toBe(true);
     expect(result.value?.products).toHaveLength(1);
     expect(result.value?.products[0]).toMatchObject({
-      retailer: "ikea-au",
+      retailer: {
+        key: "ikea-au",
+        label: "IKEA Australia",
+        host: "ikea.com",
+      },
       currency: "AUD",
       confidence: "high",
       assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
+      packages: [],
+    });
+  });
+
+  it("accepts a generalized retailer identity for product-link observations", () => {
+    const result = validateBrowserSearchOutput(browserOutput(validObservation({
+      retailer: {
+        key: "example-furniture-au",
+        label: "Example Furniture",
+        host: "furniture.example",
+      },
+      retailerProductId: "example-001",
+      productUrl: "https://www.furniture.example/products/example-001",
+      imageUrl: "https://images.example-cdn.test/example-001.png",
+    })));
+
+    expect(result.ok).toBe(true);
+    expect(result.value?.products[0]?.retailer).toEqual({
+      key: "example-furniture-au",
+      label: "Example Furniture",
+      host: "furniture.example",
     });
   });
 
@@ -127,16 +228,24 @@ describe("validateBrowserSearchOutput", () => {
   });
 
   it.each([
-    ["a lookalike retailer domain", { productUrl: "https://ikea.com.evil.example/product" }, "approved ikea-au domain"],
+    "https://www.ikea.com/images/billy.webp",
+    "https://www.ikea.com/images/render?id=billy-001",
+  ])("accepts a safe retailer image URL before server-side byte validation: %s", (imageUrl) => {
+    const result = validateBrowserSearchOutput(browserOutput(validObservation({ imageUrl })));
+    expect(result.ok).toBe(true);
+  });
+
+  it.each([
+    ["a lookalike retailer domain", { productUrl: "https://ikea.com.evil.example/product" }, "declared ikea-au domain"],
     ["an insecure product URL", { productUrl: "http://www.ikea.com/au/en/p/item" }, "HTTPS URL"],
     ["credentials in a product URL", { productUrl: "https://user:pass@www.ikea.com/au/en/p/item" }, "HTTPS URL"],
-    ["a non-AUD price", { currency: "USD" }, "currency must be AUD"],
+    ["a lowercase currency", { currency: "aud" }, "uppercase ISO-4217"],
+    ["an unknown currency", { currency: "XYZ" }, "uppercase ISO-4217"],
     ["a non-high-confidence record", { confidence: "medium" }, "confidence must be high"],
     ["a missing assembled axis", { assembledDimensions: { widthMm: 700, heightMm: 1_600 } }, "depthMm"],
     ["a fractional assembled axis", { assembledDimensions: { widthMm: 700.5, heightMm: 1_600, depthMm: 280 } }, "widthMm"],
     ["an unsupported dimensions source", { dimensionsSource: "agent-guess" }, "dimensionsSource is invalid"],
     ["an image on an untrusted host", { imageUrl: "https://tracker.example/billy.jpg" }, "approved ikea-au image host"],
-    ["a Meshy-incompatible image", { imageUrl: "https://www.ikea.com/images/billy.webp" }, "supported by Meshy"],
   ])("rejects %s", (_label, override, errorFragment) => {
     const result = validateBrowserSearchOutput(browserOutput(validObservation(override)));
 
@@ -151,6 +260,43 @@ describe("validateBrowserSearchOutput", () => {
 
     expect(result.ok).toBe(false);
     expect(result.errors.join(" ")).toContain("packageDimensions.depthMm");
+  });
+
+  it("normalizes a legacy complete package and accepts complete package arrays", () => {
+    const legacy = validateBrowserSearchOutput(browserOutput(validObservation({
+      packageDimensions: { widthMm: 730, heightMm: 1_650, depthMm: 120 },
+    })));
+    const array = validateBrowserSearchOutput(browserOutput(validObservation({
+      packageDimensions: null,
+      packages: [
+        { widthMm: 730, heightMm: 1_650, depthMm: 120, label: "Box 1 of 2" },
+        { widthMm: 500, heightMm: 300, depthMm: 200, label: "Box 2 of 2" },
+      ],
+    })));
+
+    expect(legacy.ok).toBe(true);
+    expect(legacy.value?.products[0]?.packages).toEqual([
+      { widthMm: 730, heightMm: 1_650, depthMm: 120 },
+    ]);
+    expect(array.ok).toBe(true);
+    expect(array.value?.products[0]?.packages).toHaveLength(2);
+  });
+
+  it("rejects an incomplete member of a package array", () => {
+    const result = validateBrowserSearchOutput(browserOutput(validObservation({
+      packageDimensions: null,
+      packages: [{ widthMm: 730, heightMm: 1_650, label: "Incomplete" }],
+    })));
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(" ")).toContain("packages[0].depthMm");
+  });
+
+  it("accepts other real uppercase ISO-4217 currencies", () => {
+    const result = validateBrowserSearchOutput(browserOutput(validObservation({ currency: "NZD" })));
+
+    expect(result.ok).toBe(true);
+    expect(result.value?.products[0]?.currency).toBe("NZD");
   });
 
   it.each([
@@ -201,7 +347,7 @@ describe("validateBrowserSearchOutput", () => {
         validObservation(),
         validObservation({
           retailerProductId: "ikea-invalid",
-          imageUrl: "https://www.ikea.com/images/unsupported.webp",
+          imageUrl: "https://tracker.example/unsupported.webp",
         }),
       ],
       partial: false,
@@ -211,7 +357,7 @@ describe("validateBrowserSearchOutput", () => {
     expect(result.ok).toBe(true);
     expect(result.value?.products.map((product) => product.retailerProductId)).toEqual(["ikea-001"]);
     expect(result.value?.partial).toBe(true);
-    expect(result.value?.notes.join(" ")).toContain("supported by Meshy");
+    expect(result.value?.notes.join(" ")).toContain("approved ikea-au image host");
   });
 
   it("accepts a 300-character coverage note and rejects 301 characters", () => {

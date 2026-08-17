@@ -1,5 +1,6 @@
 import type { SpaceMeasurement } from "@/lib/catalog-types";
 import type { SavedSpace } from "@/lib/saved-spaces";
+import { MeasurementEnvelopeDiagram } from "./MeasurementEnvelopeDiagram";
 import { SavedSpaceSwitcher } from "./SavedSpaceSwitcher";
 
 interface MeasurementSummaryProps {
@@ -67,6 +68,8 @@ export function MeasurementSummary({
           </div>
         ))}
       </dl>
+
+      <MeasurementEnvelopeDiagram measurement={measurement} />
 
       {measurement.accessWidthMm !== undefined ? (
         <p className="flex items-center justify-between border-t border-[#17221f]/20 bg-[#f4f7f5] px-3 py-2 text-[10px]">

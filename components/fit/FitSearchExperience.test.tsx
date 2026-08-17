@@ -32,7 +32,7 @@ describe("FitSearchExperience", () => {
     expect(screen.getByRole("heading", { name: "Verified fits" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Fits the space, access issue" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Near misses" })).toBeInTheDocument();
-    expect(screen.getAllByText("Dimensions verified").length).toBeGreaterThan(5);
+    expect(screen.getAllByText("Source checked").length).toBeGreaterThan(5);
     expect(screen.getAllByText(/access opening\./i).length).toBeGreaterThanOrEqual(1);
   });
 
@@ -61,7 +61,7 @@ describe("FitSearchExperience", () => {
     ).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("removes every access reference when access width is absent", () => {
+  it("labels access as unassessed without implying an access result", () => {
     render(
       <FitSearchExperience
         measurement={{ ...DEMO_SPACE_MEASUREMENT, accessWidthMm: undefined }}
@@ -73,9 +73,10 @@ describe("FitSearchExperience", () => {
     expect(screen.queryByText(/access issue/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/access opening/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/narrowest access/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Access not checked").length).toBeGreaterThan(0);
   });
 
-  it("limits comparison to three passing products", async () => {
+  it("limits comparison to three products", async () => {
     const user = userEvent.setup();
     render(
       <FitSearchExperience
@@ -93,6 +94,27 @@ describe("FitSearchExperience", () => {
     expect(screen.getByText(/Comparison register · 3\/3/)).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Comparing" })).toHaveLength(3);
     expect(screen.getAllByRole("button", { name: "Compare" }).every((button) => button.hasAttribute("disabled"))).toBe(true);
+  });
+
+  it("keeps access issues and near misses eligible for decision comparison", async () => {
+    const user = userEvent.setup();
+    render(
+      <FitSearchExperience
+        measurement={DEMO_SPACE_MEASUREMENT}
+        products={FURNITURE_CATALOG}
+        onSelectProduct={vi.fn()}
+      />,
+    );
+
+    const accessTier = screen.getByRole("region", { name: "Fits the space, access issue" });
+    const nearTier = screen.getByRole("region", { name: "Near misses" });
+    await user.click(within(accessTier).getAllByRole("button", { name: "Compare" })[0]);
+    await user.click(within(nearTier).getAllByRole("button", { name: "Compare" })[0]);
+    await user.click(screen.getByRole("button", { name: /Comparison register · 2\/3/ }));
+
+    const comparison = screen.getByRole("region", { name: "Clearance comparison" });
+    expect(within(comparison).getAllByRole("button", { name: "Remove" })).toHaveLength(2);
+    expect(within(comparison).queryByRole("button", { name: "View in room" })).not.toBeInTheDocument();
   });
 
   it("preselects the top IKEA and Target fits when comparison opens empty", async () => {
@@ -287,7 +309,7 @@ describe("FitSearchExperience", () => {
     expect(screen.getByTestId("catalog-unavailable")).toHaveTextContent(
       "No placeholder products are being shown",
     );
-    expect(screen.queryByText("Dimensions verified")).not.toBeInTheDocument();
+    expect(screen.queryByText("Source checked")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Compare" })).not.toBeInTheDocument();
   });
 });

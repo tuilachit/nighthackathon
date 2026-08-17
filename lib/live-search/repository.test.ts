@@ -9,12 +9,185 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseAdminClient: () => ({ rpc: mocks.rpc }),
 }));
 
-import { getWorkflowForOwner, listDueProviderTasks } from "./repository";
+import {
+  cancelWorkflowForOwner,
+  createComparisonShare,
+  createWorkflow,
+  getWorkflowForOwner,
+  listDueProviderTasks,
+  resolveComparisonShare,
+} from "./repository";
 
 const WORKFLOW_ID = "11111111-1111-4111-8111-111111111111";
 const TASK_ID = "22222222-2222-4222-8222-222222222222";
 const CANDIDATE_ID = "55555555-5555-4555-8555-555555555555";
 const INPUT_HASH = "a".repeat(64);
+
+describe("unified workflow repository contract", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("preserves prompt intent and cache policy when creating a live miss", async () => {
+    mocks.rpc.mockResolvedValue({
+      data: [{
+        workflow_id: WORKFLOW_ID,
+        workflow_state: "queued",
+        reused: false,
+        cache_hit: false,
+        freshness: "live",
+      }],
+      error: null,
+    });
+
+    const result = await createWorkflow(
+      "owner-1",
+      "actor-hash",
+      {
+        intent: {
+          kind: "prompt",
+          text: "narrow oak shelf",
+          retailers: ["ikea-au", "kmart-au"],
+        },
+        measurement: {
+          widthMm: 900,
+          heightMm: 1_800,
+          depthMm: 350,
+          accessWidthMm: 820,
+          uncertaintyMm: 25,
+          source: "manual",
+        },
+        cachePolicy: "prefer-recent",
+      },
+      INPUT_HASH,
+      "idempotency-key-123456",
+    );
+
+    expect(result).toMatchObject({ cacheHit: false, freshness: "live" });
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "create_search_workflow",
+      expect.objectContaining({
+        p_owner_id: "owner-1",
+        p_intent_kind: "prompt",
+        p_intent_json: {
+          kind: "prompt",
+          text: "narrow oak shelf",
+          retailers: ["ikea-au", "kmart-au"],
+        },
+        p_retailers: ["ikea-au", "kmart-au"],
+        p_cache_policy: "prefer-recent",
+        p_cache_key: expect.stringMatching(/^[0-9a-f]{64}$/),
+      }),
+    );
+  });
+
+  it("passes force-refresh for an exact product link and does not accept a cache hit", async () => {
+    mocks.rpc.mockResolvedValue({
+      data: [{
+        workflow_id: WORKFLOW_ID,
+        workflow_state: "queued",
+        reused: false,
+        cache_hit: false,
+        freshness: "live",
+      }],
+      error: null,
+    });
+
+    const result = await createWorkflow(
+      "owner-1",
+      "actor-hash",
+      {
+        intent: { kind: "product-link", url: "https://furniture.example/item/1" },
+        measurement: {
+          widthMm: 900,
+          heightMm: 1_800,
+          depthMm: 350,
+          uncertaintyMm: 25,
+          source: "manual",
+        },
+        cachePolicy: "force-refresh",
+      },
+      INPUT_HASH,
+      "idempotency-key-123456",
+    );
+
+    expect(result.cacheHit).toBe(false);
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "create_search_workflow",
+      expect.objectContaining({
+        p_intent_kind: "product-link",
+        p_intent_json: {
+          kind: "product-link",
+          url: "https://furniture.example/item/1",
+        },
+        p_retailers: [],
+        p_cache_policy: "force-refresh",
+      }),
+    );
+  });
+
+  it("passes owner identity into cancellation and returns one canonical provider id", async () => {
+    mocks.rpc.mockResolvedValue({
+      data: {
+        workflowId: WORKFLOW_ID,
+        state: "cancelled",
+        alreadyTerminal: false,
+        browserExternalId: "browser-session-1",
+      },
+      error: null,
+    });
+
+    await expect(cancelWorkflowForOwner("owner-1", WORKFLOW_ID)).resolves.toEqual({
+      workflowId: WORKFLOW_ID,
+      state: "cancelled",
+      alreadyTerminal: false,
+      browserExternalId: "browser-session-1",
+    });
+    expect(mocks.rpc).toHaveBeenCalledWith("cancel_workflow", {
+      p_owner_id: "owner-1",
+      p_workflow_id: WORKFLOW_ID,
+    });
+  });
+
+  it("stores and resolves comparison shares by opaque token hash", async () => {
+    const tokenHash = "f".repeat(64);
+    const payload = { workflowId: WORKFLOW_ID, candidateIds: [CANDIDATE_ID] };
+    mocks.rpc
+      .mockResolvedValueOnce({
+        data: {
+          shareId: TASK_ID,
+          expiresAt: "2026-09-16T00:00:00.000Z",
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          found: true,
+          payload,
+          schemaVersion: 1,
+          expiresAt: "2026-09-16T00:00:00.000Z",
+        },
+        error: null,
+      });
+
+    await expect(createComparisonShare({
+      ownerId: "owner-1",
+      tokenHash,
+      schemaVersion: 1,
+      payload,
+    })).resolves.toMatchObject({ shareId: TASK_ID });
+    await expect(resolveComparisonShare(tokenHash)).resolves.toMatchObject({ payload });
+    expect(mocks.rpc).toHaveBeenNthCalledWith(1, "internal_create_comparison_share", {
+      p_token_hash: tokenHash,
+      p_schema_version: 1,
+      p_payload: payload,
+      p_owner_id: "owner-1",
+    });
+    expect(mocks.rpc).toHaveBeenNthCalledWith(2, "internal_resolve_comparison_share", {
+      p_token_hash: tokenHash,
+    });
+  });
+});
 
 describe("provider reconciliation repository contract", () => {
   beforeEach(() => {
@@ -180,6 +353,81 @@ describe("workflow snapshot repository contract", () => {
     expect(workflow.candidates[0].asset).toMatchObject({
       kind: "glb",
       url: "https://models.test/item.glb",
+    });
+  });
+
+  it("normalizes legacy retailer, package, and access rows additively", async () => {
+    mocks.rpc.mockResolvedValue({ data: [workflowSnapshot()], error: null });
+
+    const workflow = await getWorkflowForOwner(WORKFLOW_ID, TASK_ID);
+
+    expect(workflow.intent).toEqual({
+      kind: "prompt",
+      text: "narrow oak bookcase",
+      retailers: ["ikea-au", "kmart-au"],
+    });
+    expect(workflow.candidates[0].observation).toMatchObject({
+      retailer: {
+        key: "ikea-au",
+        label: "IKEA Australia",
+        host: "ikea.com",
+      },
+      packages: [],
+    });
+    expect(workflow.candidates[0].access).toEqual({
+      status: "skipped",
+      passes: true,
+      basis: "unknown",
+    });
+  });
+
+  it("parses generalized retailer identity, delivery packages, and package access basis", async () => {
+    const snapshot = workflowSnapshot();
+    snapshot.candidates[0].retailer_identity = {
+      key: "example-furniture-au",
+      label: "Example Furniture",
+      host: "furniture.example",
+    };
+    snapshot.candidates[0].packages = [{
+      widthMm: 900,
+      heightMm: 850,
+      depthMm: 300,
+      label: "Box 2",
+    }];
+    snapshot.candidates[0].access_result = {
+      status: "failed",
+      passes: false,
+      basis: "package",
+      accessWidthMm: 820,
+      crossSection: [
+        { axis: "depth", sizeMm: 300 },
+        { axis: "height", sizeMm: 850 },
+      ],
+      deficitMm: 95,
+      reason: "Fits the space, but 95 mm too wide for the 820 mm access opening.",
+      controllingPackageIndex: 0,
+      controllingPackageLabel: "Box 2",
+    };
+    mocks.rpc.mockResolvedValue({ data: [snapshot], error: null });
+
+    const workflow = await getWorkflowForOwner(WORKFLOW_ID, TASK_ID);
+
+    expect(workflow.candidates[0].observation.retailer).toEqual({
+      key: "example-furniture-au",
+      label: "Example Furniture",
+      host: "furniture.example",
+    });
+    expect(workflow.candidates[0].observation.packages).toEqual([{
+      widthMm: 900,
+      heightMm: 850,
+      depthMm: 300,
+      label: "Box 2",
+    }]);
+    expect(workflow.candidates[0].access).toMatchObject({
+      status: "failed",
+      basis: "package",
+      controllingPackageIndex: 0,
+      controllingPackageLabel: "Box 2",
     });
   });
 });
