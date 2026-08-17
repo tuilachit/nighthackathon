@@ -1,19 +1,24 @@
 import type {
   AccessCrossSectionDimension,
-  AccessEvaluation,
   FitEvaluation,
   ProductDimensions,
   SpaceMeasurement,
 } from "@/lib/catalog-types";
 import {
   LIVE_RETAILERS,
+  LIVE_RETAILER_IDENTITIES,
   WORKFLOW_STATES,
   type ApproveCandidateResponse,
+  type CachePolicy,
+  type CreateLiveSearchRequest,
   type CreateLiveSearchResponse,
+  type DeliveryAccessEvaluation,
+  type DeliveryPackage,
   type LiveAsset,
   type LiveCandidate,
   type LiveProductObservation,
   type LiveRetailer,
+  type LiveSearchIntent,
   type LiveSearchWorkflow,
 } from "@/lib/live-search/types";
 
@@ -46,11 +51,7 @@ export async function startGuestSession(
 }
 
 export async function createLiveSearch(
-  input: {
-    readonly queryText: string;
-    readonly measurement: SpaceMeasurement;
-    readonly retailers: readonly LiveRetailer[];
-  },
+  input: CreateLiveSearchRequest,
   idempotencyKey: string,
 ): Promise<CreateLiveSearchResponse> {
   return requestJson(
@@ -95,6 +96,46 @@ export async function approveLiveCandidate(
     },
     parseApprovalResponse,
   );
+}
+
+export interface CancelLiveSearchResponse {
+  readonly workflowId: string;
+  readonly state: LiveSearchWorkflow["state"];
+  readonly alreadyTerminal: boolean;
+  readonly providerStop: "not-needed" | "requested" | "failed";
+}
+
+export async function cancelLiveSearch(
+  workflowId: string,
+): Promise<CancelLiveSearchResponse> {
+  return requestJson(
+    `/api/v1/search-jobs/${encodeURIComponent(workflowId)}/cancel`,
+    { method: "POST" },
+    parseCancelResponse,
+  );
+}
+
+export interface ComparisonShareSelection {
+  readonly workflowId: string;
+  readonly candidateId: string;
+}
+
+export async function createComparisonShare(
+  selections: readonly ComparisonShareSelection[],
+): Promise<{ readonly url: string; readonly expiresAt: string }> {
+  const response = await requestJson(
+    "/api/v1/comparison-shares",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selections }),
+    },
+    parseShareResponse,
+  );
+  return {
+    url: new URL(response.path, window.location.origin).href,
+    expiresAt: response.expiresAt,
+  };
 }
 
 async function requestJson<T>(
@@ -151,10 +192,22 @@ function parseCreateSearchResponse(input: unknown): CreateLiveSearchResponse {
   const row = requireRecord(input);
   const workflowId = requireUuid(row.workflowId);
   const state = requireWorkflowState(row.state);
-  if (typeof row.reused !== "boolean") {
+  if (
+    typeof row.reused !== "boolean" ||
+    typeof row.cacheHit !== "boolean" ||
+    (row.freshness !== "cached" && row.freshness !== "live")
+  ) {
     throw new Error("Search response was invalid.");
   }
-  return { workflowId, state, reused: row.reused };
+  const checkedAt = row.checkedAt === undefined ? undefined : requireIsoDate(row.checkedAt);
+  return {
+    workflowId,
+    state,
+    reused: row.reused,
+    cacheHit: row.cacheHit,
+    freshness: row.freshness,
+    ...(checkedAt === undefined ? {} : { checkedAt }),
+  };
 }
 
 function parseApprovalResponse(input: unknown): ApproveCandidateResponse {
@@ -166,6 +219,32 @@ function parseApprovalResponse(input: unknown): ApproveCandidateResponse {
   };
 }
 
+function parseCancelResponse(input: unknown): CancelLiveSearchResponse {
+  const row = requireRecord(input);
+  const providerStop = row.providerStop;
+  if (
+    typeof row.alreadyTerminal !== "boolean" ||
+    (providerStop !== "not-needed" && providerStop !== "requested" && providerStop !== "failed")
+  ) {
+    throw new Error("Cancellation response was invalid.");
+  }
+  return {
+    workflowId: requireUuid(row.workflowId),
+    state: requireWorkflowState(row.state),
+    alreadyTerminal: row.alreadyTerminal,
+    providerStop,
+  };
+}
+
+function parseShareResponse(input: unknown): { readonly path: string; readonly expiresAt: string } {
+  const row = requireRecord(input);
+  const path = requireString(row.path);
+  if (!/^\/fit\/share\/[A-Za-z0-9_-]{43}$/.test(path)) {
+    throw new Error("Comparison share path was invalid.");
+  }
+  return { path, expiresAt: requireIsoDate(row.expiresAt) };
+}
+
 function parseWorkflow(input: unknown): LiveSearchWorkflow {
   const row = requireRecord(input);
   const retailers = requireArray(row.retailers).map(requireRetailer);
@@ -175,6 +254,7 @@ function parseWorkflow(input: unknown): LiveSearchWorkflow {
   }
   const coverageNotes = requireArray(row.coverageNotes).map(requireString);
   const queryText = requireString(row.queryText);
+  const intent = row.intent === undefined ? undefined : parseIntent(row.intent);
   const createdAt = requireIsoDate(row.createdAt);
   const updatedAt = requireIsoDate(row.updatedAt);
   const approvedCandidateId = row.approvedCandidateId === undefined
@@ -185,8 +265,13 @@ function parseWorkflow(input: unknown): LiveSearchWorkflow {
     id: requireUuid(row.id),
     state: requireWorkflowState(row.state),
     queryText,
+    ...(intent === undefined ? {} : { intent }),
     measurement: parseMeasurement(row.measurement),
     retailers,
+    ...(row.cachePolicy === undefined ? {} : { cachePolicy: parseCachePolicy(row.cachePolicy) }),
+    ...(typeof row.cacheHit === "boolean" ? { cacheHit: row.cacheHit } : {}),
+    ...(row.freshness === "cached" || row.freshness === "live" ? { freshness: row.freshness } : {}),
+    ...(row.checkedAt === undefined ? {} : { checkedAt: requireIsoDate(row.checkedAt) }),
     candidates,
     isPartial: row.isPartial,
     coverageNotes,
@@ -233,7 +318,7 @@ function parseObservation(input: unknown): LiveProductObservation {
   ) {
     throw new Error("Dimension source was invalid.");
   }
-  if (row.currency !== "AUD" || row.confidence !== "high") {
+  if (typeof row.currency !== "string" || !/^[A-Z]{3}$/.test(row.currency) || row.confidence !== "high") {
     throw new Error("Product verification was invalid.");
   }
   const productUrl = requireSafeHttpsUrl(row.productUrl);
@@ -242,21 +327,21 @@ function parseObservation(input: unknown): LiveProductObservation {
   if (!Number.isInteger(priceMinor) || priceMinor < 1) {
     throw new Error("Product price was invalid.");
   }
-  const packageDimensions = row.packageDimensions === undefined
-    ? undefined
-    : parseDimensions(row.packageDimensions);
+  const packages = row.packages === undefined
+    ? []
+    : requireArray(row.packages).map(parseDeliveryPackage);
   return {
-    retailer: requireRetailer(row.retailer),
+    retailer: parseRetailerIdentity(row.retailer),
     retailerProductId: requireString(row.retailerProductId),
     name: requireString(row.name),
     category: requireString(row.category),
     productUrl,
     imageUrl,
     priceMinor,
-    currency: "AUD",
+    currency: row.currency,
     availability,
     assembledDimensions: parseDimensions(row.assembledDimensions),
-    ...(packageDimensions === undefined ? {} : { packageDimensions }),
+    packages,
     dimensionsSource,
     dimensionsEvidence: requireString(row.dimensionsEvidence),
     observedAt: requireIsoDate(row.observedAt),
@@ -290,31 +375,60 @@ function parseFit(input: unknown): FitEvaluation {
   };
 }
 
-function parseAccess(input: unknown): AccessEvaluation {
+function parseAccess(input: unknown): DeliveryAccessEvaluation {
   const row = requireRecord(input);
   if (row.status === "skipped" && row.passes === true) {
-    return { status: "skipped", passes: true };
+    return { status: "skipped", passes: true, basis: "unknown" };
   }
+  const basis = row.basis === "package" ? "package" : "assembled-advisory";
+  const packageIndex = row.controllingPackageIndex === undefined
+    ? undefined
+    : requireFiniteNumber(row.controllingPackageIndex);
+  if (packageIndex !== undefined && (!Number.isInteger(packageIndex) || packageIndex < 0)) {
+    throw new Error("Access package index was invalid.");
+  }
+  if (basis === "package" && packageIndex === undefined) {
+    throw new Error("Package-based access result omitted its controlling package.");
+  }
+  const packageLabel = row.controllingPackageLabel === undefined
+    ? undefined
+    : requireString(row.controllingPackageLabel);
   const crossSection = parseCrossSection(row.crossSection);
   const accessWidthMm = requireFiniteNumber(row.accessWidthMm);
   if (row.status === "passed" && row.passes === true) {
-    return {
+    const base = {
       status: "passed",
       passes: true,
       accessWidthMm,
       crossSection,
       clearanceMm: requireFiniteNumber(row.clearanceMm),
-    };
+    } as const;
+    return basis === "package"
+      ? {
+          ...base,
+          basis,
+          controllingPackageIndex: packageIndex as number,
+          ...(packageLabel === undefined ? {} : { controllingPackageLabel: packageLabel }),
+        }
+      : { ...base, basis };
   }
   if (row.status === "failed" && row.passes === false) {
-    return {
+    const base = {
       status: "failed",
       passes: false,
       accessWidthMm,
       crossSection,
       deficitMm: requireFiniteNumber(row.deficitMm),
       reason: requireString(row.reason),
-    };
+    } as const;
+    return basis === "package"
+      ? {
+          ...base,
+          basis,
+          controllingPackageIndex: packageIndex as number,
+          ...(packageLabel === undefined ? {} : { controllingPackageLabel: packageLabel }),
+        }
+      : { ...base, basis };
   }
   throw new Error("Access result was invalid.");
 }
@@ -378,6 +492,50 @@ function parseDimensions(input: unknown): ProductDimensions {
     heightMm: requirePositiveNumber(row.heightMm),
     depthMm: requirePositiveNumber(row.depthMm),
   };
+}
+
+function parseDeliveryPackage(input: unknown): DeliveryPackage {
+  const row = requireRecord(input);
+  return {
+    ...parseDimensions(row),
+    ...(row.label === undefined ? {} : { label: requireString(row.label) }),
+  };
+}
+
+function parseRetailerIdentity(input: unknown): LiveProductObservation["retailer"] {
+  if (typeof input === "string" && LIVE_RETAILERS.includes(input as LiveRetailer)) {
+    return LIVE_RETAILER_IDENTITIES[input as LiveRetailer];
+  }
+  const row = requireRecord(input);
+  const key = requireString(row.key);
+  const label = requireString(row.label);
+  const host = requireString(row.host).toLowerCase();
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key) || !/^[a-z0-9.-]+$/.test(host)) {
+    throw new Error("Retailer identity was invalid.");
+  }
+  return { key, label, host };
+}
+
+function parseIntent(input: unknown): LiveSearchIntent {
+  const row = requireRecord(input);
+  if (row.kind === "product-link") {
+    return { kind: "product-link", url: requireSafeHttpsUrl(row.url) };
+  }
+  if (row.kind === "prompt") {
+    return {
+      kind: "prompt",
+      text: requireString(row.text),
+      retailers: requireArray(row.retailers).map(requireRetailer),
+    };
+  }
+  throw new Error("Search intent was invalid.");
+}
+
+function parseCachePolicy(input: unknown): CachePolicy {
+  if (input !== "prefer-recent" && input !== "force-refresh") {
+    throw new Error("Cache policy was invalid.");
+  }
+  return input;
 }
 
 function parseWorkflowError(input: unknown): { readonly code: string; readonly message: string } {

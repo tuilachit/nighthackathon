@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SpaceMeasurement } from "@/lib/catalog-types";
-import { evaluateProductAccess } from "@/lib/access-fit";
+import { evaluateDeliveryAccess } from "@/lib/delivery-access";
 import { evaluateProductFit } from "@/lib/fit-engine";
 import { DEFAULT_CLEARANCE_POLICY } from "@/lib/fit-config";
 import { sha256Hex, stableJson } from "./hashing";
@@ -23,13 +23,14 @@ export function evaluateLiveProducts(
       DEFAULT_CLEARANCE_POLICY,
     );
     const access = fit.fits
-      ? evaluateProductAccess(
+      ? evaluateDeliveryAccess(
           observation.assembledDimensions,
+          observation.packages,
           measurement.accessWidthMm,
           measurement.uncertaintyMm,
           DEFAULT_CLEARANCE_POLICY,
         )
-      : ({ status: "skipped", passes: true } as const);
+      : ({ status: "skipped", passes: true, basis: "unknown" } as const);
     const fitStatus: CandidateFitStatus = !fit.fits
       ? "near_miss"
       : access.status === "failed"
@@ -51,7 +52,7 @@ export function evaluateLiveProducts(
 
 function stableProductFacts(
   observation: BrowserSearchOutput["products"][number],
-): Omit<BrowserSearchOutput["products"][number], "observedAt"> {
+): Readonly<Record<string, unknown>> {
   const { observedAt, ...facts } = observation;
   void observedAt;
   return facts;
@@ -88,7 +89,7 @@ function compareCandidates(
   }
   return (
     left.observation.priceMinor - right.observation.priceMinor ||
-    left.observation.retailer.localeCompare(right.observation.retailer) ||
+    left.observation.retailer.key.localeCompare(right.observation.retailer.key) ||
     left.observation.retailerProductId.localeCompare(right.observation.retailerProductId)
   );
 }

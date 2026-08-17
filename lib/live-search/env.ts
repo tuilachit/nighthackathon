@@ -54,6 +54,11 @@ export function isLiveSearchConfigured(): boolean {
   ].every((name) => (process.env[name]?.trim().length ?? 0) > 0);
 }
 
+/** Returns the server-only HMAC secret used for privacy-bounded product events. */
+export function getProductEventHashSecret(): string {
+  return requiredSecret("ABUSE_HASH_SECRET");
+}
+
 function requiredEnvironment(name: string): string {
   const value = process.env[name]?.trim();
   if (value === undefined || value.length === 0) {

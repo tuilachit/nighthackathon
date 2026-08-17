@@ -9,7 +9,7 @@ describe("Fitment landing page", () => {
     expect(screen.getByText("FITMENT", { exact: true })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "only shows you furniture that actually fits, your space and your front door",
+        "Compare furniture that fits your measured space—with delivery risks flagged before you buy.",
         { exact: true },
       ),
     ).toBeInTheDocument();
@@ -17,8 +17,8 @@ describe("Fitment landing page", () => {
       screen.getByRole("link", { name: "Measure your space" }),
     ).toHaveAttribute("href", "/fit?new=1");
     expect(
-      screen.getByRole("link", { name: "Try a demo space" }),
-    ).toHaveAttribute("href", "/fit?demo=1");
+      screen.getByRole("link", { name: "Check a product" }),
+    ).toHaveAttribute("href", "/fit?mode=link");
     expect(
       screen.getByRole("link", { name: "How Fitment works" }),
     ).toHaveAttribute("href", "/how-it-works");

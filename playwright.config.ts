@@ -24,5 +24,11 @@ export default defineConfig({
       name: "pixel-5-chrome",
       use: { ...devices["Pixel 5"] },
     },
+    {
+      // WebKit with the iPhone Safari profile covers the touch/viewport journey;
+      // physical-device Quick Look remains a separate manual acceptance check.
+      name: "ios-safari",
+      use: { ...devices["iPhone 13"] },
+    },
   ],
 });

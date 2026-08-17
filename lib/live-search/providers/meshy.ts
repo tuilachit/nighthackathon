@@ -20,8 +20,8 @@ export interface MeshyTask {
 
 /** Starts image-to-3D only after a workflow approval has been durably recorded. */
 export async function createMeshyImageTask(imageUrl: string): Promise<string> {
-  assertSafePublicImageUrl(imageUrl);
   const environment = getLiveSearchServerEnvironment();
+  assertControlledProductImageUrl(imageUrl, environment.url);
   const response = await fetch(IMAGE_TO_3D_ENDPOINT, {
     method: "POST",
     headers: {
@@ -104,12 +104,13 @@ export function readMeshyWebhookTaskId(input: unknown): string | undefined {
     : undefined;
 }
 
-function assertSafePublicImageUrl(value: string): void {
+function assertControlledProductImageUrl(value: string, expectedOrigin: string): void {
   const normalized = safeHttpsUrl(value);
   if (normalized === undefined) {
     throw new ProviderResponseError("Meshy input must be a public HTTPS image URL.");
   }
-  const host = new URL(normalized).hostname.toLowerCase();
+  const url = new URL(normalized);
+  const host = url.hostname.toLowerCase();
   if (
     host === "localhost" ||
     host.endsWith(".local") ||
@@ -117,9 +118,13 @@ function assertSafePublicImageUrl(value: string): void {
     /^10\./.test(host) ||
     /^192\.168\./.test(host) ||
     /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+    url.origin !== expectedOrigin ||
+    !/^\/storage\/v1\/object\/public\/product-images-public\/[0-9a-f]{64}\.(?:jpg|png)$/.test(url.pathname) ||
+    url.search.length > 0 ||
+    url.hash.length > 0
   ) {
-    throw new ProviderResponseError("Meshy input host is not public.");
+    throw new ProviderResponseError("Meshy input must use Fitment's controlled product-image bucket.");
   }
 }
 

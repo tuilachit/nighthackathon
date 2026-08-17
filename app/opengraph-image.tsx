@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 import { PRODUCT_NAME, PRODUCT_PITCH } from "@/lib/site-config";
 
-export const alt = "Fitment — furniture that fits your space and front door";
+export const alt = "Fitment — furniture that fits a measured space, with delivery risks flagged";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

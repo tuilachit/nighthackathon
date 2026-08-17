@@ -11,7 +11,11 @@ vi.mock("@/lib/live-search/env", () => ({
   }),
 }));
 
-import { createBrowserSearchSession, verifyBrowserUseWebhook } from "./browser-use";
+import {
+  createBrowserSearchSession,
+  stopBrowserSearchSession,
+  verifyBrowserUseWebhook,
+} from "./browser-use";
 
 const SECRET = "browser-use-webhook-secret-at-least-32-characters";
 const NOW_SECONDS = 1_800_000_000;
@@ -29,8 +33,11 @@ describe("createBrowserSearchSession", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await createBrowserSearchSession(
-      "narrow oak bookcase",
-      ["ikea-au", "kmart-au"],
+      {
+        kind: "prompt",
+        text: "narrow oak bookcase",
+        retailers: ["ikea-au", "kmart-au"],
+      },
       {
         widthMm: 900,
         heightMm: 1_800,
@@ -54,12 +61,62 @@ describe("createBrowserSearchSession", () => {
       properties: {
         products: {
           items: {
-            properties: { confidence: { const: "high" } },
-            required: expect.arrayContaining(["confidence"]),
+            properties: {
+              confidence: { const: "high" },
+              retailer: { type: "object" },
+              packages: { type: "array" },
+            },
+            required: expect.arrayContaining(["confidence", "retailer", "packages"]),
           },
         },
       },
     });
+  });
+
+  it("bounds exact-link research to the submitted product page", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "session-link",
+      status: "created",
+    }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createBrowserSearchSession(
+      { kind: "product-link", url: "https://www.example.com.au/products/table?variant=oak" },
+      {
+        widthMm: 900,
+        heightMm: 1_800,
+        depthMm: 350,
+        uncertaintyMm: 25,
+        source: "manual",
+      },
+    );
+
+    const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body)) as Record<string, unknown>;
+    expect(body.task).toContain("Visit this exact submitted product page only");
+    expect(body.task).toContain("https://www.example.com.au/products/table?variant=oak");
+    expect(body.task).not.toContain("Aim for 6 source-qualified products");
+  });
+});
+
+describe("stopBrowserSearchSession", () => {
+  it("uses the official session stop endpoint and bounded session strategy", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await stopBrowserSearchSession("session/unsafe");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.browser-use.com/api/v3/sessions/session%2Funsafe/stop",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ strategy: "session" }),
+      }),
+    );
+  });
+
+  it("surfaces a provider rejection without trying another paid request", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("already terminal", { status: 409 })));
+    await expect(stopBrowserSearchSession("session-1")).rejects.toMatchObject({ status: 409 });
   });
 });
 

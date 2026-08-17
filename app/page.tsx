@@ -25,8 +25,8 @@ export default function RootPage(): React.JSX.Element {
                 measured true.
               </h1>
               <p className="mt-6 max-w-[520px] text-base leading-7 text-[#17221f]/74 sm:text-lg">
-                only shows you furniture that actually fits, your space and
-                your front door
+                Compare furniture that fits your measured space—with delivery
+                risks flagged before you buy.
               </p>
             </div>
 
@@ -38,10 +38,10 @@ export default function RootPage(): React.JSX.Element {
                 Measure your space
               </Link>
               <Link
-                href="/fit?demo=1"
+                href="/fit?mode=link"
                 className="flex min-h-12 items-center justify-center rounded-sm border border-[#17221f]/35 bg-white px-5 text-sm font-bold text-[#17221f] transition-colors hover:border-[#17221f]"
               >
-                Try a demo space
+                Check a product
               </Link>
             </div>
             <Link

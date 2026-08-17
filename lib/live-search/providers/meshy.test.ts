@@ -2,10 +2,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/live-search/env", () => ({
-  getLiveSearchServerEnvironment: () => ({ meshyApiKey: "test-meshy-key" }),
+  getLiveSearchServerEnvironment: () => ({
+    meshyApiKey: "test-meshy-key",
+    url: "https://test-project.supabase.co",
+  }),
 }));
 
-import { getMeshyTask, readMeshyWebhookTaskId, verifyMeshyWebhookToken } from "./meshy";
+import {
+  createMeshyImageTask,
+  getMeshyTask,
+  readMeshyWebhookTaskId,
+  verifyMeshyWebhookToken,
+} from "./meshy";
 
 const TOKEN = "meshy-webhook-token-at-least-32-characters-long";
 
@@ -43,6 +51,33 @@ describe("getMeshyTask", () => {
       progress: 42,
     });
     expect(timeout).toHaveBeenCalledWith(10_000);
+  });
+});
+
+describe("createMeshyImageTask", () => {
+  it("submits only a content-addressed image from Fitment's controlled bucket", async () => {
+    const imageUrl = `https://test-project.supabase.co/storage/v1/object/public/product-images-public/${"a".repeat(64)}.png`;
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ result: "meshy-task-1" }),
+      { status: 200 },
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(createMeshyImageTask(imageUrl)).resolves.toBe("meshy-task-1");
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      image_url: imageUrl,
+      target_formats: ["glb"],
+    });
+  });
+
+  it("rejects an otherwise-public retailer image before any paid request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(createMeshyImageTask("https://www.ikea.com/images/billy.jpg")).rejects.toThrow(
+      "controlled product-image bucket",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

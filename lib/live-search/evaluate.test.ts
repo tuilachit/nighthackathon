@@ -20,7 +20,7 @@ function observation(
   overrides: Partial<LiveProductObservation> = {},
 ): LiveProductObservation {
   return {
-    retailer: "ikea-au",
+    retailer: { key: "ikea-au", label: "IKEA Australia", host: "ikea.com" },
     retailerProductId,
     name: `Product ${retailerProductId}`,
     category: "bookcase",
@@ -30,6 +30,7 @@ function observation(
     currency: "AUD",
     availability: "in_stock",
     assembledDimensions,
+    packages: [],
     dimensionsSource: "retailer-page",
     dimensionsEvidence: "Explicit dimensions",
     observedAt: "2026-08-16T00:00:00.000Z",
@@ -59,16 +60,25 @@ describe("evaluateLiveProducts", () => {
     ]);
     expect(result.map((candidate) => candidate.rank)).toEqual([0, 1, 2]);
     expect(result[0]?.fit.fits).toBe(true);
-    expect(result[0]?.access).toMatchObject({ status: "passed", passes: true });
+    expect(result[0]?.access).toMatchObject({
+      status: "passed",
+      passes: true,
+      basis: "assembled-advisory",
+    });
     expect(result[1]?.fit.fits).toBe(true);
     expect(result[1]?.access).toMatchObject({
       status: "failed",
       passes: false,
+      basis: "assembled-advisory",
       deficitMm: 45,
       reason: "Fits the space, but 45 mm too wide for the 820 mm access opening.",
     });
     expect(result[2]?.fit.fits).toBe(false);
-    expect(result[2]?.access).toEqual({ status: "skipped", passes: true });
+    expect(result[2]?.access).toEqual({
+      status: "skipped",
+      passes: true,
+      basis: "unknown",
+    });
     expect(output.products.map((product) => product.retailerProductId)).toEqual(originalOrder);
   });
 
@@ -84,7 +94,41 @@ describe("evaluateLiveProducts", () => {
     const result = evaluateLiveProducts(output, { ...measurement, accessWidthMm: undefined });
 
     expect(result[0]?.fitStatus).toBe("fits");
-    expect(result[0]?.access).toEqual({ status: "skipped", passes: true });
+    expect(result[0]?.access).toEqual({
+      status: "skipped",
+      passes: true,
+      basis: "unknown",
+    });
+  });
+
+  it("uses the worst complete delivery package instead of assembled dimensions", () => {
+    const output: BrowserSearchOutput = {
+      products: [
+        observation(
+          "flat-pack",
+          { widthMm: 800, heightMm: 1_600, depthMm: 280 },
+          {
+            packages: [
+              { widthMm: 700, heightMm: 300, depthMm: 150, label: "Box 1" },
+              { widthMm: 900, heightMm: 850, depthMm: 300, label: "Box 2" },
+            ],
+          },
+        ),
+      ],
+      partial: false,
+      notes: [],
+    };
+
+    const result = evaluateLiveProducts(output, measurement);
+
+    expect(result[0]?.fitStatus).toBe("access_issue");
+    expect(result[0]?.access).toMatchObject({
+      status: "failed",
+      basis: "package",
+      deficitMm: 95,
+      controllingPackageIndex: 1,
+      controllingPackageLabel: "Box 2",
+    });
   });
 
   it("orders each tier deterministically and produces stable snapshot hashes", () => {

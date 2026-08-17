@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   configured: vi.fn(),
   environment: vi.fn(),
   authenticate: vi.fn(),
+  completeCached: vi.fn(),
   createWorkflow: vi.fn(),
   dispatch: vi.fn(),
   requestHash: vi.fn(),
@@ -35,6 +36,7 @@ vi.mock("@/lib/live-search/repository", () => ({
 }));
 
 vi.mock("@/lib/live-search/service", () => ({
+  completeCachedSearchWorkflow: mocks.completeCached,
   dispatchSearchWorkflow: mocks.dispatch,
   liveSearchRequestHash: mocks.requestHash,
 }));
@@ -44,7 +46,11 @@ import { POST } from "./route";
 const workflowId = "11111111-1111-4111-8111-111111111111";
 const idempotencyKey = "search-request-1234567890";
 const command = {
-  queryText: "narrow oak shelf",
+  intent: {
+    kind: "prompt",
+    text: "narrow oak shelf",
+    retailers: ["ikea-au", "ikea-au", "kmart-au"],
+  },
   measurement: {
     widthMm: 900,
     heightMm: 1800,
@@ -53,7 +59,7 @@ const command = {
     accessWidthMm: 820,
     source: "manual",
   },
-  retailers: ["ikea-au", "ikea-au", "kmart-au"],
+  cachePolicy: "prefer-recent",
 };
 
 function commandRequest(body: unknown = command, key: string | null = idempotencyKey): Request {
@@ -76,7 +82,17 @@ describe("create live-search job route", () => {
     });
     mocks.authenticate.mockResolvedValue({ id: "owner-1", isAnonymous: true });
     mocks.requestHash.mockReturnValue("request-hash");
-    mocks.createWorkflow.mockResolvedValue({ workflowId, state: "queued", reused: false });
+    mocks.createWorkflow.mockResolvedValue({
+      workflowId,
+      state: "queued",
+      reused: false,
+      cacheHit: false,
+      freshness: "live",
+    });
+    mocks.completeCached.mockResolvedValue({
+      state: "ready_for_approval",
+      checkedAt: "2026-08-17T01:00:00.000Z",
+    });
     mocks.dispatch.mockResolvedValue(undefined);
   });
 
@@ -102,11 +118,29 @@ describe("create live-search job route", () => {
   });
 
   it("rejects invalid commands before authenticating or writing", async () => {
-    const response = await POST(commandRequest({ ...command, retailers: ["wayfair-au"] }));
+    const response = await POST(commandRequest({
+      ...command,
+      intent: { ...command.intent, retailers: ["wayfair-au"] },
+    }));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
       error: { code: "invalid_request", details: ["Unsupported retailer: wayfair-au."] },
+    });
+    expect(mocks.authenticate).not.toHaveBeenCalled();
+    expect(mocks.createWorkflow).not.toHaveBeenCalled();
+  });
+
+  it("rejects unsafe product links before authentication", async () => {
+    const response = await POST(commandRequest({
+      intent: { kind: "product-link", url: "https://127.0.0.1/private-product" },
+      measurement: command.measurement,
+      cachePolicy: "prefer-recent",
+    }));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "unsafe_product_url" },
     });
     expect(mocks.authenticate).not.toHaveBeenCalled();
     expect(mocks.createWorkflow).not.toHaveBeenCalled();
@@ -123,10 +157,19 @@ describe("create live-search job route", () => {
     expect(response.status).toBe(202);
     expect(response.headers.get("location")).toBe(`/api/v1/search-jobs/${workflowId}`);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    await expect(response.json()).resolves.toEqual({ workflowId, state: "queued", reused: false });
+    await expect(response.json()).resolves.toEqual({
+      workflowId,
+      state: "queued",
+      reused: false,
+      cacheHit: false,
+      freshness: "live",
+    });
     const normalizedCommand = {
       ...command,
-      retailers: ["ikea-au", "kmart-au"],
+      intent: {
+        ...command.intent,
+        retailers: ["ikea-au", "kmart-au"],
+      },
     };
     expect(mocks.requestHash).toHaveBeenCalledWith(normalizedCommand);
     expect(mocks.createWorkflow).toHaveBeenCalledWith(
@@ -139,7 +182,66 @@ describe("create live-search job route", () => {
     expect(mocks.dispatch).not.toHaveBeenCalled();
 
     await deferred?.();
+    expect(mocks.dispatch).toHaveBeenCalledOnce();
     expect(mocks.dispatch).toHaveBeenCalledWith(workflowId, "request-hash");
+    expect(mocks.completeCached).not.toHaveBeenCalled();
+  });
+
+  it("materializes an exact cache hit synchronously and schedules no Browser Use dispatch", async () => {
+    const cachePayload = { products: [{ retailerProductId: "cached-item" }] };
+    mocks.createWorkflow.mockResolvedValue({
+      workflowId,
+      state: "validating",
+      reused: false,
+      cacheHit: true,
+      freshness: "cached",
+      cachePayload,
+    });
+
+    const response = await POST(commandRequest());
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      workflowId,
+      state: "ready_for_approval",
+      reused: false,
+      cacheHit: true,
+      freshness: "cached",
+      checkedAt: "2026-08-17T01:00:00.000Z",
+    });
+    expect(mocks.completeCached).toHaveBeenCalledWith(workflowId, cachePayload);
+    expect(mocks.after).not.toHaveBeenCalled();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("preserves force-refresh and canonical product-link intents on a live miss", async () => {
+    const linkCommand = {
+      intent: {
+        kind: "product-link",
+        url: "https://WWW.furniture.example/products/oak/?variant=wide&utm_source=mail#specs",
+      },
+      measurement: command.measurement,
+      cachePolicy: "force-refresh",
+    };
+
+    const response = await POST(commandRequest(linkCommand));
+
+    expect(response.status).toBe(202);
+    expect(mocks.createWorkflow).toHaveBeenCalledWith(
+      "owner-1",
+      expect.stringMatching(/^[0-9a-f]{64}$/),
+      {
+        ...linkCommand,
+        intent: {
+          kind: "product-link",
+          url: "https://www.furniture.example/products/oak?variant=wide",
+        },
+      },
+      "request-hash",
+      idempotencyKey,
+    );
+    expect(mocks.after).toHaveBeenCalledOnce();
+    expect(mocks.completeCached).not.toHaveBeenCalled();
   });
 
   it("maps authentication and idempotency conflicts to stable API errors", async () => {

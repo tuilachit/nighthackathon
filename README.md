@@ -1,6 +1,6 @@
 # Fitment
 
-**Only shows furniture that actually fits—your space and your front door.**
+**Compare furniture that fits your measured space—with delivery risks flagged before you buy.**
 
 2nd place out of 117 teams at Founders, Inc. Night Hack.
 
@@ -16,57 +16,52 @@
 
 ```mermaid
 flowchart LR
-  subgraph Runtime["Browser runtime"]
-    Measure["Space measurement<br/>manual entry; WebXR geometry isolated"]
-    Intent["Voice or text intent"]
-    Parse["Deterministic parser<br/>optional AI enrichment"]
-    Fit["Destination fit predicate"]
-    Access["Access-opening predicate"]
-    Rank["Preference ranking"]
-    Compare["Cross-retailer comparison"]
-    AR["Outer-dimension 3D / AR placement"]
+  Measure["Manual space + optional access opening"]
+  Intent["Prompt or exact product URL"]
+  Gate["Deferred Turnstile + guest session"]
+  Cache{"Exact observation<br/>≤24 hours old?"}
+  Browse["Bounded Browser Use session<br/>AU region"]
+  Validate["Source, dimensions, URL,<br/>currency, image validation"]
+  Image["Pinned-DNS image cache"]
+  Fit["Pure destination + package-aware<br/>access predicates"]
+  Compare["Three tiers + comparison"]
+  Review["Explicit generation review"]
+  Reuse{"Exact verified<br/>asset match?"}
+  Meshy["Meshy image-to-3D"]
+  Scale["Read geometry + rescale +<br/>verify outer bounds"]
+  View["3D / capability-honest AR"]
+  Share["30-day immutable public snapshot"]
 
-    Measure --> Fit
-    Intent --> Parse --> Rank
-    Fit --> Access --> Rank --> Compare --> AR
+  Measure --> Gate
+  Intent --> Gate --> Cache
+  Cache -->|hit| Fit
+  Cache -->|miss / refresh| Browse --> Validate --> Image --> Fit
+  Fit --> Compare --> Review --> Reuse
+  Reuse -->|hit| View
+  Reuse -->|miss + approved budget| Meshy --> Scale --> View
+  Compare --> Share
+
+  subgraph Durable["Sydney Supabase · private server-owned data"]
+    Queue["PGMQ queues + provider task leases"]
+    Observations["24-hour discovery cache"]
+    Assets["Content-addressed images and models"]
+    Snapshots["Hashed share tokens + product events"]
   end
 
-  subgraph Ingestion["Offline catalog ingestion agent"]
-    Retailers["Retailer pages and APIs"]
-    Adapters["Retailer adapters"]
-    Validate["All-or-nothing validation gate"]
-    Catalog["public/catalog.json"]
-
-    Retailers --> Adapters --> Validate --> Catalog
-  end
-
-  subgraph Assets["Offline 3D asset pipeline"]
-    Photos["Verified retailer photos"]
-    Meshy["Meshy image-to-3D"]
-    Scale["Rescale and check outer bounds"]
-    Models["Cached GLB / USDZ assets"]
-
-    Photos --> Meshy --> Scale --> Models
-  end
-
-  Catalog --> Fit
-  Catalog --> Rank
-  Catalog --> Photos
-  Models --> AR
+  Browse -.-> Queue
+  Cache -.-> Observations
+  Image -.-> Assets
+  Scale -.-> Assets
+  Share -.-> Snapshots
 ```
 
-Retailer fetching and model generation are kept off the search request path.
-The deployed app reads a validated catalog snapshot and cached hero assets, so
-fit and comparison remain deterministic when external APIs are unavailable.
-
-The post-hackathon `/agent` lane adds an asynchronous Australian search path
-without weakening that fallback: Turnstile-protected guest commands are
-committed with a durable Supabase queue message, Browser Use returns
-schema-constrained IKEA AU and Kmart AU observations, the same pure fit/access
-predicates run server-side, and Meshy starts only after explicit user approval.
-Provider notifications trigger canonical task re-fetches, and generated GLBs
-are published only after their outer bounds match the approved listed
-dimensions. See
+`/fit` is the single product journey. A prompt searches IKEA Australia and
+Kmart Australia; an exact-link request checks one safe public retailer URL.
+Fresh observations are reusable only for the exact normalized intent and
+extraction schema for 24 hours, then dimensions are re-evaluated against the
+current visitor's space. Provider notifications are treated only as wake-ups:
+the server always re-fetches canonical provider state before committing data.
+See
 [`docs/live-search-backend.md`](docs/live-search-backend.md) for the state,
 security, and recovery design.
 
@@ -84,12 +79,12 @@ high-confidence validation gate before entering the bundled snapshot.
 
 ## How it works
 
-### 1. Intent becomes a deterministic query
+### 1. A request becomes a durable, bounded job
 
-The local parser extracts category, budget, material, color, style, and keyword
-preferences from text. Optional AI enrichment can add missing fields, but it
-cannot replace explicitly parsed category or budget values. Search still works
-without an API key.
+The visitor either describes a need or submits one exact HTTPS product URL.
+Guest authentication and Turnstile are deferred until submission. The job,
+measurement, cache policy, provider task, and recovery state are committed
+before any paid call. Reloading `/fit?job=…` restores the owner-scoped job.
 
 ### 2. Destination-space fit runs before ranking
 
@@ -113,27 +108,29 @@ from smallest to largest. The two smallest axes form the transport
 cross-section; ties resolve in `width`, `depth`, then `height` order. The
 opening must clear both axes after uncertainty and side allowances.
 
-A product that fits the destination but fails this check is never presented as
-a fit. It appears in a separate access-failure collection with its exact
-deficit.
+Complete delivery packages are checked first; the worst package controls. When
+package dimensions are unavailable, assembled dimensions are used and labeled
+as an advisory. Unknown access produces no pass claim. A destination fit that
+fails the known opening appears in a separate warning tier with its deficit.
 
 ### 4. Valid products are ranked and compared
 
-Only products that pass the physical predicates reach the main result list.
-Ranking then considers category, budget, preference matches, fit confidence,
-minimum clearance, price, and stable ID. Up to three products can be compared
-across retailers using the same dimensions and clearance metrics.
+Fits, access warnings, and near misses remain separate. Products from every tier
+can be compared against the same envelope, but generation is available only
+for a destination fit without a known access failure. Each result preserves its
+listed currency, observation time, evidence, availability, package basis, and
+retailer source; currencies are never converted for a price-difference claim.
 
 ### 5. The selected product is placed at checked outer dimensions
 
-Hero product photos are converted to GLBs through Meshy outside the critical
-search path. Each AI-generated mesh is rescaled to the catalog record's listed
-width/height/depth and its outer scene bounds are checked before the asset path
-is attached. This validates bounding-box scale, not the inferred geometry or
-internal proportions. Products without a cached mesh use a unit box scaled to
-the same dimensions rather than an invented model size.
+The user first reviews the frozen source image, listed dimensions, limitations,
+and expected wait. An existing model is reused only when the product snapshot,
+source-image bytes, dimensions, Meshy settings, and processing version match.
+Otherwise one explicitly approved Meshy job may run when the model budget gate
+is enabled. Embedded geometry is rescaled to the listed dimensions and checked
+to `0.1 mm`; this verifies outer bounding-box scale, not replica fidelity.
 
-## Catalog ingestion
+## Legacy catalog compatibility
 
 The current ingestion tools use deterministic IKEA, Target, and Wayfair
 adapters. A record enters the runtime snapshot only when the catalog validator
@@ -148,14 +145,20 @@ The gate rejects:
 - negative prices or unsupported categories; and
 - model metadata whose verified bounds do not match the product dimensions.
 
-The deployed application never scrapes a retailer during a user search.
+This 120-product US snapshot is available only through an explicit legacy/demo
+path. It never mixes with Australian live observations or their currencies.
 
 ## Repository structure
 
 ```text
 app/fit/                         Fitment route and server catalog load
 components/fit/                  Search, results, comparison, and AR viewer UI
+components/agent/                Lazy live-job controller and live result cards
+app/api/v1/search-jobs/          Owner-scoped search, status, cancel, approval
+app/api/v1/comparison-shares/    Hashed immutable public comparison snapshots
+lib/live-search/                 Provider, validation, cache, security, and jobs
 lib/access-fit.ts                Pure access-opening predicate
+lib/delivery-access.ts           Package-aware access wrapper
 lib/fit-engine.ts                Pure destination-space predicate
 lib/query-parser.ts              Deterministic intent parser and AI validation
 lib/product-ranker.ts            Result partitioning and stable ranking
@@ -165,6 +168,7 @@ lib/measurement-geometry.ts      Pure measurement and unit geometry
 lib/model-scaling.ts             Verified model scaling and placement types
 scripts/catalog/ingestion/       Retailer-specific offline adapters
 scripts/catalog/generate-*.ts    Resumable Meshy generation and verification
+supabase/migrations/             Additive private-schema queue and cache design
 public/catalog.json              Bundled validated catalog snapshot
 public/models/                   Cached GLB and USDZ assets
 ```
@@ -186,8 +190,8 @@ npm run dev
 
 Open [http://localhost:3000/fit](http://localhost:3000/fit).
 
-The bundled catalog, deterministic parser, fit engine, comparison, and cached
-models work without credentials. For optional integrations:
+The explicit legacy/demo path works without credentials. The live Australian
+journey needs server credentials and a Sydney Supabase project:
 
 ```bash
 cp .env.example .env.local
@@ -200,18 +204,25 @@ Relevant environment variables:
 | `OPENAI_API_KEY` | Optional query enrichment, transcription, and legacy concept analysis |
 | `OPENAI_QUERY_MODEL` | Optional query-extraction model override |
 | `OPENAI_TRANSCRIPTION_MODEL` | Optional transcription model override |
-| `MESHY_API_KEY` | Offline cached-model generation |
-| `ENABLE_MESHY` | Enables Meshy generation when `true` |
-| `FIRECRAWL_API_KEY` | Default offline retailer-page extraction |
-| `BROWSER_USE_API_KEY` | Bounded rendered-page fallback for offline ingestion |
+| `NEXT_PUBLIC_SUPABASE_URL` | Sydney project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser auth key |
+| `SUPABASE_SECRET_KEY` | Server-only database and Storage access |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Browser-visible deferred anti-abuse challenge; configure the matching secret in Supabase Auth, not Vercel |
+| `BROWSER_USE_API_KEY` | Bounded live retailer browsing |
+| `BROWSER_USE_WEBHOOK_SECRET` | Signed Browser Use notifications |
+| `MESHY_API_KEY` | Explicitly approved live model generation |
+| `MESHY_WEBHOOK_SECRET` | Opaque Meshy webhook capability |
+| `CRON_SECRET` / `ABUSE_HASH_SECRET` | Recovery and privacy-bounded abuse controls |
+| `ENABLE_MESHY` | Enables offline batch generation when `true` |
+| `FIRECRAWL_API_KEY` | Offline legacy catalog ingestion only |
 | `ANTHROPIC_API_KEY` | Strict structured extraction for missing retailer facts |
 | `NOTION_TOKEN` | Optional legacy waitlist integration |
 
-The isolated `/agent` backend additionally requires a Sydney Supabase project,
-Turnstile, Browser Use, Meshy, and random webhook/reconciler secrets. The full
-variable list, durable scheduler setup, and security boundaries are documented
-in [`docs/live-search-backend.md`](docs/live-search-backend.md). It is disabled
-unless every required value is present; `/fit` remains available without them.
+The full variable list, durable scheduler setup, circuit breakers, and security
+boundaries are documented in
+[`docs/live-search-backend.md`](docs/live-search-backend.md). Model generation
+is disabled in the database by default; enabling it is an explicit operator
+decision after a credit-safe smoke test.
 
 Never commit `.env.local` or generated credential files.
 
@@ -228,7 +239,7 @@ to `main` and every pull request.
 
 ## Honest limitations
 
-- The bundled portfolio snapshot contains 77 IKEA, 40 Target, and 3 Wayfair
+- The explicit legacy snapshot contains 77 IKEA, 40 Target, and 3 Wayfair
   products. Wayfair coverage is intentionally smaller because ingestion
   stopped at the first provider credit-exhaustion signal.
 - The deployed `/fit` route starts with first-class manual tape-measure entry.
@@ -240,7 +251,7 @@ to `main` and every pull request.
   fixed-scale iPhone Quick Look requires a verified USDZ asset.
 - Only selected hero products have shape-accurate cached meshes. Other products
   use dimensionally accurate boxes.
-- Live `/agent` dimensions are agent-extracted from axis-labelled retailer
+- Live dimensions may be agent-extracted from axis-labelled retailer
   evidence and checked for internal numeric consistency. They are not an
   independent physical measurement; users should confirm the retailer page
   before purchase.

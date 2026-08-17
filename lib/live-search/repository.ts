@@ -2,7 +2,6 @@ import "server-only";
 
 import type {
   AccessCrossSectionDimension,
-  AccessEvaluation,
   FitEvaluation,
   ProductDimensions,
   SpaceMeasurement,
@@ -16,20 +15,31 @@ import {
   ResourceNotFoundError,
 } from "./http";
 import type {
+  CachePolicy,
   CreateLiveSearchRequest,
+  DeliveryAccessEvaluation,
+  DeliveryPackage,
   LiveAsset,
   LiveCandidate,
   LiveProductObservation,
+  LiveRetailer,
+  LiveSearchIntent,
   LiveSearchWorkflow,
+  RetailerIdentity,
   WorkflowState,
   VerifiedLiveCandidateRecord,
 } from "./types";
+import { LIVE_RETAILER_IDENTITIES } from "./types";
+import { buildDiscoveryCacheIdentity } from "./discovery-cache";
 import { isUuid, isWorkflowState } from "./validation";
 
 interface CreatedWorkflow {
   readonly workflowId: string;
   readonly state: WorkflowState;
   readonly reused: boolean;
+  readonly cacheHit: boolean;
+  readonly freshness: "cached" | "live";
+  readonly cachePayload?: unknown;
 }
 
 const DISPATCH_DISPOSITIONS = [
@@ -56,8 +66,11 @@ interface ClaimedSearchDispatch {
 interface WorkflowCommand {
   readonly id: string;
   readonly queryText: string;
+  readonly intent: LiveSearchIntent;
   readonly measurement: SpaceMeasurement;
-  readonly retailers: CreateLiveSearchRequest["retailers"];
+  readonly retailers: readonly LiveRetailer[];
+  readonly cachePolicy: CachePolicy;
+  readonly cacheKey: string;
   readonly requestHash: string;
 }
 
@@ -129,18 +142,26 @@ export async function createWorkflow(
   requestHash: string,
   idempotencyKey: string,
 ): Promise<CreatedWorkflow> {
+  const cache = buildDiscoveryCacheIdentity(input.intent);
+  const retailers = input.intent.kind === "prompt" ? input.intent.retailers : [];
+  const querySummary = input.intent.kind === "prompt" ? input.intent.text : input.intent.url;
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase.rpc("create_search_workflow", {
     p_owner_id: ownerId,
+    p_intent_kind: input.intent.kind,
+    p_intent_json: cache.canonicalIntent,
     p_actor_hash: actorHash,
-    p_query_text: input.queryText,
+    p_query_summary: querySummary,
     p_width_mm: input.measurement.widthMm,
     p_height_mm: input.measurement.heightMm,
     p_depth_mm: input.measurement.depthMm,
     p_access_width_mm: input.measurement.accessWidthMm ?? null,
     p_uncertainty_mm: input.measurement.uncertaintyMm,
     p_measurement_source: input.measurement.source,
-    p_retailers: input.retailers,
+    p_retailers: retailers,
+    p_cache_policy: input.cachePolicy,
+    p_cache_key: cache.key,
+    p_extraction_schema_version: cache.extractionSchemaVersion,
     p_request_hash: requestHash,
     p_idempotency_key: idempotencyKey,
   });
@@ -154,7 +175,7 @@ export async function getWorkflowCommand(workflowId: string): Promise<WorkflowCo
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("workflows")
-    .select("id,query_text,width_mm,height_mm,depth_mm,access_width_mm,uncertainty_mm,measurement_source,retailers,request_hash")
+    .select("id,query_text,intent_kind,intent_json,cache_policy,cache_key,width_mm,height_mm,depth_mm,access_width_mm,uncertainty_mm,measurement_source,retailers,request_hash")
     .eq("id", workflowId)
     .maybeSingle();
   if (error !== null) {
@@ -307,6 +328,51 @@ export async function recordSearchResults(
     throw new Error("Search result RPC returned an invalid count.");
   }
   return data;
+}
+
+export async function recordCachedSearchResults(
+  workflowId: string,
+  candidates: readonly VerifiedLiveCandidateRecord[],
+  isPartial: boolean,
+  coverageNotes: readonly string[],
+  metadata: Readonly<Record<string, unknown>>,
+): Promise<number> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("internal_record_cached_search_results", {
+    p_workflow_id: workflowId,
+    p_candidates: candidates,
+    p_is_partial: isPartial,
+    p_coverage_notes: coverageNotes,
+    p_cache_metadata: metadata,
+  });
+  if (error !== null) {
+    throw mapDatabaseError(error);
+  }
+  const count = integer(data);
+  if (count === undefined || count < 0) {
+    throw new Error("Cached search result RPC returned an invalid count.");
+  }
+  return count;
+}
+
+export async function recordDiscoveryCache(
+  cacheKey: string,
+  extractionSchemaVersion: number,
+  output: unknown,
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("internal_record_discovery_cache", {
+    p_cache_key: cacheKey,
+    p_extraction_schema_version: extractionSchemaVersion,
+    p_payload: output,
+  });
+  if (error !== null) {
+    throw mapDatabaseError(error);
+  }
+  const row = recordValue(data);
+  if (typeof row.cachedAt !== "string" || typeof row.expiresAt !== "string") {
+    throw new Error("Discovery cache RPC returned invalid timestamps.");
+  }
 }
 
 export async function claimModelDispatch(
@@ -662,6 +728,154 @@ export async function expireDueWorkflows(limit: number): Promise<number> {
   return count;
 }
 
+export interface CancelledWorkflow {
+  readonly workflowId: string;
+  readonly state: WorkflowState;
+  readonly alreadyTerminal: boolean;
+  readonly browserExternalId?: string;
+}
+
+export async function cancelWorkflowForOwner(
+  ownerId: string,
+  workflowId: string,
+): Promise<CancelledWorkflow> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("cancel_workflow", {
+    p_owner_id: ownerId,
+    p_workflow_id: workflowId,
+  });
+  if (error !== null) {
+    throw mapDatabaseError(error);
+  }
+  const row = recordValue(data);
+  if (
+    row.workflowId !== workflowId ||
+    !isWorkflowState(row.state) ||
+    typeof row.alreadyTerminal !== "boolean" ||
+    (row.browserExternalId !== undefined && typeof row.browserExternalId !== "string")
+  ) {
+    throw new Error("Workflow cancellation RPC returned an invalid result.");
+  }
+  return {
+    workflowId,
+    state: row.state,
+    alreadyTerminal: row.alreadyTerminal,
+    ...(typeof row.browserExternalId === "string"
+      ? { browserExternalId: row.browserExternalId }
+      : {}),
+  };
+}
+
+export async function createComparisonShare(input: {
+  readonly ownerId: string;
+  readonly tokenHash: string;
+  readonly schemaVersion: number;
+  readonly payload: unknown;
+}): Promise<{ readonly shareId: string; readonly expiresAt: string }> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("internal_create_comparison_share", {
+    p_token_hash: input.tokenHash,
+    p_schema_version: input.schemaVersion,
+    p_payload: input.payload,
+    p_owner_id: input.ownerId,
+  });
+  if (error !== null) {
+    throw mapDatabaseError(error);
+  }
+  const row = recordValue(data);
+  if (!isUuid(row.shareId) || typeof row.expiresAt !== "string" || Number.isNaN(Date.parse(row.expiresAt))) {
+    throw new Error("Comparison share RPC returned an invalid result.");
+  }
+  return { shareId: row.shareId, expiresAt: row.expiresAt };
+}
+
+export async function resolveComparisonShare(
+  tokenHash: string,
+): Promise<{ readonly payload: unknown; readonly schemaVersion: number; readonly expiresAt: string } | undefined> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("internal_resolve_comparison_share", {
+    p_token_hash: tokenHash,
+  });
+  if (error !== null) {
+    throw mapDatabaseError(error);
+  }
+  const row = recordValue(data);
+  if (row.found === false) {
+    return undefined;
+  }
+  const schemaVersion = integer(row.schemaVersion);
+  if (
+    row.found !== true ||
+    schemaVersion === undefined ||
+    schemaVersion < 1 ||
+    typeof row.expiresAt !== "string" ||
+    Number.isNaN(Date.parse(row.expiresAt))
+  ) {
+    throw new Error("Comparison share lookup returned an invalid result.");
+  }
+  return {
+    payload: recordValue(row.payload),
+    schemaVersion,
+    expiresAt: row.expiresAt,
+  };
+}
+
+export async function recordProductEvent(input: {
+  readonly eventName: string;
+  readonly journeyHash: string;
+  readonly properties: Readonly<Record<string, string | number | boolean>>;
+}): Promise<boolean> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("internal_record_product_event", {
+    p_event_name: input.eventName,
+    p_journey_hash: input.journeyHash,
+    p_properties: input.properties,
+  });
+  if (error !== null) {
+    throw mapDatabaseError(error);
+  }
+  const row = recordValue(data);
+  if (typeof row.recorded !== "boolean") {
+    throw new Error("Product event RPC returned an invalid result.");
+  }
+  return row.recorded;
+}
+
+export async function lookupReusableAsset(
+  reuseKey: string,
+): Promise<LiveAsset | undefined> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("internal_lookup_reusable_asset", {
+    p_reuse_key: reuseKey,
+  });
+  if (error !== null) {
+    throw mapDatabaseError(error);
+  }
+  const row = recordValue(data);
+  if (row.found === false) {
+    return undefined;
+  }
+  if (row.found !== true) {
+    throw new Error("Reusable asset lookup returned an invalid result.");
+  }
+  const assetRow = recordValue(row.asset);
+  if (
+    !isUuid(assetRow.id) ||
+    (assetRow.kind !== "glb" && assetRow.kind !== "usdz") ||
+    typeof assetRow.public_url !== "string" ||
+    assetRow.scale_verified !== true
+  ) {
+    throw new Error("Reusable asset lookup returned invalid asset metadata.");
+  }
+  return {
+    id: assetRow.id,
+    kind: assetRow.kind,
+    url: assetRow.public_url,
+    dimensions: parseDimensions(assetRow),
+    scaleVerified: true,
+  };
+}
+
 async function invokeInternal(name: string, parameters: Readonly<Record<string, unknown>>): Promise<void> {
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase.rpc(name, parameters);
@@ -687,10 +901,25 @@ async function invokeBoolean(
 
 function parseCreatedWorkflow(input: unknown): CreatedWorkflow {
   const row = recordValue(input);
-  if (!isUuid(row.workflow_id) || !isWorkflowState(row.workflow_state) || typeof row.reused !== "boolean") {
+  if (
+    !isUuid(row.workflow_id) ||
+    !isWorkflowState(row.workflow_state) ||
+    typeof row.reused !== "boolean" ||
+    typeof row.cache_hit !== "boolean" ||
+    (row.freshness !== "cached" && row.freshness !== "live")
+  ) {
     throw new Error("Workflow RPC returned an invalid result.");
   }
-  return { workflowId: row.workflow_id, state: row.workflow_state, reused: row.reused };
+  return {
+    workflowId: row.workflow_id,
+    state: row.workflow_state,
+    reused: row.reused,
+    cacheHit: row.cache_hit,
+    freshness: row.freshness,
+    ...(row.cache_payload === null || row.cache_payload === undefined
+      ? {}
+      : { cachePayload: row.cache_payload }),
+  };
 }
 
 function parseWorkflowCommand(input: unknown): WorkflowCommand {
@@ -710,11 +939,29 @@ function parseWorkflowCommand(input: unknown): WorkflowCommand {
   const retailers = row.retailers.filter(
     (value): value is "ikea-au" | "kmart-au" => value === "ikea-au" || value === "kmart-au",
   );
-  if (retailers.length !== row.retailers.length || retailers.length === 0) {
+  const intent = parseStoredIntent(row, row.query_text, retailers);
+  if (
+    retailers.length !== row.retailers.length ||
+    (intent.kind === "prompt" && retailers.length === 0) ||
+    (intent.kind === "product-link" && retailers.length !== 0)
+  ) {
     throw new Error("Stored retailer set is invalid.");
   }
+  const cachePolicy = row.cache_policy === "force-refresh" ? "force-refresh" : "prefer-recent";
+  const cacheKey = typeof row.cache_key === "string" && /^[0-9a-f]{64}$/.test(row.cache_key)
+    ? row.cache_key
+    : buildDiscoveryCacheIdentity(intent).key;
   const measurement = parseMeasurementRow(row, source);
-  return { id: row.id, queryText: row.query_text, measurement, retailers, requestHash: row.request_hash };
+  return {
+    id: row.id,
+    queryText: row.query_text,
+    intent,
+    measurement,
+    retailers,
+    cachePolicy,
+    cacheKey,
+    requestHash: row.request_hash,
+  };
 }
 
 function parseWorkflow(input: unknown, candidates: readonly LiveCandidate[]): LiveSearchWorkflow {
@@ -745,12 +992,31 @@ function parseWorkflow(input: unknown, candidates: readonly LiveCandidate[]): Li
   const retailers = row.retailers.filter(
     (value): value is "ikea-au" | "kmart-au" => value === "ikea-au" || value === "kmart-au",
   );
+  const intent = parseStoredIntent(row, row.query_text, retailers);
+  const cachePolicy = row.cache_policy === "force-refresh" ? "force-refresh" : "prefer-recent";
+  const cacheHit = row.cache_hit === true;
+  const freshness = row.freshness === "cached" ? "cached" : "live";
+  const candidateCheckedAt = candidates.reduce<string | undefined>((latest, candidate) => {
+    const observedAt = candidate.observation.observedAt;
+    if (latest === undefined || Date.parse(observedAt) > Date.parse(latest)) {
+      return observedAt;
+    }
+    return latest;
+  }, undefined);
+  const checkedAt = typeof row.checked_at === "string" && Number.isFinite(Date.parse(row.checked_at))
+    ? row.checked_at
+    : candidateCheckedAt;
   return {
     id: row.id,
     state: row.state,
     queryText: row.query_text,
+    intent,
     measurement: parseMeasurementRow(row, source),
     retailers,
+    cachePolicy,
+    cacheHit,
+    freshness,
+    ...(checkedAt === undefined ? {} : { checkedAt }),
     candidates,
     isPartial: row.is_partial,
     coverageNotes,
@@ -769,14 +1035,14 @@ function parseCandidate(input: unknown): LiveCandidate {
     !isUuid(row.id) ||
     typeof row.rank !== "number" ||
     (row.fit_status !== "fits" && row.fit_status !== "access_issue" && row.fit_status !== "near_miss") ||
-    (row.retailer !== "ikea-au" && row.retailer !== "kmart-au") ||
     typeof row.retailer_product_id !== "string" ||
     typeof row.name !== "string" ||
     typeof row.category !== "string" ||
     typeof row.product_url !== "string" ||
     typeof row.image_url !== "string" ||
     typeof row.price_minor !== "number" ||
-    row.currency !== "AUD" ||
+    typeof row.currency !== "string" ||
+    !/^[A-Z]{3}$/.test(row.currency) ||
     typeof row.observed_at !== "string"
   ) {
     throw new Error("Stored candidate is invalid.");
@@ -797,20 +1063,23 @@ function parseCandidate(input: unknown): LiveCandidate {
     throw new Error("Stored candidate provenance is invalid.");
   }
   const dimensions = parseDimensions(row);
+  const retailer = parseRetailerIdentityRow(row.retailer_identity, row.retailer);
+  const packages = parseDeliveryPackagesRow(row.packages);
   const observation: LiveProductObservation = {
-    retailer: row.retailer,
+    retailer,
     retailerProductId: row.retailer_product_id,
     name: row.name,
     category: row.category,
     productUrl: row.product_url,
     imageUrl: row.image_url,
     priceMinor: row.price_minor,
-    currency: "AUD",
+    currency: row.currency,
     availability:
       row.availability === "in_stock" || row.availability === "out_of_stock"
         ? row.availability
         : "unknown",
     assembledDimensions: dimensions,
+    packages,
     dimensionsSource,
     dimensionsEvidence: row.dimensions_evidence,
     observedAt: row.observed_at,
@@ -904,14 +1173,40 @@ function parseFitEvaluation(input: unknown): FitEvaluation {
   };
 }
 
-function parseAccessEvaluation(input: unknown): AccessEvaluation {
+function parseAccessEvaluation(input: unknown): DeliveryAccessEvaluation {
   const row = recordValue(input);
   if (row.status === "skipped" && row.passes === true) {
-    return { status: "skipped", passes: true };
+    return { status: "skipped", passes: true, basis: "unknown" };
+  }
+  const basis = row.basis === "package" ? "package" : "assembled-advisory";
+  const controllingPackageIndex = integer(row.controllingPackageIndex);
+  const controllingPackageLabel = typeof row.controllingPackageLabel === "string"
+    ? row.controllingPackageLabel
+    : undefined;
+  if (basis === "package" && (controllingPackageIndex === undefined || controllingPackageIndex < 0)) {
+    throw new Error("Stored package access basis is invalid.");
   }
   const crossSection = parseCrossSection(row.crossSection);
   if (row.status === "passed" && row.passes === true && typeof row.accessWidthMm === "number" && typeof row.clearanceMm === "number") {
-    return { status: "passed", passes: true, accessWidthMm: row.accessWidthMm, crossSection, clearanceMm: row.clearanceMm };
+    return basis === "package"
+      ? {
+          status: "passed",
+          passes: true,
+          basis,
+          accessWidthMm: row.accessWidthMm,
+          crossSection,
+          clearanceMm: row.clearanceMm,
+          controllingPackageIndex: controllingPackageIndex as number,
+          ...(controllingPackageLabel === undefined ? {} : { controllingPackageLabel }),
+        }
+      : {
+          status: "passed",
+          passes: true,
+          basis,
+          accessWidthMm: row.accessWidthMm,
+          crossSection,
+          clearanceMm: row.clearanceMm,
+        };
   }
   if (
     row.status === "failed" &&
@@ -920,9 +1215,105 @@ function parseAccessEvaluation(input: unknown): AccessEvaluation {
     typeof row.deficitMm === "number" &&
     typeof row.reason === "string"
   ) {
-    return { status: "failed", passes: false, accessWidthMm: row.accessWidthMm, crossSection, deficitMm: row.deficitMm, reason: row.reason };
+    return basis === "package"
+      ? {
+          status: "failed",
+          passes: false,
+          basis,
+          accessWidthMm: row.accessWidthMm,
+          crossSection,
+          deficitMm: row.deficitMm,
+          reason: row.reason,
+          controllingPackageIndex: controllingPackageIndex as number,
+          ...(controllingPackageLabel === undefined ? {} : { controllingPackageLabel }),
+        }
+      : {
+          status: "failed",
+          passes: false,
+          basis,
+          accessWidthMm: row.accessWidthMm,
+          crossSection,
+          deficitMm: row.deficitMm,
+          reason: row.reason,
+        };
   }
   throw new Error("Stored access evaluation is invalid.");
+}
+
+function parseStoredIntent(
+  row: Record<string, unknown>,
+  queryText: string,
+  retailers: readonly LiveRetailer[],
+): LiveSearchIntent {
+  if (row.intent_kind === "product-link") {
+    const value = recordValue(row.intent_json);
+    if (value.kind !== "product-link" || typeof value.url !== "string") {
+      throw new Error("Stored product-link intent is invalid.");
+    }
+    return { kind: "product-link", url: value.url };
+  }
+  if (row.intent_kind === "prompt") {
+    const value = recordValue(row.intent_json);
+    if (value.kind !== "prompt" || typeof value.text !== "string" || !Array.isArray(value.retailers)) {
+      throw new Error("Stored prompt intent is invalid.");
+    }
+    const keys = value.retailers.filter(
+      (entry): entry is LiveRetailer => entry === "ikea-au" || entry === "kmart-au",
+    );
+    if (keys.length !== value.retailers.length || keys.length === 0) {
+      throw new Error("Stored prompt retailer set is invalid.");
+    }
+    return { kind: "prompt", text: value.text, retailers: keys };
+  }
+  return { kind: "prompt", text: queryText, retailers };
+}
+
+function parseRetailerIdentityRow(identity: unknown, legacyKey: unknown): RetailerIdentity {
+  if (typeof legacyKey === "string" && (legacyKey === "ikea-au" || legacyKey === "kmart-au")) {
+    if (identity === null || identity === undefined) {
+      return LIVE_RETAILER_IDENTITIES[legacyKey];
+    }
+  }
+  const row = recordValue(identity);
+  if (
+    typeof row.key !== "string" ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.key) ||
+    typeof row.label !== "string" ||
+    row.label.trim().length === 0 ||
+    typeof row.host !== "string" ||
+    row.host.trim().length === 0
+  ) {
+    throw new Error("Stored retailer identity is invalid.");
+  }
+  return { key: row.key, label: row.label, host: row.host };
+}
+
+function parseDeliveryPackagesRow(input: unknown): readonly DeliveryPackage[] {
+  if (input === null || input === undefined) {
+    return [];
+  }
+  if (!Array.isArray(input) || input.length > 50) {
+    throw new Error("Stored delivery packages are invalid.");
+  }
+  return input.map((value) => {
+    const row = recordValue(value);
+    const dimensions = {
+      widthMm: numeric(row.widthMm),
+      heightMm: numeric(row.heightMm),
+      depthMm: numeric(row.depthMm),
+    };
+    if (dimensions.widthMm === undefined || dimensions.heightMm === undefined || dimensions.depthMm === undefined) {
+      throw new Error("Stored delivery package dimensions are invalid.");
+    }
+    return {
+      widthMm: dimensions.widthMm,
+      heightMm: dimensions.heightMm,
+      depthMm: dimensions.depthMm,
+      ...(typeof row.label === "string" && row.label.trim().length > 0
+        ? { label: row.label }
+        : {}),
+    };
+  });
 }
 
 function parseCrossSection(

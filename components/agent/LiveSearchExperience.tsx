@@ -1,19 +1,28 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ProductQuickLookViewer } from "@/components/fit/ProductQuickLookViewer";
+import { MeasurementSummary } from "@/components/fit/MeasurementSummary";
 import type { SpaceMeasurement } from "@/lib/catalog-types";
+import type { SavedSpace } from "@/lib/saved-spaces";
 import type {
+  CachePolicy,
+  CreateLiveSearchRequest,
+  DeliveryPackage,
   LiveCandidate,
   LiveRetailer,
   LiveSearchWorkflow,
+  RetailerIdentity,
   WorkflowState,
 } from "@/lib/live-search/types";
+import { captureProductEvent } from "@/lib/product-events-client";
 import { LiveCandidateCard } from "./LiveCandidateCard";
 import { TurnstileChallenge } from "./TurnstileChallenge";
 import {
   approveLiveCandidate,
+  cancelLiveSearch,
+  createComparisonShare,
   createLiveSearch,
   getLiveSearch,
   LiveSearchApiError,
@@ -21,7 +30,16 @@ import {
 } from "./live-search-api";
 import styles from "./LiveSearchExperience.module.css";
 
-type SessionState = "starting" | "challenge" | "ready" | "error";
+const ProductQuickLookViewer = dynamic(
+  () =>
+    import("@/components/fit/ProductQuickLookViewer").then(
+      (module) => module.ProductQuickLookViewer,
+    ),
+  { ssr: false },
+);
+
+type SessionState = "idle" | "starting" | "challenge" | "ready" | "error";
+type IntentMode = "describe" | "link";
 
 interface MeasurementDraft {
   readonly widthMm: string;
@@ -37,8 +55,44 @@ const INITIAL_MEASUREMENT: MeasurementDraft = {
   accessWidthMm: "",
 };
 
+interface LiveSearchExperienceProps {
+  readonly initialMeasurement?: SpaceMeasurement;
+  readonly initialQuery?: string;
+  readonly initialWorkflowId?: string;
+  readonly embedded?: boolean;
+  readonly savedSpaces?: readonly SavedSpace[];
+  readonly activeSpaceId?: string;
+  readonly onSelectSpace?: (spaceId: string) => void;
+  readonly onRenameSpace?: (spaceId: string, name: string) => void;
+  readonly onDeleteSpace?: (spaceId: string) => void;
+  readonly onNewSpace?: () => void;
+  readonly onEditMeasurement?: () => void;
+}
+
+type PendingRequestState = "awaiting-session" | "posting";
+
+interface PendingSearch {
+  readonly request: CreateLiveSearchRequest;
+  readonly idempotencyKey: string;
+  readonly state: PendingRequestState;
+}
+
+interface PreservedLinkedCandidate {
+  readonly workflowId: string;
+  readonly candidate: LiveCandidate;
+  readonly measurementKey: string;
+}
+
+interface StoredLinkedCandidateReference {
+  readonly workflowId: string;
+  readonly candidateId: string;
+  readonly measurementKey: string;
+}
+
 const WORKFLOW_QUERY_PARAMETER = "job";
 const WORKFLOW_SESSION_KEY = "fitment.live-workflow-id";
+const LINKED_CANDIDATE_SESSION_KEY = "fitment.linked-candidate";
+const PENDING_SEARCH_SESSION_KEY = "fitment.pending-search-v1";
 
 const POLLING_STATES: readonly WorkflowState[] = [
   "created",
@@ -50,42 +104,193 @@ const POLLING_STATES: readonly WorkflowState[] = [
   "verifying",
 ];
 
+const RETAILER_WAITING_STATES: readonly WorkflowState[] = [
+  "created",
+  "queued",
+  "searching",
+  "validating",
+];
+
 const STAGES = [
-  { title: "Space and request", detail: "Your dimensions and furniture brief." },
-  { title: "Retailer search", detail: "Agent visits the selected Australian stores." },
-  { title: "Dimension and fit gate", detail: "Incomplete source records are rejected before fit checks." },
-  { title: "Choose one passing fit", detail: "You control which product advances." },
-  { title: "Generate and rescale", detail: "Meshy output is forced to the published dimensions." },
-  {
-    title: "Bounding-box scale checked",
-    detail: "Open the AI-generated GLB at the listed outer dimensions.",
-  },
+  { title: "Request accepted", detail: "Your measured envelope and request are stored durably." },
+  { title: "Retailer check queued", detail: "The provider task is waiting for an execution slot." },
+  { title: "Retailer pages being checked", detail: "Current listing pages are being observed." },
+  { title: "Dimension and fit validation", detail: "Incomplete evidence is rejected before space and access checks." },
 ] as const;
 
 /** Runs the explicit-approval live retailer search and model-generation workflow. */
-export function LiveSearchExperience(): React.JSX.Element {
-  const [sessionState, setSessionState] = useState<SessionState>("starting");
+export function LiveSearchExperience({
+  initialMeasurement,
+  initialQuery = "",
+  initialWorkflowId,
+  embedded = false,
+  savedSpaces = [],
+  activeSpaceId,
+  onSelectSpace,
+  onRenameSpace,
+  onDeleteSpace,
+  onNewSpace,
+  onEditMeasurement,
+}: LiveSearchExperienceProps = {}): React.JSX.Element {
+  const [sessionState, setSessionState] = useState<SessionState>(
+    initialWorkflowId === undefined ? "idle" : "starting",
+  );
+  const [isOnline, setIsOnline] = useState(true);
+  const [sessionRequested, setSessionRequested] = useState(
+    initialWorkflowId !== undefined,
+  );
   const [sessionAttempt, setSessionAttempt] = useState(0);
   const [captchaToken, setCaptchaToken] = useState<string>();
-  const [queryText, setQueryText] = useState("");
-  const [measurementDraft, setMeasurementDraft] = useState<MeasurementDraft>(INITIAL_MEASUREMENT);
+  const [restoreWorkflowId, setRestoreWorkflowId] = useState<string | undefined>(
+    initialWorkflowId,
+  );
+  const [queryText, setQueryText] = useState(initialQuery);
+  const [intentMode, setIntentMode] = useState<IntentMode>(initialIntentMode);
+  const [measurementDraft, setMeasurementDraft] = useState<MeasurementDraft>(() =>
+    measurementToDraft(initialMeasurement),
+  );
   const [selectedRetailers, setSelectedRetailers] = useState<readonly LiveRetailer[]>([
     "ikea-au",
     "kmart-au",
   ]);
+  const [cachePolicy, setCachePolicy] = useState<CachePolicy>("prefer-recent");
   const [formError, setFormError] = useState<string>();
   const [requestError, setRequestError] = useState<string>();
   const [pollError, setPollError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
   const [approvalPending, setApprovalPending] = useState(false);
+  const [cancellationPending, setCancellationPending] = useState(false);
+  const [cancellationNotice, setCancellationNotice] = useState<string>();
   const [workflowId, setWorkflowId] = useState<string>();
   const [workflowState, setWorkflowState] = useState<WorkflowState>();
   const [workflow, setWorkflow] = useState<LiveSearchWorkflow>();
   const [pollAttempt, setPollAttempt] = useState(0);
+  const [pendingSearch, setPendingSearch] = useState<PendingSearch>();
+  const [pendingRetry, setPendingRetry] = useState<PendingSearch>();
+  const [comparedIds, setComparedIds] = useState<readonly string[]>([]);
+  const [showAllFits, setShowAllFits] = useState(false);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+  const [reviewCandidateId, setReviewCandidateId] = useState<string>();
+  const [sharePending, setSharePending] = useState(false);
+  const [shareError, setShareError] = useState<string>();
+  const [shareResult, setShareResult] = useState<{
+    readonly url: string;
+    readonly expiresAt: string;
+  }>();
+  const [preservedLinkedCandidate, setPreservedLinkedCandidate] = useState<
+    PreservedLinkedCandidate | undefined
+  >();
   const searchIdempotencyKey = useRef<string | undefined>(undefined);
   const approvalIdempotencyKey = useRef<string | undefined>(undefined);
+  const searchInFlight = useRef(false);
+  const presentedWorkflowId = useRef<string | undefined>(undefined);
+  const modelReadyAssetId = useRef<string | undefined>(undefined);
 
   useEffect(() => {
+    const updateNetworkState = (): void => setIsOnline(window.navigator.onLine);
+    updateNetworkState();
+    window.addEventListener("online", updateNetworkState);
+    window.addEventListener("offline", updateNetworkState);
+    return () => {
+      window.removeEventListener("online", updateNetworkState);
+      window.removeEventListener("offline", updateNetworkState);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initialWorkflowId !== undefined) {
+      clearPendingSearch();
+      return;
+    }
+    const persistedWorkflowId = readPersistedWorkflowId();
+    if (persistedWorkflowId !== undefined) {
+      clearPendingSearch();
+      setRestoreWorkflowId(persistedWorkflowId);
+      setSessionRequested(true);
+    }
+  }, [initialWorkflowId]);
+
+  useEffect(() => {
+    if (initialWorkflowId !== undefined || readPersistedWorkflowId() !== undefined) {
+      return;
+    }
+    const restored = readPendingSearch();
+    if (restored === undefined) {
+      return;
+    }
+    searchIdempotencyKey.current = restored.idempotencyKey;
+    setQueryText(restored.request.intent.kind === "prompt"
+      ? restored.request.intent.text
+      : restored.request.intent.url);
+    setIntentMode(restored.request.intent.kind === "prompt" ? "describe" : "link");
+    if (restored.request.intent.kind === "prompt") {
+      setSelectedRetailers(restored.request.intent.retailers);
+    }
+    setMeasurementDraft(measurementToDraft(restored.request.measurement));
+    setCachePolicy(restored.request.cachePolicy);
+    setPendingSearch(restored);
+    setSessionRequested(true);
+  }, [initialWorkflowId]);
+
+  useEffect(() => {
+    if (workflowId === undefined && initialMeasurement !== undefined) {
+      setMeasurementDraft(measurementToDraft(initialMeasurement));
+    }
+  }, [initialMeasurement, workflowId]);
+
+  useEffect(() => {
+    if (workflow?.intent?.kind === "product-link") {
+      setIntentMode("link");
+    } else if (workflow?.intent?.kind === "prompt") {
+      setIntentMode("describe");
+    }
+  }, [workflow?.intent]);
+
+  useEffect(() => {
+    if (
+      sessionState !== "ready" ||
+      workflow === undefined ||
+      preservedLinkedCandidate !== undefined ||
+      isExactLinkWorkflow(workflow)
+    ) {
+      return;
+    }
+    const reference = readLinkedCandidateReference();
+    if (reference === undefined) {
+      return;
+    }
+    if (reference.measurementKey !== measurementKey(workflow.measurement)) {
+      clearLinkedCandidateReference();
+      return;
+    }
+    const controller = new AbortController();
+    void getLiveSearch(reference.workflowId, controller.signal)
+      .then((linkedWorkflow) => {
+        const candidate = linkedWorkflow.candidates.find(
+          (entry) => entry.id === reference.candidateId,
+        );
+        if (candidate === undefined) {
+          clearLinkedCandidateReference();
+          return;
+        }
+        setPreservedLinkedCandidate({
+          workflowId: linkedWorkflow.id,
+          candidate,
+          measurementKey: reference.measurementKey,
+        });
+      })
+      .catch((error: unknown) => {
+        if (!isAbortError(error) && isDefinitiveRestoreFailure(error)) {
+          clearLinkedCandidateReference();
+        }
+      });
+    return () => controller.abort();
+  }, [preservedLinkedCandidate, sessionState, workflow]);
+
+  useEffect(() => {
+    if (!sessionRequested) {
+      return;
+    }
     const controller = new AbortController();
     setSessionState("starting");
     void startGuestSession(controller.signal, captchaToken)
@@ -96,7 +301,6 @@ export function LiveSearchExperience(): React.JSX.Element {
             error instanceof LiveSearchApiError &&
             (error.code === "captcha_required" || error.code === "captcha_failed")
           ) {
-            setCaptchaToken(undefined);
             setSessionState("challenge");
           } else {
             setSessionState("error");
@@ -104,18 +308,18 @@ export function LiveSearchExperience(): React.JSX.Element {
         }
       });
     return () => controller.abort();
-  }, [captchaToken, sessionAttempt]);
+  }, [captchaToken, sessionAttempt, sessionRequested]);
 
   useEffect(() => {
-    if (sessionState !== "ready" || workflowId !== undefined) {
-      return;
-    }
-    const storedWorkflowId = readPersistedWorkflowId();
-    if (storedWorkflowId === undefined) {
+    if (
+      sessionState !== "ready" ||
+      workflowId !== undefined ||
+      restoreWorkflowId === undefined
+    ) {
       return;
     }
     const controller = new AbortController();
-    void getLiveSearch(storedWorkflowId, controller.signal)
+    void getLiveSearch(restoreWorkflowId, controller.signal)
       .then((restored) => {
         setWorkflow(restored);
         setWorkflowId(restored.id);
@@ -129,14 +333,14 @@ export function LiveSearchExperience(): React.JSX.Element {
             clearPersistedWorkflowId();
             setRequestError("That saved live search is not available for this guest session.");
           } else {
-            setWorkflowId(storedWorkflowId);
+            setWorkflowId(restoreWorkflowId);
             setWorkflowState("queued");
             setPollError("Status restoration is temporarily unavailable. The paid job handle is preserved and retrying.");
           }
         }
       });
     return () => controller.abort();
-  }, [sessionState, workflowId]);
+  }, [restoreWorkflowId, sessionState, workflowId]);
 
   const acceptCaptchaToken = useCallback((token: string | undefined): void => {
     if (token !== undefined) {
@@ -249,11 +453,181 @@ export function LiveSearchExperience(): React.JSX.Element {
     };
   }, [sessionState, workflowId]);
 
-  const candidateGroups = useMemo(() => partitionCandidates(workflow?.candidates ?? []), [workflow]);
+  const exactLinkWorkflow = workflow?.intent?.kind === "product-link" ||
+    parseExactProductUrl(workflow?.queryText ?? "") !== undefined;
+  const candidateGroups = useMemo(
+    () => partitionCandidates(workflow?.candidates ?? [], exactLinkWorkflow),
+    [exactLinkWorkflow, workflow],
+  );
+  const currentEligibleCandidates = useMemo(
+    () => [
+      ...candidateGroups.fits,
+      ...candidateGroups.accessIssues,
+      ...candidateGroups.nearMisses,
+    ],
+    [candidateGroups],
+  );
+  const preservedComparisonCandidate =
+    workflow !== undefined &&
+    preservedLinkedCandidate !== undefined &&
+    preservedLinkedCandidate.workflowId !== workflow.id &&
+    preservedLinkedCandidate.measurementKey === measurementKey(workflow.measurement) &&
+    !isExactLinkWorkflow(workflow)
+      ? preservedLinkedCandidate
+      : undefined;
+  const eligibleCandidates = useMemo(
+    () => preservedComparisonCandidate === undefined || currentEligibleCandidates.some(
+      (candidate) => candidate.id === preservedComparisonCandidate.candidate.id,
+    )
+      ? currentEligibleCandidates
+      : [preservedComparisonCandidate.candidate, ...currentEligibleCandidates],
+    [currentEligibleCandidates, preservedComparisonCandidate],
+  );
+  const visibleFits = showAllFits
+    ? candidateGroups.fits
+    : candidateGroups.fits.slice(0, 6);
+  const comparedCandidates = useMemo(
+    () =>
+      comparedIds.flatMap((candidateId) => {
+        const candidate = eligibleCandidates.find((entry) => entry.id === candidateId);
+        return candidate === undefined ? [] : [candidate];
+      }),
+    [comparedIds, eligibleCandidates],
+  );
   const approvedCandidate = workflow?.approvedCandidateId === undefined
     ? undefined
-    : workflow.candidates.find((candidate) => candidate.id === workflow.approvedCandidateId);
+    : currentEligibleCandidates.find((candidate) => candidate.id === workflow.approvedCandidateId);
   const modelAsset = approvedCandidate?.asset;
+  const reviewCandidate = reviewCandidateId === undefined
+    ? undefined
+    : currentEligibleCandidates.find((candidate) => candidate.id === reviewCandidateId);
+  const draftExactProductUrl = intentMode === "link"
+    ? parseExactProductUrl(queryText)
+    : undefined;
+  const exactProductUrl = workflow?.intent?.kind === "product-link"
+    ? normalizeProductUrl(workflow.intent.url)
+    : parseExactProductUrl(workflow?.queryText ?? queryText);
+  const linkedCandidate = exactProductUrl === undefined
+    ? undefined
+    : workflow !== undefined && isExactLinkWorkflow(workflow)
+      // Exact-link workflows contain at most one candidate, and the server has already
+      // accepted its same-registrable-domain canonical redirect before it reaches the UI.
+      ? currentEligibleCandidates[0]
+      : currentEligibleCandidates.find(
+        (candidate) => normalizeProductUrl(candidate.observation.productUrl) === exactProductUrl,
+      );
+  const exactLinkAlternativeSeed = exactProductUrl === undefined
+    ? undefined
+    : linkedCandidate ?? currentEligibleCandidates[0];
+
+  useEffect(() => {
+    if (
+      workflow === undefined ||
+      workflow.candidates.length === 0 ||
+      presentedWorkflowId.current === workflow.id
+    ) {
+      return;
+    }
+    if (
+      workflow.state !== "ready_for_approval" &&
+      workflow.state !== "partial" &&
+      workflow.state !== "asset_ready"
+    ) {
+      return;
+    }
+    presentedWorkflowId.current = workflow.id;
+    captureProductEvent("results_presented", {
+      coverage: workflow.isPartial ? "partial" : "full",
+      fits_bucket: resultCountBucket(candidateGroups.fits.length, 6),
+      access_bucket: resultCountBucket(candidateGroups.accessIssues.length, 3),
+      near_bucket: resultCountBucket(candidateGroups.nearMisses.length, 3),
+      latency_bucket: searchLatencyBucket(workflow.createdAt),
+    });
+  }, [candidateGroups, workflow]);
+
+  useEffect(() => {
+    if (
+      workflow === undefined ||
+      modelAsset === undefined ||
+      !modelAsset.scaleVerified ||
+      modelReadyAssetId.current === modelAsset.id
+    ) {
+      return;
+    }
+    modelReadyAssetId.current = modelAsset.id;
+    captureProductEvent("model_ready", {
+      kind: modelAsset.kind,
+      latency_bucket: modelLatencyBucket(workflow.createdAt),
+      scale_verified: true,
+    });
+  }, [modelAsset, workflow]);
+
+  useEffect(() => {
+    if (!comparisonOpen || comparedCandidates.length === 0) {
+      return;
+    }
+    const frameId = window.requestAnimationFrame(() => {
+      const comparison = window.document.getElementById("live-comparison");
+      if (typeof comparison?.scrollIntoView === "function") {
+        comparison.scrollIntoView({ block: "start" });
+      }
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [comparedCandidates.length, comparisonOpen]);
+
+  function toggleComparison(candidateId: string): void {
+    setShareResult(undefined);
+    setShareError(undefined);
+    setComparedIds((current) =>
+      current.includes(candidateId)
+        ? current.filter((id) => id !== candidateId)
+        : current.length < 3
+          ? [...current, candidateId]
+          : current,
+    );
+  }
+
+  function openComparison(): void {
+    let selection = comparedIds;
+    const usedDefault = selection.length === 0;
+    if (usedDefault && workflow !== undefined) {
+      if (preservedComparisonCandidate !== undefined) {
+        const linkedRetailer = preservedComparisonCandidate.candidate.observation.retailer.key;
+        const differentRetailer = candidateGroups.fits.find(
+          (candidate) => candidate.observation.retailer.key !== linkedRetailer,
+        ) ?? currentEligibleCandidates.find(
+          (candidate) => candidate.observation.retailer.key !== linkedRetailer,
+        );
+        selection = [preservedComparisonCandidate.candidate.id, differentRetailer?.id].filter(
+          (candidateId): candidateId is string => candidateId !== undefined,
+        );
+      } else {
+        const ikea = candidateGroups.fits.find(
+          (candidate) => candidate.observation.retailer.key === "ikea-au",
+        ) ?? currentEligibleCandidates.find(
+          (candidate) => candidate.observation.retailer.key === "ikea-au",
+        );
+        const kmart = candidateGroups.fits.find(
+          (candidate) => candidate.observation.retailer.key === "kmart-au",
+        ) ?? currentEligibleCandidates.find(
+          (candidate) => candidate.observation.retailer.key === "kmart-au",
+        );
+        selection = [ikea?.id, kmart?.id].filter(
+          (candidateId): candidateId is string => candidateId !== undefined,
+        );
+      }
+      setComparedIds(selection);
+    }
+    setComparisonOpen(true);
+    if (workflow !== undefined && selection.length > 0) {
+      const selected = eligibleCandidates.filter((candidate) => selection.includes(candidate.id));
+      captureProductEvent("comparison_opened", {
+        selection: usedDefault ? "default" : "manual",
+        count: selection.length,
+        cross_retailer: new Set(selected.map((candidate) => candidate.observation.retailer.key)).size > 1,
+      });
+    }
+  }
 
   function updateMeasurement(field: keyof MeasurementDraft, value: string): void {
     setMeasurementDraft((current) => ({ ...current, [field]: value }));
@@ -271,39 +645,95 @@ export function LiveSearchExperience(): React.JSX.Element {
     setFormError(undefined);
   }
 
-  async function submitSearch(event: React.FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const validation = validateForm(queryText, measurementDraft, selectedRetailers);
-    if (!validation.ok) {
-      setFormError(validation.message);
-      return;
+  function changeIntentMode(nextMode: IntentMode): void {
+    setIntentMode(nextMode);
+    searchIdempotencyKey.current = undefined;
+    setFormError(undefined);
+    const url = new URL(window.location.href);
+    if (nextMode === "link") {
+      url.searchParams.set("mode", "link");
+    } else {
+      url.searchParams.delete("mode");
     }
-    if (sessionState !== "ready") {
-      setFormError("The secure guest session is not ready yet. Retry the connection first.");
-      return;
-    }
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
 
+  function updateCachePolicy(nextPolicy: CachePolicy): void {
+    setCachePolicy(nextPolicy);
+    searchIdempotencyKey.current = undefined;
+    setFormError(undefined);
+  }
+
+  function prepareComparableAlternatives(candidate: LiveCandidate): void {
+    const observation = candidate.observation;
+    if (workflow !== undefined) {
+      const preserved = {
+        workflowId: workflow.id,
+        candidate,
+        measurementKey: measurementKey(workflow.measurement),
+      } satisfies PreservedLinkedCandidate;
+      setPreservedLinkedCandidate(preserved);
+      persistLinkedCandidateReference({
+        workflowId: preserved.workflowId,
+        candidateId: candidate.id,
+        measurementKey: preserved.measurementKey,
+      });
+    }
+    changeIntentMode("describe");
+    setSelectedRetailers(["ikea-au", "kmart-au"]);
+    setQueryText(
+      `Comparable ${observation.category} to ${observation.name}, listed at ${formatPromptPrice(observation.priceMinor, observation.currency)}`,
+    );
+    setFormError(undefined);
+    searchIdempotencyKey.current = undefined;
+    window.requestAnimationFrame(() => {
+      const input = window.document.getElementById("agent-query");
+      if (input instanceof HTMLInputElement) {
+        input.focus();
+        input.select();
+      }
+    });
+  }
+
+  const createSearchRequest = useCallback(async (submission: PendingSearch): Promise<void> => {
+    if (searchInFlight.current) {
+      return;
+    }
+    const postingSubmission = { ...submission, state: "posting" } satisfies PendingSearch;
+    persistPendingSearch(postingSubmission);
+    searchInFlight.current = true;
     setSubmitting(true);
     setFormError(undefined);
     setRequestError(undefined);
     setPollError(undefined);
+    setComparedIds([]);
+    setComparisonOpen(false);
+    setShareResult(undefined);
+    setShareError(undefined);
+    setReviewCandidateId(undefined);
+    setShowAllFits(false);
     approvalIdempotencyKey.current = undefined;
-    const idempotencyKey = searchIdempotencyKey.current ?? createIdempotencyKey("search");
+    const { request, idempotencyKey } = postingSubmission;
     searchIdempotencyKey.current = idempotencyKey;
+    const searchStartedAt = Date.now();
 
     try {
-      const created = await createLiveSearch(
-        {
-          queryText: queryText.trim(),
-          measurement: validation.measurement,
-          retailers: selectedRetailers,
-        },
-        idempotencyKey,
-      );
+      const created = await createLiveSearch(request, idempotencyKey);
+      captureProductEvent("search_acknowledged", {
+        latency_bucket: acknowledgementLatencyBucket(searchStartedAt),
+      });
+      if (created.cacheHit && created.checkedAt !== undefined) {
+        captureProductEvent("cache_hit", {
+          age_bucket: cacheAgeBucket(created.checkedAt),
+        });
+      }
       setWorkflow(undefined);
       persistWorkflowId(created.workflowId);
+      clearPendingSearch();
+      setPendingRetry(undefined);
       setWorkflowId(created.workflowId);
       setWorkflowState(created.state);
+      setRestoreWorkflowId(created.workflowId);
       if (!POLLING_STATES.includes(created.state)) {
         try {
           const existingWorkflow = await getLiveSearch(created.workflowId);
@@ -315,13 +745,82 @@ export function LiveSearchExperience(): React.JSX.Element {
       }
       searchIdempotencyKey.current = undefined;
     } catch (error) {
+      setPendingRetry(postingSubmission);
       setRequestError(errorMessage(error));
     } finally {
+      searchInFlight.current = false;
       setSubmitting(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!isOnline || sessionState !== "ready" || pendingSearch === undefined) {
+      return;
+    }
+    const submission = pendingSearch;
+    setPendingSearch(undefined);
+    void createSearchRequest(submission);
+  }, [createSearchRequest, isOnline, pendingSearch, sessionState]);
+
+  function submitSearch(event: React.FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    if (!isOnline) {
+      setFormError("Reconnect before starting a live retailer check. Loaded results remain available offline.");
+      return;
+    }
+    if (workflowState !== undefined && POLLING_STATES.includes(workflowState)) {
+      setFormError("This search is still running. Cancel it before starting another one.");
+      return;
+    }
+    const validation = validateForm(
+      queryText,
+      measurementDraft,
+      selectedRetailers,
+      intentMode,
+    );
+    if (!validation.ok) {
+      setFormError(validation.message);
+      return;
+    }
+    setFormError(undefined);
+    const exactUrl = intentMode === "link" ? draftExactProductUrl : undefined;
+    if (pendingRetry !== undefined) {
+      setFormError("The previous search is waiting for acknowledgement. Retry it before starting another one.");
+      return;
+    }
+    const request: CreateLiveSearchRequest = {
+      intent: exactUrl === undefined
+        ? {
+            kind: "prompt",
+            text: queryText.trim(),
+            retailers: selectedRetailers,
+          }
+        : { kind: "product-link", url: exactUrl },
+      measurement: validation.measurement,
+      cachePolicy,
+    };
+    captureProductEvent("search_submitted", {
+      intent: request.intent.kind === "prompt" ? "prompt" : "product_link",
+      retailer_count: request.intent.kind === "prompt" ? request.intent.retailers.length : 0,
+      cache_policy: cachePolicy === "prefer-recent" ? "prefer_recent" : "force_refresh",
+    });
+    const idempotencyKey = searchIdempotencyKey.current ?? createIdempotencyKey("search");
+    searchIdempotencyKey.current = idempotencyKey;
+    const submission = {
+      request,
+      idempotencyKey,
+      state: "awaiting-session",
+    } satisfies PendingSearch;
+    persistPendingSearch(submission);
+    setPendingSearch(submission);
+    setSessionRequested(true);
   }
 
   async function approveCandidate(candidateId: string): Promise<void> {
+    if (!isOnline) {
+      setRequestError("Reconnect before starting 3D generation. This review remains available offline.");
+      return;
+    }
     if (workflowId === undefined || workflow?.state !== "ready_for_approval") {
       return;
     }
@@ -343,7 +842,12 @@ export function LiveSearchExperience(): React.JSX.Element {
           : { ...current, state: approval.state, approvedCandidateId: approval.candidateId },
       );
       setWorkflowState(approval.state);
+      setReviewCandidateId(undefined);
       approvalIdempotencyKey.current = undefined;
+      captureProductEvent("candidate_approved", {
+        retailer: analyticsRetailer(candidate.observation.retailer.key),
+        rank_bucket: rankBucket(candidate.rank),
+      });
     } catch (error) {
       setRequestError(errorMessage(error));
     } finally {
@@ -356,6 +860,13 @@ export function LiveSearchExperience(): React.JSX.Element {
       return;
     }
     setPollError(undefined);
+    captureProductEvent("recovery_used", {
+      stage: workflowState === "approved" || workflowState === "generating" || workflowState === "verifying"
+        ? "generation"
+        : "search",
+      action: "retry_status",
+      failure: "network",
+    });
     try {
       const nextWorkflow = await getLiveSearch(workflowId);
       setWorkflow(nextWorkflow);
@@ -366,39 +877,199 @@ export function LiveSearchExperience(): React.JSX.Element {
     }
   }
 
+  function refreshCachedRetailerData(): void {
+    if (
+      workflow === undefined ||
+      !isOnline ||
+      submitting ||
+      pendingSearch !== undefined ||
+      pendingRetry !== undefined ||
+      POLLING_STATES.includes(workflow.state)
+    ) {
+      return;
+    }
+    const intent = workflow.intent ?? legacyWorkflowIntent(workflow);
+    searchIdempotencyKey.current = undefined;
+    setCachePolicy("force-refresh");
+    captureProductEvent("search_submitted", {
+      intent: intent.kind === "prompt" ? "prompt" : "product_link",
+      retailer_count: intent.kind === "prompt" ? intent.retailers.length : 0,
+      cache_policy: "force_refresh",
+    });
+    const submission = {
+      request: {
+        intent,
+        measurement: workflow.measurement,
+        cachePolicy: "force-refresh",
+      },
+      idempotencyKey: createIdempotencyKey("search"),
+      state: "posting",
+    } satisfies PendingSearch;
+    searchIdempotencyKey.current = submission.idempotencyKey;
+    persistPendingSearch(submission);
+    void createSearchRequest(submission);
+  }
+
+  function retryPendingAcknowledgement(): void {
+    if (pendingRetry === undefined || submitting) {
+      return;
+    }
+    if (!isOnline) {
+      setRequestError("Reconnect before retrying this search acknowledgement.");
+      return;
+    }
+    const retry = pendingRetry;
+    setPendingRetry(undefined);
+    setRequestError(undefined);
+    searchIdempotencyKey.current = retry.idempotencyKey;
+    if (sessionState === "ready") {
+      void createSearchRequest(retry);
+      return;
+    }
+    const awaitingSession = { ...retry, state: "awaiting-session" } satisfies PendingSearch;
+    persistPendingSearch(awaitingSession);
+    setPendingSearch(awaitingSession);
+    setSessionRequested(true);
+  }
+
+  async function cancelWorkflow(): Promise<void> {
+    if (workflowId === undefined || workflowState === undefined || isTerminalState(workflowState)) {
+      return;
+    }
+    setCancellationPending(true);
+    setRequestError(undefined);
+    try {
+      const cancelled = await cancelLiveSearch(workflowId);
+      setWorkflowState(cancelled.state);
+      setWorkflow((current) => current === undefined ? current : { ...current, state: cancelled.state });
+      setCancellationNotice(
+        cancelled.providerStop === "failed"
+          ? "The job is durably cancelled. The provider stop could not be confirmed, but late callbacks cannot resume it."
+          : "The job is durably cancelled. No later provider result can resume it.",
+      );
+      captureProductEvent("recovery_used", {
+        stage: workflowState === "approved" || workflowState === "generating" || workflowState === "verifying"
+          ? "generation"
+          : "search",
+        action: "cancel",
+        failure: "unknown",
+      });
+    } catch (error) {
+      setRequestError(errorMessage(error));
+    } finally {
+      setCancellationPending(false);
+    }
+  }
+
+  async function shareComparison(): Promise<void> {
+    if (workflowId === undefined || comparedIds.length === 0 || sharePending) {
+      return;
+    }
+    const selections = comparedIds.flatMap((candidateId) => {
+      if (candidateId === preservedComparisonCandidate?.candidate.id) {
+        return [{ workflowId: preservedComparisonCandidate.workflowId, candidateId }];
+      }
+      return currentEligibleCandidates.some((candidate) => candidate.id === candidateId)
+        ? [{ workflowId, candidateId }]
+        : [];
+    });
+    if (selections.length !== comparedIds.length) {
+      setShareError("One compared product could not be tied back to its owner search. Reopen the comparison and try again.");
+      return;
+    }
+    setSharePending(true);
+    setShareError(undefined);
+    try {
+      const shared = await createComparisonShare(selections);
+      setShareResult(shared);
+      try {
+        await window.navigator.clipboard.writeText(shared.url);
+      } catch {
+        // The visible URL remains selectable when clipboard permission is unavailable.
+      }
+      captureProductEvent("share_created", {
+        surface: "link",
+        compared_count: comparedIds.length,
+      });
+    } catch (error) {
+      setShareError(errorMessage(error));
+    } finally {
+      setSharePending(false);
+    }
+  }
+
+  function captureRetailerOutbound(
+    candidate: LiveCandidate,
+    surface: "card" | "comparison" | "model",
+  ): void {
+    captureProductEvent("retailer_outbound", {
+      retailer: analyticsRetailer(candidate.observation.retailer.key),
+      surface,
+      tier: candidate.fitStatus,
+    });
+  }
+
   function resetWorkflow(): void {
     clearPersistedWorkflowId();
     setWorkflow(undefined);
     setWorkflowId(undefined);
     setWorkflowState(undefined);
+    setRestoreWorkflowId(undefined);
     setRequestError(undefined);
     setPollError(undefined);
     setFormError(undefined);
     setApprovalPending(false);
+    setPendingSearch(undefined);
+    setComparedIds([]);
+    setComparisonOpen(false);
+    setReviewCandidateId(undefined);
+    setShowAllFits(false);
+    setCancellationNotice(undefined);
+    setSharePending(false);
+    setShareError(undefined);
+    setShareResult(undefined);
+    setPreservedLinkedCandidate(undefined);
+    clearLinkedCandidateReference();
+    captureProductEvent("recovery_used", {
+      stage: workflowState === "approved" || workflowState === "generating" || workflowState === "verifying"
+        ? "generation"
+        : "search",
+      action: "restart",
+      failure: workflowState === "expired" ? "expired" : workflowState === "failed" ? "provider" : "unknown",
+    });
     searchIdempotencyKey.current = undefined;
     approvalIdempotencyKey.current = undefined;
   }
 
   return (
-    <main className={`${styles.shell} fit-instrument`}>
+    <section
+      className={`${styles.shell} ${embedded ? styles.embedded : ""} fit-instrument`}
+      aria-labelledby="agent-title"
+    >
       <div className={styles.container}>
         <header className={styles.header}>
           <div>
             <span className={styles.wordmark}>Fitment</span>
             <span className={styles.mode}>Live Australian catalog agent</span>
           </div>
-          <Link href="/fit" className={styles.backLink}>Cached catalog</Link>
+          {embedded ? null : (
+            <Link href="/fit?demo=1" className={styles.backLink}>Try the demo catalog</Link>
+          )}
         </header>
 
         <section className={styles.intro} aria-labelledby="agent-title">
-          <h1 id="agent-title">Ask once. Approve only what actually fits.</h1>
+          <h1 id="agent-title">Your space first. Then the whole brief.</h1>
           <p>
-            The agent checks current IKEA Australia and Kmart Australia listings, captures
-            explicitly labelled dimensions, applies the same space and doorway rules,
-            then waits for your approval before generating a 3D model whose outer bounds
-            are rescaled to those listed dimensions.
+            Describe what you need or paste an exact retailer link. The agent checks current
+            Australian listings, rejects incomplete dimensions, and separates clean fits,
+            access issues, and near misses before you decide.
           </p>
-          <span className={styles.sessionLine} role="status" aria-live="polite">
+          {sessionState === "idle" ? (
+            <p className={styles.dormantNotice}>
+              No retailer or model provider is contacted until you submit this search.
+            </p>
+          ) : (
+            <span className={styles.sessionLine} role="status" aria-live="polite">
             <span
               className={`${styles.sessionDot} ${sessionState === "ready" ? styles.sessionDotReady : ""}`}
               aria-hidden="true"
@@ -410,7 +1081,8 @@ export function LiveSearchExperience(): React.JSX.Element {
               : sessionState === "ready"
                 ? "Secure guest session ready"
                 : "Guest session unavailable"}
-          </span>
+            </span>
+          )}
           {sessionState === "challenge" && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY !== undefined ? (
             <div className={styles.captchaGate}>
               <p>Complete this one-time check before the agent can spend provider credits.</p>
@@ -422,24 +1094,68 @@ export function LiveSearchExperience(): React.JSX.Element {
           ) : null}
         </section>
 
+        {!isOnline ? (
+          <div className={styles.offlineNotice} role="status">
+            <strong>Offline.</strong> Saved measurements and loaded results stay available. Live
+            retailer checks, data refreshes and 3D generation resume when you reconnect.
+          </div>
+        ) : null}
+
+        {initialMeasurement === undefined ? null : (
+          <MeasurementSummary
+            measurement={initialMeasurement}
+            onEdit={onEditMeasurement}
+            savedSpaces={savedSpaces}
+            activeSpaceId={activeSpaceId}
+            onSelectSpace={onSelectSpace}
+            onRenameSpace={onRenameSpace}
+            onDeleteSpace={onDeleteSpace}
+            onNewSpace={onNewSpace}
+          />
+        )}
+
         <div className={styles.mainGrid}>
           <section className={styles.panel} aria-labelledby="search-form-title">
             <div className={styles.panelHeader}>
-              <h2 id="search-form-title">Your space is the filter</h2>
-              <span className={styles.panelIndex}>Input · millimetres</span>
+              <h2 id="search-form-title">Search the live market</h2>
+              <span className={styles.panelIndex}>Intent or exact link</span>
             </div>
             <form className={styles.form} onSubmit={(event) => void submitSearch(event)} noValidate>
+              <div className={styles.intentModes} role="group" aria-label="Search input mode">
+                <button
+                  type="button"
+                  aria-pressed={intentMode === "describe"}
+                  onClick={() => changeIntentMode("describe")}
+                >
+                  Describe what I need
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={intentMode === "link"}
+                  onClick={() => changeIntentMode("link")}
+                >
+                  Check a product link
+                </button>
+              </div>
               <label className={styles.fieldGroup} htmlFor="agent-query">
-                <span className={styles.label}>What are you looking for?</span>
-                <span className={styles.hint}>Include the item, preferred material or colour, and budget.</span>
+                <span className={styles.label}>
+                  {intentMode === "link" ? "Retailer product link" : "What should fit here?"}
+                </span>
+                <span className={styles.hint}>
+                  {intentMode === "link"
+                    ? "Paste the exact product URL. Variant choices in the link stay part of the match."
+                    : "Describe the item, material, colour and budget for IKEA Australia and Kmart Australia."}
+                </span>
                 <input
                   id="agent-query"
                   className={styles.textInput}
-                  type="text"
+                  type={intentMode === "link" ? "url" : "text"}
                   value={queryText}
                   maxLength={500}
                   autoComplete="off"
-                  placeholder="A narrow oak bookshelf under $300"
+                  placeholder={intentMode === "link"
+                    ? "https://www.ikea.com/…"
+                    : "A narrow oak bookshelf under $300"}
                   onChange={(event) => {
                     setQueryText(event.target.value);
                     searchIdempotencyKey.current = undefined;
@@ -448,9 +1164,17 @@ export function LiveSearchExperience(): React.JSX.Element {
                 />
               </label>
 
-              <fieldset className={styles.fieldGroup}>
+              {intentMode !== "link" || draftExactProductUrl === undefined ? null : (
+                <p className={styles.exactLinkNotice} role="status">
+                  Exact link detected. A returned card is labelled “linked product” only when its
+                  source URL matches; every other returned card is explicitly an alternative.
+                </p>
+              )}
+
+              {initialMeasurement === undefined ? (
+                <fieldset className={styles.fieldGroup}>
                 <legend className={styles.label}>Measured envelope</legend>
-                <span className={styles.hint}>Use inside clear dimensions. Fitment applies 25 mm measurement uncertainty.</span>
+                <span className={styles.hint}>Use inside clear dimensions. Access is optional; leave it blank if you do not know it.</span>
                 <div className={styles.measurementGrid}>
                   <MeasurementInput
                     id="agent-width"
@@ -478,9 +1202,11 @@ export function LiveSearchExperience(): React.JSX.Element {
                     onChange={(value) => updateMeasurement("accessWidthMm", value)}
                   />
                 </div>
-              </fieldset>
+                </fieldset>
+              ) : null}
 
-              <fieldset className={styles.fieldGroup}>
+              {intentMode === "describe" ? (
+                <fieldset className={styles.fieldGroup}>
                 <legend className={styles.label}>Retailers to search</legend>
                 <span className={styles.hint}>Each source is visited independently; partial results stay usable.</span>
                 <div className={styles.retailers}>
@@ -496,6 +1222,42 @@ export function LiveSearchExperience(): React.JSX.Element {
                     checked={selectedRetailers.includes("kmart-au")}
                     onChange={() => toggleRetailer("kmart-au")}
                   />
+                </div>
+                </fieldset>
+              ) : (
+                <p className={styles.hint}>
+                  The retailer is taken from the exact link. Other retailers are searched only
+                  when you submit a prompt instead.
+                </p>
+              )}
+
+              <fieldset className={styles.fieldGroup}>
+                <legend className={styles.label}>Source refresh</legend>
+                <span className={styles.hint}>
+                  Recent observations are faster. A live refresh rechecks the retailer and may
+                  take longer or return partial coverage.
+                </span>
+                <div className={styles.policyOptions}>
+                  <label className={styles.policyOption}>
+                    <input
+                      type="radio"
+                      name="cache-policy"
+                      value="prefer-recent"
+                      checked={cachePolicy === "prefer-recent"}
+                      onChange={() => updateCachePolicy("prefer-recent")}
+                    />
+                    <span><strong>Recent first</strong><small>Use a fresh-enough indexed observation when available.</small></span>
+                  </label>
+                  <label className={styles.policyOption}>
+                    <input
+                      type="radio"
+                      name="cache-policy"
+                      value="force-refresh"
+                      checked={cachePolicy === "force-refresh"}
+                      onChange={() => updateCachePolicy("force-refresh")}
+                    />
+                    <span><strong>Check live</strong><small>Ask the agent to revisit the retailer now.</small></span>
+                  </label>
                 </div>
               </fieldset>
 
@@ -521,9 +1283,26 @@ export function LiveSearchExperience(): React.JSX.Element {
               <button
                 type="submit"
                 className={styles.primaryButton}
-                disabled={sessionState !== "ready" || submitting}
+                disabled={
+                  !isOnline ||
+                  submitting ||
+                  pendingSearch !== undefined ||
+                  pendingRetry !== undefined ||
+                  (workflowState !== undefined && POLLING_STATES.includes(workflowState)) ||
+                  (restoreWorkflowId !== undefined && workflow === undefined)
+                }
               >
-                {submitting ? "Creating search…" : "Search live retailer products"}
+                {pendingRetry !== undefined
+                  ? "Search acknowledgement pending"
+                  : workflowState !== undefined && POLLING_STATES.includes(workflowState)
+                  ? "Search in progress…"
+                  : restoreWorkflowId !== undefined && workflow === undefined
+                  ? "Restoring saved search…"
+                  : submitting
+                  ? "Creating search…"
+                  : pendingSearch !== undefined || sessionState === "starting"
+                    ? "Securing live search…"
+                    : "Search current retailer products"}
               </button>
             </form>
           </section>
@@ -534,19 +1313,61 @@ export function LiveSearchExperience(): React.JSX.Element {
               <span className={styles.panelIndex}>{workflowState === undefined ? "Not started" : readableState(workflowState)}</span>
             </div>
             <WorkflowStages state={workflowState} />
+            {workflowId !== undefined && workflowState !== undefined && POLLING_STATES.includes(workflowState) ? (
+              <button
+                type="button"
+                className={styles.cancelButton}
+                disabled={cancellationPending}
+                onClick={() => void cancelWorkflow()}
+              >
+                {cancellationPending ? "Cancelling…" : "Cancel this job"}
+              </button>
+            ) : null}
+            {cancellationNotice === undefined ? null : (
+              <p className={styles.cancellationNotice} role="status">{cancellationNotice}</p>
+            )}
             {workflow !== undefined ? (
-              <p className={styles.empty}>
-                <span className={styles.technical}>{workflow.measurement.widthMm} W × {workflow.measurement.heightMm} H × {workflow.measurement.depthMm} D mm</span>
-                {workflow.measurement.accessWidthMm === undefined
-                  ? ""
-                  : ` · ${workflow.measurement.accessWidthMm} mm access`}
-                <br />
-                Request: “{workflow.queryText}”
-              </p>
+              <>
+                <p className={styles.empty}>
+                  <span className={styles.technical}>{workflow.measurement.widthMm} W × {workflow.measurement.heightMm} H × {workflow.measurement.depthMm} D mm</span>
+                  {workflow.measurement.accessWidthMm === undefined
+                    ? ""
+                    : ` · ${workflow.measurement.accessWidthMm} mm access`}
+                  <br />
+                  Request: “{workflowIntentLabel(workflow)}”
+                  {workflow.checkedAt === undefined ? null : (
+                    <>
+                      <br />
+                      Source check: {workflow.freshness === "cached" ? "recent indexed observation" : "live retailer fetch"} · {formatObservedAt(workflow.checkedAt)}
+                    </>
+                  )}
+                </p>
+                {(workflow.cacheHit === true || workflow.freshness === "cached") && workflow.checkedAt !== undefined ? (
+                  <div className={styles.cacheRefresh}>
+                    <span className={styles.technical}>{formatCacheAge(workflow.checkedAt)}</span>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      disabled={
+                        !isOnline ||
+                        submitting ||
+                        pendingSearch !== undefined ||
+                        pendingRetry !== undefined ||
+                        POLLING_STATES.includes(workflow.state)
+                      }
+                      onClick={refreshCachedRetailerData}
+                    >
+                      {submitting || POLLING_STATES.includes(workflow.state)
+                        ? "Refresh in progress…"
+                        : "Refresh retailer data"}
+                    </button>
+                  </div>
+                ) : null}
+              </>
             ) : (
               <p className={styles.empty}>
-                No retailer call or model generation happens until you submit. Model generation
-                begins only after you approve one passing fit.
+                Search, validation, generation and scale checking are durable server stages.
+                Model generation begins only after you review and approve one clean fit.
               </p>
             )}
           </section>
@@ -556,6 +1377,16 @@ export function LiveSearchExperience(): React.JSX.Element {
           <div className={`${styles.error} ${styles.topError}`} role="alert">
             {requestError}
             <div className={styles.errorActions}>
+              {pendingRetry !== undefined ? (
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  disabled={submitting || !isOnline}
+                  onClick={retryPendingAcknowledgement}
+                >
+                  {submitting ? "Retrying acknowledgement…" : "Retry search acknowledgement"}
+                </button>
+              ) : null}
               {workflowState === "failed" ? (
                 <button type="button" className={styles.secondaryButton} onClick={resetWorkflow}>
                   Start a new search
@@ -599,27 +1430,90 @@ export function LiveSearchExperience(): React.JSX.Element {
           </div>
         ) : null}
 
-        {workflow !== undefined && workflow.candidates.length > 0 ? (
+        {workflow !== undefined && exactProductUrl !== undefined && linkedCandidate === undefined ? (
+          <div className={styles.coverageNotice} role="status">
+            <strong>The linked product did not clear the source gate.</strong> Every card below is
+            an explicitly labelled alternative with complete dimensions.
+          </div>
+        ) : null}
+
+        {workflow !== undefined && exactLinkAlternativeSeed !== undefined ? (
+          <div className={styles.alternativesPrompt}>
+            <div>
+              <strong>Want a cross-retailer comparison?</strong>
+              <p>
+                Build an editable IKEA/Kmart brief from this product&apos;s category, name and listed price.
+              </p>
+            </div>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => prepareComparableAlternatives(exactLinkAlternativeSeed)}
+            >
+              Find comparable alternatives
+            </button>
+          </div>
+        ) : null}
+
+        {workflow !== undefined && eligibleCandidates.length > 0 ? (
           <div className={styles.results}>
             <p className="sr-only" role="status">
               Search ready with {candidateGroups.fits.length} fits, {candidateGroups.accessIssues.length} access issues and {candidateGroups.nearMisses.length} near misses.
             </p>
+            <LiveComparisonTray
+              candidates={comparedCandidates}
+              onOpen={openComparison}
+            />
+            {comparisonOpen && comparedCandidates.length > 0 ? (
+            <LiveComparisonPanel
+              candidates={comparedCandidates}
+              measurement={workflow.measurement}
+                onClose={() => setComparisonOpen(false)}
+                onRemove={toggleComparison}
+                onReview={(candidateId) => setReviewCandidateId(candidateId)}
+                reviewableCandidateIds={workflow.state === "ready_for_approval" && isOnline
+                  ? currentEligibleCandidates.map((candidate) => candidate.id)
+                  : []}
+                preservedLinkedCandidateId={preservedComparisonCandidate?.candidate.id}
+                sharePending={sharePending}
+                shareError={shareError}
+                shareResult={shareResult}
+                onShare={() => void shareComparison()}
+                onRetailerOutbound={(candidate) => captureRetailerOutbound(candidate, "comparison")}
+              />
+            ) : null}
             <CandidateSection
               title="Fits"
               tone="fits"
-              candidates={candidateGroups.fits}
+              candidates={visibleFits}
               workflow={workflow}
-              approvalPending={approvalPending}
-              onApprove={(candidateId) => void approveCandidate(candidateId)}
+              comparedIds={comparedIds}
+              linkedCandidateId={linkedCandidate?.id}
+              onToggleCompare={toggleComparison}
+              onReview={(candidateId) => setReviewCandidateId(candidateId)}
+              onRetailerOutbound={(candidate) => captureRetailerOutbound(candidate, "card")}
             />
+            {candidateGroups.fits.length > 6 ? (
+              <button
+                type="button"
+                aria-expanded={showAllFits}
+                className={styles.tierExpander}
+                onClick={() => setShowAllFits((current) => !current)}
+              >
+                {showAllFits ? "Show fewer fits" : `Show all ${candidateGroups.fits.length} fits`}
+              </button>
+            ) : null}
             {candidateGroups.accessIssues.length > 0 ? (
               <CandidateSection
                 title="Fits the space, access issue"
                 tone="access"
                 candidates={candidateGroups.accessIssues}
                 workflow={workflow}
-                approvalPending={approvalPending}
-                onApprove={(candidateId) => void approveCandidate(candidateId)}
+                comparedIds={comparedIds}
+                linkedCandidateId={linkedCandidate?.id}
+                onToggleCompare={toggleComparison}
+                onReview={(candidateId) => setReviewCandidateId(candidateId)}
+                onRetailerOutbound={(candidate) => captureRetailerOutbound(candidate, "card")}
               />
             ) : null}
             {candidateGroups.nearMisses.length > 0 ? (
@@ -628,14 +1522,27 @@ export function LiveSearchExperience(): React.JSX.Element {
                 tone="near"
                 candidates={candidateGroups.nearMisses}
                 workflow={workflow}
-                approvalPending={approvalPending}
-                onApprove={(candidateId) => void approveCandidate(candidateId)}
+                comparedIds={comparedIds}
+                linkedCandidateId={linkedCandidate?.id}
+                onToggleCompare={toggleComparison}
+                onReview={(candidateId) => setReviewCandidateId(candidateId)}
+                onRetailerOutbound={(candidate) => captureRetailerOutbound(candidate, "card")}
               />
             ) : null}
           </div>
         ) : null}
 
-        {workflow?.state === "ready_for_approval" && workflow.candidates.length === 0 ? (
+        {reviewCandidate !== undefined ? (
+          <CandidateReview
+            candidate={reviewCandidate}
+            approvalPending={approvalPending}
+            canApprove={workflow?.state === "ready_for_approval" && isOnline}
+            onClose={() => setReviewCandidateId(undefined)}
+            onApprove={(candidateId) => void approveCandidate(candidateId)}
+          />
+        ) : null}
+
+        {workflow?.state === "ready_for_approval" && eligibleCandidates.length === 0 ? (
           <p className={styles.empty} role="status">
             The agent completed the search but found no products with complete, explicitly
             labelled dimensions. Change the request or retailers and try again.
@@ -699,7 +1606,7 @@ export function LiveSearchExperience(): React.JSX.Element {
           the retailer listing before purchase.
         </p>
       </div>
-    </main>
+    </section>
   );
 }
 
@@ -743,8 +1650,218 @@ function clearPersistedWorkflowId(): void {
   }
 }
 
+function readPendingSearch(): PendingSearch | undefined {
+  let raw: string | null = null;
+  try {
+    raw = window.sessionStorage.getItem(PENDING_SEARCH_SESSION_KEY);
+  } catch {
+    return undefined;
+  }
+  if (raw === null) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isRecord(parsed) || parsed.version !== 1) {
+      clearPendingSearch();
+      return undefined;
+    }
+    const request = parseStoredSearchRequest(parsed.request);
+    const idempotencyKey = typeof parsed.idempotencyKey === "string"
+      ? parsed.idempotencyKey
+      : undefined;
+    const state = parsed.state === "awaiting-session" || parsed.state === "posting"
+      ? parsed.state
+      : undefined;
+    if (
+      request === undefined ||
+      idempotencyKey === undefined ||
+      idempotencyKey.length < 16 ||
+      idempotencyKey.length > 200 ||
+      state === undefined
+    ) {
+      clearPendingSearch();
+      return undefined;
+    }
+    return { request, idempotencyKey, state };
+  } catch {
+    clearPendingSearch();
+    return undefined;
+  }
+}
+
+function persistPendingSearch(submission: PendingSearch): void {
+  try {
+    window.sessionStorage.setItem(
+      PENDING_SEARCH_SESSION_KEY,
+      JSON.stringify({ version: 1, ...submission }),
+    );
+  } catch {
+    // The in-memory idempotency key still protects the current tab when storage is unavailable.
+  }
+}
+
+function clearPendingSearch(): void {
+  try {
+    window.sessionStorage.removeItem(PENDING_SEARCH_SESSION_KEY);
+  } catch {
+    // Private-browsing storage failures are non-fatal.
+  }
+}
+
+function parseStoredSearchRequest(input: unknown): CreateLiveSearchRequest | undefined {
+  if (!isRecord(input)) {
+    return undefined;
+  }
+  const intent = parseStoredIntent(input.intent);
+  const measurement = parseStoredMeasurement(input.measurement);
+  const cachePolicy = input.cachePolicy === "prefer-recent" || input.cachePolicy === "force-refresh"
+    ? input.cachePolicy
+    : undefined;
+  if (intent === undefined || measurement === undefined || cachePolicy === undefined) {
+    return undefined;
+  }
+  return { intent, measurement, cachePolicy };
+}
+
+function parseStoredIntent(input: unknown): CreateLiveSearchRequest["intent"] | undefined {
+  if (!isRecord(input)) {
+    return undefined;
+  }
+  if (input.kind === "product-link" && typeof input.url === "string") {
+    const url = parseExactProductUrl(input.url);
+    return url === undefined ? undefined : { kind: "product-link", url };
+  }
+  if (
+    input.kind !== "prompt" ||
+    typeof input.text !== "string" ||
+    input.text.trim().length === 0 ||
+    input.text.length > 500 ||
+    !Array.isArray(input.retailers)
+  ) {
+    return undefined;
+  }
+  const retailers = [...new Set(input.retailers)].filter(
+    (retailer): retailer is LiveRetailer => retailer === "ikea-au" || retailer === "kmart-au",
+  );
+  if (retailers.length === 0 || retailers.length !== input.retailers.length) {
+    return undefined;
+  }
+  return { kind: "prompt", text: input.text.trim(), retailers };
+}
+
+function parseStoredMeasurement(input: unknown): SpaceMeasurement | undefined {
+  if (!isRecord(input)) {
+    return undefined;
+  }
+  const widthMm = parseMeasurementValue(String(input.widthMm));
+  const heightMm = parseMeasurementValue(String(input.heightMm));
+  const depthMm = parseMeasurementValue(String(input.depthMm));
+  const accessWidthMm = input.accessWidthMm === undefined
+    ? undefined
+    : parseMeasurementValue(String(input.accessWidthMm));
+  const uncertaintyMm = typeof input.uncertaintyMm === "number" &&
+    Number.isInteger(input.uncertaintyMm) &&
+    input.uncertaintyMm >= 0 &&
+    input.uncertaintyMm <= 1_000
+      ? input.uncertaintyMm
+      : undefined;
+  const source = input.source === "manual" || input.source === "webxr" || input.source === "demo"
+    ? input.source
+    : undefined;
+  if (
+    widthMm === undefined ||
+    heightMm === undefined ||
+    depthMm === undefined ||
+    (input.accessWidthMm !== undefined && accessWidthMm === undefined) ||
+    uncertaintyMm === undefined ||
+    source === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    widthMm,
+    heightMm,
+    depthMm,
+    uncertaintyMm,
+    ...(accessWidthMm === undefined ? {} : { accessWidthMm }),
+    source,
+  };
+}
+
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === "object" && input !== null && !Array.isArray(input);
+}
+
+function readLinkedCandidateReference(): StoredLinkedCandidateReference | undefined {
+  let raw: string | null = null;
+  try {
+    raw = window.sessionStorage.getItem(LINKED_CANDIDATE_SESSION_KEY);
+  } catch {
+    return undefined;
+  }
+  if (raw === null) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<StoredLinkedCandidateReference>;
+    if (
+      typeof parsed.workflowId !== "string" ||
+      !isWorkflowId(parsed.workflowId) ||
+      typeof parsed.candidateId !== "string" ||
+      !isWorkflowId(parsed.candidateId) ||
+      typeof parsed.measurementKey !== "string"
+    ) {
+      clearLinkedCandidateReference();
+      return undefined;
+    }
+    return {
+      workflowId: parsed.workflowId,
+      candidateId: parsed.candidateId,
+      measurementKey: parsed.measurementKey,
+    };
+  } catch {
+    clearLinkedCandidateReference();
+    return undefined;
+  }
+}
+
+function persistLinkedCandidateReference(reference: StoredLinkedCandidateReference): void {
+  try {
+    window.sessionStorage.setItem(
+      LINKED_CANDIDATE_SESSION_KEY,
+      JSON.stringify(reference),
+    );
+  } catch {
+    // The current render still preserves the comparison when storage is unavailable.
+  }
+}
+
+function clearLinkedCandidateReference(): void {
+  try {
+    window.sessionStorage.removeItem(LINKED_CANDIDATE_SESSION_KEY);
+  } catch {
+    // Private-browsing storage failures are non-fatal.
+  }
+}
+
 function isWorkflowId(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function measurementKey(measurement: SpaceMeasurement): string {
+  return [
+    measurement.widthMm,
+    measurement.heightMm,
+    measurement.depthMm,
+    measurement.accessWidthMm ?? "unknown",
+    measurement.uncertaintyMm,
+  ].join(":");
+}
+
+function isExactLinkWorkflow(workflow: LiveSearchWorkflow): boolean {
+  return workflow.intent?.kind === "product-link" ||
+    parseExactProductUrl(workflow.queryText) !== undefined;
 }
 
 function isDefinitiveRestoreFailure(error: unknown): boolean {
@@ -807,27 +1924,53 @@ function RetailerToggle({
 }
 
 function WorkflowStages({ state }: { readonly state?: WorkflowState }): React.JSX.Element {
+  if (state === undefined) {
+    return (
+      <p className={styles.empty}>
+        Waiting for a submitted search. No provider stage is running.
+      </p>
+    );
+  }
+  if (state === "failed" || state === "cancelled" || state === "expired") {
+    return (
+      <p className={styles.empty} role="status">
+        Workflow {readableState(state)}. No later stage is shown as started.
+      </p>
+    );
+  }
   const currentIndex = workflowStageIndex(state);
+  const retailerCheckComplete = !RETAILER_WAITING_STATES.includes(state);
   return (
-    <ol className={styles.stages} aria-label="Live-search progress">
-      {STAGES.map((stage, index) => {
-        const status = index < currentIndex ? "complete" : index === currentIndex ? "current" : "waiting";
-        return (
-          <li
-            key={stage.title}
-            className={`${styles.stage} ${status === "complete" ? styles.stageComplete : ""} ${status === "current" ? styles.stageCurrent : ""}`}
-            aria-current={status === "current" ? "step" : undefined}
-          >
-            <span className={styles.stageMark} aria-hidden="true">{status === "complete" ? "✓" : index + 1}</span>
-            <span>
-              <span className={styles.stageTitle}>{stage.title}</span>
-              <span className={styles.stageDetail}>{stage.detail}</span>
-            </span>
-            <span className={styles.stageStatus}>{status}</span>
-          </li>
-        );
-      })}
-    </ol>
+    <>
+      <ol className={styles.stages} aria-label="Retailer-check progress">
+        {STAGES.slice(0, currentIndex + 1).map((stage, index) => {
+          const status = retailerCheckComplete || index < currentIndex
+            ? "complete"
+            : "current";
+          return (
+            <li
+              key={stage.title}
+              className={`${styles.stage} ${status === "complete" ? styles.stageComplete : ""} ${status === "current" ? styles.stageCurrent : ""}`}
+              aria-current={status === "current" ? "step" : undefined}
+            >
+              <span className={styles.stageMark} aria-hidden="true" />
+              <span>
+                <span className={styles.stageTitle}>{stage.title}</span>
+                <span className={styles.stageDetail}>{stage.detail}</span>
+              </span>
+              <span className={styles.stageStatus}>
+                {status === "complete" ? "Complete" : "In progress"}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      {RETAILER_WAITING_STATES.includes(state) ? (
+        <p className={styles.waitExpectation}>
+          Fresh retailer checks usually take tens of seconds. Recent indexed observations can return sooner.
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -836,15 +1979,21 @@ function CandidateSection({
   tone,
   candidates,
   workflow,
-  approvalPending,
-  onApprove,
+  comparedIds,
+  linkedCandidateId,
+  onToggleCompare,
+  onReview,
+  onRetailerOutbound,
 }: {
   readonly title: string;
   readonly tone: "fits" | "access" | "near";
   readonly candidates: readonly LiveCandidate[];
   readonly workflow: LiveSearchWorkflow;
-  readonly approvalPending: boolean;
-  readonly onApprove: (candidateId: string) => void;
+  readonly comparedIds: readonly string[];
+  readonly linkedCandidateId?: string;
+  readonly onToggleCompare: (candidateId: string) => void;
+  readonly onReview: (candidateId: string) => void;
+  readonly onRetailerOutbound: (candidate: LiveCandidate) => void;
 }): React.JSX.Element {
   const toneClass = tone === "fits"
     ? styles.resultsFits
@@ -864,8 +2013,16 @@ function CandidateSection({
             candidate={candidate}
             workflowState={workflow.state}
             approvedCandidateId={workflow.approvedCandidateId}
-            approvalPending={approvalPending}
-            onApprove={onApprove}
+            isCompared={comparedIds.includes(candidate.id)}
+            compareDisabled={comparedIds.length >= 3}
+            relation={linkedCandidateId === undefined
+              ? undefined
+              : candidate.id === linkedCandidateId
+                ? "linked"
+                : "alternative"}
+            onToggleCompare={onToggleCompare}
+            onReview={onReview}
+            onRetailerOutbound={() => onRetailerOutbound(candidate)}
           />
         ))}
       </div>
@@ -873,15 +2030,413 @@ function CandidateSection({
   );
 }
 
-function partitionCandidates(candidates: readonly LiveCandidate[]): {
+function LiveComparisonTray({
+  candidates,
+  onOpen,
+}: {
+  readonly candidates: readonly LiveCandidate[];
+  readonly onOpen: () => void;
+}): React.JSX.Element {
+  return (
+    <aside className={styles.compareTray} aria-label="Live comparison tray">
+      <button type="button" onClick={onOpen}>
+        <span>
+          <span className={styles.panelIndex}>Comparison register · {candidates.length}/3</span>
+          <strong>
+            {candidates.length === 0
+              ? "Compare the leading retailers"
+              : candidates.map((candidate) => retailerLabel(candidate.observation.retailer)).join(" / ")}
+          </strong>
+        </span>
+        <span className={styles.compareTrayAction}>{candidates.length === 0 ? "Compare" : "Open"}</span>
+      </button>
+    </aside>
+  );
+}
+
+function LiveComparisonPanel({
+  candidates,
+  measurement,
+  onClose,
+  onRemove,
+  onReview,
+  reviewableCandidateIds,
+  preservedLinkedCandidateId,
+  sharePending,
+  shareError,
+  shareResult,
+  onShare,
+  onRetailerOutbound,
+}: {
+  readonly candidates: readonly LiveCandidate[];
+  readonly measurement: SpaceMeasurement;
+  readonly onClose: () => void;
+  readonly onRemove: (candidateId: string) => void;
+  readonly onReview: (candidateId: string) => void;
+  readonly reviewableCandidateIds: readonly string[];
+  readonly preservedLinkedCandidateId?: string;
+  readonly sharePending: boolean;
+  readonly shareError?: string;
+  readonly shareResult?: { readonly url: string; readonly expiresAt: string };
+  readonly onShare: () => void;
+  readonly onRetailerOutbound: (candidate: LiveCandidate) => void;
+}): React.JSX.Element {
+  return (
+    <section
+      id="live-comparison"
+      className={styles.comparisonPanel}
+      aria-label="Live product comparison"
+    >
+      <div className={styles.comparisonHeader}>
+        <div>
+          <span className={styles.panelIndex}>One measured envelope</span>
+          <h2>Compare the decision, not just the style</h2>
+          <p className={styles.technical}>
+            {measurement.widthMm} W × {measurement.heightMm} H × {measurement.depthMm} D mm
+          </p>
+        </div>
+        <button type="button" className={styles.textButton} onClick={onClose}>Close</button>
+      </div>
+      <div className={styles.shareBar}>
+        <div>
+          <strong>Share this measured decision</strong>
+          <p>
+            The read-only link replays this exact measurement and source snapshot. It is advisory,
+            expires after 30 days, and gives the recipient no search or generation authority.
+          </p>
+        </div>
+        <button
+          type="button"
+          className={styles.secondaryButton}
+          disabled={sharePending || candidates.length === 0}
+          onClick={onShare}
+        >
+          {sharePending ? "Creating link…" : "Share comparison"}
+        </button>
+        {shareError === undefined ? null : (
+          <p className={styles.shareError} role="alert">{shareError}</p>
+        )}
+        {shareResult === undefined ? null : (
+          <div className={styles.shareResult} role="status">
+            <label htmlFor="live-comparison-share">Share link (copied when browser permission allows)</label>
+            <input id="live-comparison-share" value={shareResult.url} readOnly onFocus={(event) => event.currentTarget.select()} />
+            <small>Expires {formatObservedAt(shareResult.expiresAt)}.</small>
+          </div>
+        )}
+      </div>
+      <div className={styles.comparisonGrid}>
+        {candidates.map((candidate) => {
+          const tone = candidateTone(candidate);
+          const reason = candidateStatusReason(candidate);
+          return (
+            <article key={candidate.id} className={styles.comparisonItem}>
+              <span className={`${styles.comparisonStatus} ${tone.className}`}>
+                {tone.label}
+              </span>
+              {candidate.id === preservedLinkedCandidateId ? (
+                <span className={styles.panelIndex}>Exact-link product</span>
+              ) : null}
+              {/* Retailer image hosts are discovered at runtime and cannot use a fixed Next image allowlist. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={candidate.observation.imageUrl}
+                alt={`${candidate.observation.name} retailer product photo`}
+                width={220}
+                height={180}
+                loading="lazy"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                className={styles.comparisonImage}
+              />
+              <p className={styles.comparisonRetailer}>
+                {retailerLabel(candidate.observation.retailer)}
+              </p>
+              <h3>{candidate.observation.name}</h3>
+              <p className={styles.comparisonPrice}>
+                {formatListedMoney(candidate.observation.priceMinor, candidate.observation.currency)}
+              </p>
+              <p className={styles.comparisonAvailability}>
+                {availabilityText(candidate.observation.availability)}
+              </p>
+              <p className={styles.comparisonDimensions}>
+                {candidate.observation.assembledDimensions.widthMm} W × {candidate.observation.assembledDimensions.heightMm} H × {candidate.observation.assembledDimensions.depthMm} D mm
+              </p>
+              <ComparisonPackages packages={candidate.observation.packages} />
+              <div className={`${styles.comparisonDrawing} ${tone.className}`}>
+                <ComparisonClearance label="Width" valueMm={candidate.fit.widthClearanceMm} />
+                <ComparisonClearance label="Height" valueMm={candidate.fit.heightClearanceMm} />
+                <ComparisonClearance label="Depth" valueMm={candidate.fit.depthClearanceMm} />
+              </div>
+              <p className={`${styles.comparisonMinimum} ${tone.className}`}>
+                {candidate.fit.minimumClearanceMm} <span>mm minimum</span>
+              </p>
+              <p className={styles.comparisonReason}>{reason}</p>
+              <dl className={styles.comparisonFacts}>
+                <div>
+                  <dt>Access</dt>
+                  <dd>{comparisonAccessLabel(candidate)}</dd>
+                </div>
+                <div>
+                  <dt>Observed</dt>
+                  <dd>{formatObservedAt(candidate.observation.observedAt)}</dd>
+                </div>
+                <div>
+                  <dt>Source</dt>
+                  <dd>{SOURCE_LABELS_FOR_REVIEW[candidate.observation.dimensionsSource]}</dd>
+                </div>
+                <div>
+                  <dt>Evidence</dt>
+                  <dd>{candidate.observation.dimensionsEvidence}</dd>
+                </div>
+              </dl>
+              <div className={styles.comparisonActions}>
+                {candidate.fitStatus === "fits" ? (
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    disabled={!reviewableCandidateIds.includes(candidate.id)}
+                    onClick={() => onReview(candidate.id)}
+                  >
+                    Review for 3D
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={styles.textButton}
+                  onClick={() => onRemove(candidate.id)}
+                >
+                  Remove
+                </button>
+                <a
+                  href={candidate.observation.productUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.retailerLink}
+                  onClick={() => onRetailerOutbound(candidate)}
+                >
+                  View retailer source ↗
+                </a>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      {candidates.length >= 2 ? (
+        <LiveClearanceDifference candidates={candidates} />
+      ) : null}
+    </section>
+  );
+}
+
+function ComparisonClearance({
+  label,
+  valueMm,
+}: {
+  readonly label: string;
+  readonly valueMm: number;
+}): React.JSX.Element {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong className={styles.dimensionLine}>{valueMm} mm</strong>
+    </div>
+  );
+}
+
+function ComparisonPackages({
+  packages,
+}: {
+  readonly packages: readonly DeliveryPackage[];
+}): React.JSX.Element {
+  if (packages.length === 0) {
+    return <p className={styles.comparisonPackages}>Package dimensions unavailable.</p>;
+  }
+  return (
+    <div className={styles.comparisonPackages}>
+      <span>Listed delivery package{packages.length === 1 ? "" : "s"}</span>
+      <ul>
+        {packages.map((deliveryPackage, index) => (
+          <li key={`${deliveryPackage.label ?? "package"}-${index}`}>
+            {deliveryPackage.label ?? `Package ${index + 1}`} · {deliveryPackage.widthMm} W × {deliveryPackage.heightMm} H × {deliveryPackage.depthMm} D mm
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function LiveClearanceDifference({
+  candidates,
+}: {
+  readonly candidates: readonly LiveCandidate[];
+}): React.JSX.Element {
+  const [first, second] = candidates;
+  if (first === undefined || second === undefined) {
+    return <></>;
+  }
+  const difference = Math.abs(
+    first.fit.minimumClearanceMm - second.fit.minimumClearanceMm,
+  );
+  const roomier = first.fit.minimumClearanceMm >= second.fit.minimumClearanceMm
+    ? first
+    : second;
+  return (
+    <div className={styles.comparisonDifference}>
+      <span>Minimum-clearance difference</span>
+      <p>
+        {difference === 0
+          ? "The first two products leave the same minimum clearance."
+          : `${roomier.observation.name} leaves more room.`}
+      </p>
+      <strong>Δ {difference} mm</strong>
+    </div>
+  );
+}
+
+function CandidateReview({
+  candidate,
+  approvalPending,
+  canApprove,
+  onClose,
+  onApprove,
+}: {
+  readonly candidate: LiveCandidate;
+  readonly approvalPending: boolean;
+  readonly canApprove: boolean;
+  readonly onClose: () => void;
+  readonly onApprove: (candidateId: string) => void;
+}): React.JSX.Element {
+  return (
+    <div
+      className={styles.reviewBackdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="generation-review-title"
+    >
+      <section className={styles.reviewPanel}>
+        <div className={styles.reviewHeader}>
+          <div>
+            <span className={styles.panelIndex}>Approval gate · clean fit</span>
+            <h2 id="generation-review-title">Review before generating 3D</h2>
+          </div>
+          <button type="button" className={styles.textButton} onClick={onClose}>Close</button>
+        </div>
+        <h3>{candidate.observation.name}</h3>
+        <p className={styles.reviewDimensions}>
+          {candidate.observation.assembledDimensions.widthMm} W × {candidate.observation.assembledDimensions.heightMm} H × {candidate.observation.assembledDimensions.depthMm} D mm
+        </p>
+        <dl className={styles.reviewFacts}>
+          <div>
+            <dt>Space check</dt>
+            <dd>{candidate.fit.minimumClearanceMm} mm minimum clearance</dd>
+          </div>
+          <div>
+            <dt>Access check</dt>
+            <dd>{reviewAccessLabel(candidate)}</dd>
+          </div>
+          <div>
+            <dt>Dimension source</dt>
+            <dd>{SOURCE_LABELS_FOR_REVIEW[candidate.observation.dimensionsSource]}</dd>
+          </div>
+        </dl>
+        <p className={styles.reviewAdvisory}>
+          Generation uses the retailer image as appearance reference. The published model is
+          rescaled and checked against these retailer-listed outer dimensions; it is not a scan
+          or a delivery-path guarantee. Expect a multi-minute wait after approval while generation
+          and bounding-box scale verification complete.
+        </p>
+        <a
+          href={candidate.observation.productUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.assetLink}
+        >
+          Review the retailer source ↗
+        </a>
+        <button
+          type="button"
+          className={styles.primaryButton}
+          disabled={!canApprove || approvalPending}
+          onClick={() => onApprove(candidate.id)}
+        >
+          {approvalPending ? "Submitting approval…" : "Approve and generate 3D"}
+        </button>
+      </section>
+    </div>
+  );
+}
+
+const SOURCE_LABELS_FOR_REVIEW = {
+  "retailer-page": "Retailer page",
+  "retailer-api": "Retailer API",
+  "json-ld": "Retailer JSON-LD",
+} as const;
+
+function candidateTone(candidate: LiveCandidate): {
+  readonly label: string;
+  readonly className: string;
+} {
+  if (candidate.fitStatus === "fits") {
+    return { label: "Fits", className: styles.toneFit };
+  }
+  if (candidate.fitStatus === "access_issue") {
+    return { label: "Access issue", className: styles.toneAccess };
+  }
+  return { label: "Near miss", className: styles.toneNear };
+}
+
+function candidateStatusReason(candidate: LiveCandidate): string {
+  if (candidate.fitStatus === "fits") {
+    return `${candidate.fit.minimumClearanceMm} mm minimum clearance in the measured envelope.`;
+  }
+  if (candidate.access.status === "failed") {
+    return candidate.access.reason;
+  }
+  return candidate.fit.reasons[0] ?? "This product does not clear the measured envelope.";
+}
+
+function reviewAccessLabel(candidate: LiveCandidate): string {
+  if (candidate.access.status === "skipped") {
+    return "Access not checked";
+  }
+  if (candidate.access.status === "failed") {
+    return candidate.access.reason;
+  }
+  return candidate.access.basis === "package"
+    ? `${candidate.access.clearanceMm} mm package clearance`
+    : `${candidate.access.clearanceMm} mm assembled-size advisory`;
+}
+
+function comparisonAccessLabel(candidate: LiveCandidate): string {
+  if (candidate.access.status === "skipped") {
+    return "Access not checked";
+  }
+  if (candidate.access.status === "failed") {
+    return `Failed · ${candidate.access.reason}`;
+  }
+  if (candidate.access.basis === "package") {
+    const packageLabel = candidate.access.controllingPackageLabel ??
+      `package ${candidate.access.controllingPackageIndex + 1}`;
+    return `Passed using ${packageLabel} · ${candidate.access.clearanceMm} mm clearance`;
+  }
+  return `Passed as an assembled-size advisory · ${candidate.access.clearanceMm} mm clearance`;
+}
+
+function partitionCandidates(
+  candidates: readonly LiveCandidate[],
+  preserveListedCurrency: boolean,
+): {
   readonly fits: readonly LiveCandidate[];
   readonly accessIssues: readonly LiveCandidate[];
   readonly nearMisses: readonly LiveCandidate[];
 } {
+  const marketCandidates = preserveListedCurrency
+    ? candidates
+    : candidates.filter((candidate) => candidate.observation.currency === "AUD");
   return {
-    fits: candidates.filter((candidate) => candidate.fitStatus === "fits"),
-    accessIssues: candidates.filter((candidate) => candidate.fitStatus === "access_issue"),
-    nearMisses: candidates.filter((candidate) => candidate.fitStatus === "near_miss"),
+    fits: marketCandidates.filter((candidate) => candidate.fitStatus === "fits"),
+    accessIssues: marketCandidates.filter((candidate) => candidate.fitStatus === "access_issue"),
+    nearMisses: marketCandidates.filter((candidate) => candidate.fitStatus === "near_miss"),
   };
 }
 
@@ -889,11 +2444,20 @@ function validateForm(
   queryText: string,
   draft: MeasurementDraft,
   retailers: readonly LiveRetailer[],
+  intentMode: IntentMode,
 ): { readonly ok: true; readonly measurement: SpaceMeasurement } | { readonly ok: false; readonly message: string } {
   if (queryText.trim().length === 0) {
-    return { ok: false, message: "Describe the furniture you want to find." };
+    return {
+      ok: false,
+      message: intentMode === "link"
+        ? "Paste the retailer product link you want to check."
+        : "Describe the furniture you want to find.",
+    };
   }
-  if (retailers.length === 0) {
+  if (intentMode === "link" && parseExactProductUrl(queryText) === undefined) {
+    return { ok: false, message: "Enter one complete HTTPS retailer product link." };
+  }
+  if (intentMode === "describe" && retailers.length === 0) {
     return { ok: false, message: "Choose at least one retailer." };
   }
   const widthMm = parseMeasurementValue(draft.widthMm);
@@ -921,35 +2485,197 @@ function validateForm(
   };
 }
 
+function initialIntentMode(): IntentMode {
+  if (typeof window === "undefined") {
+    return "describe";
+  }
+  return new URL(window.location.href).searchParams.get("mode") === "link"
+    ? "link"
+    : "describe";
+}
+
 function parseMeasurementValue(input: string): number | undefined {
   const value = Number(input);
   return Number.isInteger(value) && value >= 100 && value <= 10_000 ? value : undefined;
+}
+
+function measurementToDraft(measurement?: SpaceMeasurement): MeasurementDraft {
+  if (measurement === undefined) {
+    return INITIAL_MEASUREMENT;
+  }
+  return {
+    widthMm: String(measurement.widthMm),
+    heightMm: String(measurement.heightMm),
+    depthMm: String(measurement.depthMm),
+    accessWidthMm:
+      measurement.accessWidthMm === undefined ? "" : String(measurement.accessWidthMm),
+  };
+}
+
+function parseExactProductUrl(input: string): string | undefined {
+  const trimmed = input.trim();
+  if (!/^https:\/\//i.test(trimmed) || /\s/.test(trimmed)) {
+    return undefined;
+  }
+  try {
+    return normalizeProductUrl(trimmed);
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeProductUrl(input: string): string {
+  const url = new URL(input);
+  url.hash = "";
+  for (const key of Array.from(url.searchParams.keys())) {
+    if (isTrackingParameter(key)) {
+      url.searchParams.delete(key);
+    }
+  }
+  url.searchParams.sort();
+  url.pathname = url.pathname.replace(/\/+$/, "") || "/";
+  return url.toString();
+}
+
+function isTrackingParameter(key: string): boolean {
+  return /^utm_/i.test(key) || [
+    "fbclid",
+    "gclid",
+    "dclid",
+    "msclkid",
+    "mc_cid",
+    "mc_eid",
+  ].includes(key.toLowerCase());
+}
+
+function retailerLabel(retailer: RetailerIdentity): string {
+  return retailer.label;
+}
+
+function workflowIntentLabel(workflow: LiveSearchWorkflow): string {
+  if (workflow.intent?.kind === "prompt") {
+    return workflow.intent.text;
+  }
+  if (workflow.intent?.kind === "product-link") {
+    return workflow.intent.url;
+  }
+  return workflow.queryText;
+}
+
+function legacyWorkflowIntent(workflow: LiveSearchWorkflow): CreateLiveSearchRequest["intent"] {
+  const exactProductUrl = parseExactProductUrl(workflow.queryText);
+  if (exactProductUrl !== undefined) {
+    return { kind: "product-link", url: exactProductUrl };
+  }
+  return {
+    kind: "prompt",
+    text: workflow.queryText,
+    retailers: workflow.retailers,
+  };
+}
+
+function formatObservedAt(input: string): string {
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(input));
+}
+
+function formatCacheAge(checkedAt: string): string {
+  const elapsedHours = Math.max(
+    0,
+    Math.floor((Date.now() - Date.parse(checkedAt)) / (60 * 60 * 1_000)),
+  );
+  return `Checked ${elapsedHours} ${elapsedHours === 1 ? "hour" : "hours"} ago`;
+}
+
+function formatPromptPrice(priceMinor: number, currency: string): string {
+  return `${currency} ${(priceMinor / 100).toFixed(2)}`;
+}
+
+function formatListedMoney(priceMinor: number, currency: string): string {
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  }).format(priceMinor / 100);
+}
+
+function availabilityText(
+  availability: LiveCandidate["observation"]["availability"],
+): string {
+  if (availability === "in_stock") return "Listed in stock";
+  if (availability === "out_of_stock") return "Listed out of stock";
+  return "Stock status not confirmed";
 }
 
 function workflowStageIndex(state?: WorkflowState): number {
   if (state === undefined || state === "created") {
     return 0;
   }
-  if (state === "queued" || state === "searching") {
-    return 1;
-  }
-  if (state === "validating") {
-    return 2;
-  }
-  if (state === "ready_for_approval" || state === "partial") {
-    return 3;
-  }
-  if (state === "approved" || state === "generating" || state === "verifying") {
-    return 4;
-  }
-  if (state === "asset_ready") {
-    return 5;
-  }
-  return 0;
+  if (state === "queued") return 1;
+  if (state === "searching") return 2;
+  return 3;
 }
 
 function readableState(state: WorkflowState): string {
   return state.replaceAll("_", " ");
+}
+
+function isTerminalState(state: WorkflowState): boolean {
+  return state === "asset_ready" || state === "failed" || state === "cancelled" || state === "expired";
+}
+
+function resultCountBucket(count: number, upperMiddleBound: 3 | 6): string {
+  if (count === 0) return "0";
+  if (count <= 3) return "1_3";
+  if (upperMiddleBound === 6 && count <= 6) return "4_6";
+  return upperMiddleBound === 6 ? "7_plus" : "4_plus";
+}
+
+function acknowledgementLatencyBucket(startedAt: number): string {
+  const elapsed = Date.now() - startedAt;
+  if (elapsed < 1_000) return "under_1s";
+  if (elapsed < 3_000) return "1_3s";
+  return "over_3s";
+}
+
+function searchLatencyBucket(createdAt: string): string {
+  const elapsed = Math.max(0, Date.now() - Date.parse(createdAt));
+  if (elapsed < 10_000) return "under_10s";
+  if (elapsed < 30_000) return "10_30s";
+  if (elapsed < 60_000) return "30_60s";
+  return "over_60s";
+}
+
+function modelLatencyBucket(createdAt: string): string {
+  const elapsed = Math.max(0, Date.now() - Date.parse(createdAt));
+  if (elapsed < 120_000) return "under_2m";
+  if (elapsed < 300_000) return "2_5m";
+  return "over_5m";
+}
+
+function cacheAgeBucket(checkedAt: string): string {
+  const elapsed = Math.max(0, Date.now() - Date.parse(checkedAt));
+  if (elapsed < 60 * 60 * 1_000) return "under_1h";
+  if (elapsed < 6 * 60 * 60 * 1_000) return "1_6h";
+  return "6_24h";
+}
+
+function analyticsRetailer(retailerKey: string): "ikea-au" | "kmart-au" | "other" {
+  if (retailerKey === "ikea-au" || retailerKey === "kmart-au") {
+    return retailerKey;
+  }
+  return "other";
+}
+
+function rankBucket(rank: number): "1" | "2_3" | "4_plus" {
+  if (rank <= 0) return "1";
+  if (rank <= 2) return "2_3";
+  return "4_plus";
 }
 
 function createIdempotencyKey(prefix: string): string {

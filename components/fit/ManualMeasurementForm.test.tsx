@@ -2,7 +2,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { DEMO_SPACE_MEASUREMENT } from "@/lib/fit-config";
+import { captureProductEvent } from "@/lib/product-events-client";
 import { ManualMeasurementForm } from "./ManualMeasurementForm";
+
+vi.mock("@/lib/product-events-client", () => ({
+  captureProductEvent: vi.fn(),
+}));
 
 describe("ManualMeasurementForm", () => {
   it("keeps the numeric entry focused through the fast four-step path", async () => {
@@ -66,6 +71,14 @@ describe("ManualMeasurementForm", () => {
       },
       "My space",
     );
+    expect(captureProductEvent).toHaveBeenCalledWith(
+      "measurement_completed",
+      expect.objectContaining({
+        source: "manual",
+        unit: "mm",
+        access_provided: true,
+      }),
+    );
   });
 
   it("accepts centimetres and normalizes every value to millimetres", async () => {
@@ -99,6 +112,43 @@ describe("ManualMeasurementForm", () => {
         accessWidthMm: 760,
       }),
       "My space",
+    );
+  });
+
+  it("allows the user to leave the delivery opening unknown without inventing a value", async () => {
+    const user = userEvent.setup();
+    const onConfirm = vi.fn();
+    render(
+      <ManualMeasurementForm
+        demoMeasurement={DEMO_SPACE_MEASUREMENT}
+        onConfirm={onConfirm}
+      />,
+    );
+
+    await enterCurrentMeasurement(user, "812");
+    await enterCurrentMeasurement(user, "1600");
+    await enterCurrentMeasurement(user, "305");
+    await user.click(
+      screen.getByRole("button", { name: "I don't know — check the room only" }),
+    );
+
+    expect(onConfirm).toHaveBeenCalledWith(
+      {
+        widthMm: 812,
+        heightMm: 1600,
+        depthMm: 305,
+        uncertaintyMm: 25,
+        source: "manual",
+      },
+      "My space",
+    );
+    expect(captureProductEvent).toHaveBeenCalledWith(
+      "measurement_completed",
+      expect.objectContaining({
+        source: "manual",
+        unit: "mm",
+        access_provided: false,
+      }),
     );
   });
 

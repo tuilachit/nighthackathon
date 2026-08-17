@@ -159,10 +159,32 @@ export function ComparisonPanel({
 
       <div className="fit-comparison-grid border-t border-[#17221f]/25">
         {entries.map((entry) => (
-          <article
+          <ComparisonEntry
             key={entry.product.id}
-            className="min-w-0 border-r border-[#17221f]/20 p-3 last:border-r-0"
-          >
+            entry={entry}
+            onRemove={onRemove}
+            onView={onView}
+          />
+        ))}
+      </div>
+      {entries.length >= 2 ? <ClearanceDifference entries={entries} /> : null}
+    </section>
+  );
+}
+
+function ComparisonEntry({
+  entry,
+  onRemove,
+  onView,
+}: {
+  readonly entry: EvaluatedProduct;
+  readonly onRemove: (productId: string) => void;
+  readonly onView: (entry: EvaluatedProduct) => void;
+}): React.JSX.Element {
+  const tone = comparisonTone(entry);
+  const canPlace = entry.fit.fits && entry.access.passes;
+  return (
+    <article className="min-w-0 border-r border-[#17221f]/20 p-3 last:border-r-0">
             <p className="fit-data text-[9px] font-bold uppercase tracking-[0.1em] text-[#17221f]/65">
               {entry.product.retailer}
             </p>
@@ -174,8 +196,13 @@ export function ComparisonPanel({
               {entry.product.dimensions.heightMm} H ×{" "}
               {entry.product.dimensions.depthMm} D
             </p>
+            {entry.access.status === "skipped" ? (
+              <p className="fit-data mt-1 text-[8px] font-bold uppercase tracking-[0.06em] text-[#755426]">
+                Access not checked
+              </p>
+            ) : null}
             <div
-              className="mt-3 border border-[#3f6b57]/30 bg-[#f4f7f5]/70 px-2 py-3 text-center text-[#3f6b57]"
+              className={`mt-3 border bg-[#f4f7f5]/70 px-2 py-3 text-center ${tone.boxClass}`}
               aria-label={`${entry.product.name} clearance drawing`}
             >
               <ComparisonDimension
@@ -191,20 +218,29 @@ export function ComparisonPanel({
                 value={entry.fit.depthClearanceMm}
               />
             </div>
-            <p className="fit-data mt-3 text-2xl font-bold leading-none text-[#3f6b57]">
+            <p className={`fit-data mt-3 text-2xl font-bold leading-none ${tone.textClass}`}>
               {entry.fit.minimumClearanceMm}
               <span className="ml-1 text-[9px] tracking-normal text-[#17221f]/65">
                 mm min
               </span>
             </p>
+            {!canPlace ? (
+              <p className={`fit-data mt-2 text-[9px] font-bold leading-4 ${tone.textClass}`}>
+                {entry.access.status === "failed"
+                  ? entry.access.reason
+                  : entry.fit.reasons[0] ?? "This item needs measurement review."}
+              </p>
+            ) : null}
             <div className="mt-3 grid gap-2">
-              <button
-                type="button"
-                onClick={() => onView(entry)}
-                className="min-h-11 rounded-sm bg-[#17221f] px-2 text-[11px] font-bold text-white hover:bg-[#26332f]"
-              >
-                View in room
-              </button>
+              {canPlace ? (
+                <button
+                  type="button"
+                  onClick={() => onView(entry)}
+                  className="min-h-11 rounded-sm bg-[#17221f] px-2 text-[11px] font-bold text-white hover:bg-[#26332f]"
+                >
+                  View in room
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => onRemove(entry.product.id)}
@@ -214,11 +250,29 @@ export function ComparisonPanel({
               </button>
             </div>
           </article>
-        ))}
-      </div>
-      {entries.length >= 2 ? <ClearanceDifference entries={entries} /> : null}
-    </section>
   );
+}
+
+function comparisonTone(entry: EvaluatedProduct): {
+  readonly boxClass: string;
+  readonly textClass: string;
+} {
+  if (!entry.fit.fits) {
+    return {
+      boxClass: "border-[#8a4e48]/30 text-[#8a4e48]",
+      textClass: "text-[#8a4e48]",
+    };
+  }
+  if (!entry.access.passes) {
+    return {
+      boxClass: "border-[#8a632d]/30 text-[#8a632d]",
+      textClass: "text-[#8a632d]",
+    };
+  }
+  return {
+    boxClass: "border-[#3f6b57]/30 text-[#3f6b57]",
+    textClass: "text-[#3f6b57]",
+  };
 }
 
 function ComparisonDimension({

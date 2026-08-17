@@ -1,13 +1,19 @@
 import type { ProductDimensions, SpaceMeasurement } from "@/lib/catalog-types";
 import {
+  CACHE_POLICIES,
   LIVE_RETAILERS,
+  LIVE_RETAILER_IDENTITIES,
   MAX_COVERAGE_NOTE_LENGTH,
   MAX_COVERAGE_NOTES,
   WORKFLOW_STATES,
   type BrowserSearchOutput,
+  type CachePolicy,
   type CreateLiveSearchRequest,
+  type DeliveryPackage,
+  type LiveSearchIntent,
   type LiveProductObservation,
   type LiveRetailer,
+  type RetailerIdentity,
   type WorkflowState,
 } from "./types";
 
@@ -17,6 +23,8 @@ const MAX_QUERY_LENGTH = 500;
 const MAX_PRODUCT_NAME_LENGTH = 240;
 const MAX_EVIDENCE_LENGTH = 2_000;
 const MAX_PRODUCTS_PER_RESPONSE = 50;
+const MAX_PACKAGES_PER_PRODUCT = 50;
+const ISO_4217_CURRENCIES = new Set(Intl.supportedValuesOf("currency"));
 const ALLOWED_RETAILER_HOSTS: Readonly<Record<LiveRetailer, readonly string[]>> = {
   "ikea-au": ["ikea.com", "ikea.com.au"],
   "kmart-au": ["kmart.com.au"],
@@ -41,18 +49,13 @@ export function validateCreateLiveSearchRequest(
   }
 
   const errors: string[] = [];
-  const queryText = readTrimmedString(
-    input.queryText,
-    "queryText",
-    errors,
-    MAX_QUERY_LENGTH,
-  );
+  const intent = parseLiveSearchIntent(input.intent, errors);
   const measurement = parseMeasurement(input.measurement, errors);
-  const retailers = parseRetailers(input.retailers, errors);
-  if (queryText === undefined || measurement === undefined || retailers === undefined) {
+  const cachePolicy = parseCachePolicy(input.cachePolicy, errors);
+  if (intent === undefined || measurement === undefined || cachePolicy === undefined) {
     return { ok: false, errors };
   }
-  return { ok: true, value: { queryText, measurement, retailers }, errors: [] };
+  return { ok: true, value: { intent, measurement, cachePolicy }, errors: [] };
 }
 
 /** Validates Browser Use structured output before any product reaches fit evaluation. */
@@ -81,7 +84,7 @@ export function validateBrowserSearchOutput(
       rejected.push(...entryErrors);
       continue;
     }
-    const key = `${product.retailer}:${product.retailerProductId}`;
+    const key = `${product.retailer.key}:${product.retailerProductId}`;
     if (seenProducts.has(key)) {
       rejected.push(`Browser output contains duplicate product ${key}.`);
       continue;
@@ -177,12 +180,47 @@ function parseMeasurement(
   };
 }
 
+function parseLiveSearchIntent(
+  input: unknown,
+  errors: string[],
+): LiveSearchIntent | undefined {
+  if (!isRecord(input)) {
+    errors.push("intent must be an object.");
+    return undefined;
+  }
+  if (input.kind === "prompt") {
+    const text = readTrimmedString(input.text, "intent.text", errors, MAX_QUERY_LENGTH);
+    const retailers = parseRetailers(input.retailers, errors, "intent.retailers");
+    return text === undefined || retailers === undefined
+      ? undefined
+      : { kind: "prompt", text, retailers };
+  }
+  if (input.kind === "product-link") {
+    const url = readHttpsUrl(input.url, "intent.url", errors);
+    return url === undefined ? undefined : { kind: "product-link", url };
+  }
+  errors.push("intent.kind must be prompt or product-link.");
+  return undefined;
+}
+
+function parseCachePolicy(
+  input: unknown,
+  errors: string[],
+): CachePolicy | undefined {
+  if (typeof input !== "string" || !CACHE_POLICIES.includes(input as CachePolicy)) {
+    errors.push("cachePolicy must be prefer-recent or force-refresh.");
+    return undefined;
+  }
+  return input as CachePolicy;
+}
+
 function parseRetailers(
   input: unknown,
   errors: string[],
+  path = "retailers",
 ): readonly LiveRetailer[] | undefined {
   if (!Array.isArray(input) || input.length === 0) {
-    errors.push("retailers must contain at least one retailer.");
+    errors.push(`${path} must contain at least one retailer.`);
     return undefined;
   }
   const retailers = [...new Set(input)].flatMap((entry) => {
@@ -195,6 +233,43 @@ function parseRetailers(
   return retailers.length === 0 ? undefined : retailers;
 }
 
+function parseRetailerIdentity(
+  input: unknown,
+  path: string,
+  errors: string[],
+): RetailerIdentity | undefined {
+  if (typeof input === "string") {
+    if (!LIVE_RETAILERS.includes(input as LiveRetailer)) {
+      errors.push(`${path} legacy key is unsupported.`);
+      return undefined;
+    }
+    return LIVE_RETAILER_IDENTITIES[input as LiveRetailer];
+  }
+  if (!isRecord(input)) {
+    errors.push(`${path} must be a retailer identity object.`);
+    return undefined;
+  }
+  const key = readTrimmedString(input.key, `${path}.key`, errors, 80);
+  const label = readTrimmedString(input.label, `${path}.label`, errors, 120);
+  const host = readRetailerHost(input.host, `${path}.host`, errors);
+  if (key === undefined || label === undefined || host === undefined) {
+    return undefined;
+  }
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key)) {
+    errors.push(`${path}.key must be a lowercase kebab-case identifier.`);
+    return undefined;
+  }
+  if (LIVE_RETAILERS.includes(key as LiveRetailer)) {
+    const canonical = LIVE_RETAILER_IDENTITIES[key as LiveRetailer];
+    if (label !== canonical.label || host !== canonical.host) {
+      errors.push(`${path} does not match the registered ${key} identity.`);
+      return undefined;
+    }
+    return canonical;
+  }
+  return { key, label, host };
+}
+
 function parseObservation(
   input: unknown,
   path: string,
@@ -204,12 +279,7 @@ function parseObservation(
     errors.push(`${path} must be an object.`);
     return undefined;
   }
-  const retailer = LIVE_RETAILERS.includes(input.retailer as LiveRetailer)
-    ? (input.retailer as LiveRetailer)
-    : undefined;
-  if (retailer === undefined) {
-    errors.push(`${path}.retailer is unsupported.`);
-  }
+  const retailer = parseRetailerIdentity(input.retailer, `${path}.retailer`, errors);
   const retailerProductId = readTrimmedString(input.retailerProductId, `${path}.retailerProductId`, errors, 120);
   const name = readTrimmedString(input.name, `${path}.name`, errors, MAX_PRODUCT_NAME_LENGTH);
   const category = readTrimmedString(input.category, `${path}.category`, errors, 100);
@@ -221,9 +291,12 @@ function parseObservation(
     : readRetailerImageUrl(input.imageUrl, retailer, `${path}.imageUrl`, errors);
   const priceMinor = boundedInteger(input.priceMinor, `${path}.priceMinor`, errors, 1, 100_000_000);
   const assembledDimensions = parseProductDimensions(input.assembledDimensions, `${path}.assembledDimensions`, errors);
-  const packageDimensions = input.packageDimensions === null || input.packageDimensions === undefined
-    ? undefined
-    : parseProductDimensions(input.packageDimensions, `${path}.packageDimensions`, errors);
+  const packages = parseDeliveryPackages(
+    input.packages,
+    input.packageDimensions,
+    path,
+    errors,
+  );
   const dimensionsEvidence = readTrimmedString(input.dimensionsEvidence, `${path}.dimensionsEvidence`, errors, MAX_EVIDENCE_LENGTH);
   const observedAt = readIsoDate(input.observedAt, `${path}.observedAt`, errors);
   const availability =
@@ -244,9 +317,7 @@ function parseObservation(
   if (dimensionsSource === undefined) {
     errors.push(`${path}.dimensionsSource is invalid.`);
   }
-  if (input.currency !== "AUD") {
-    errors.push(`${path}.currency must be AUD.`);
-  }
+  const currency = readCurrency(input.currency, `${path}.currency`, errors);
   if (input.confidence !== "high") {
     errors.push(`${path}.confidence must be high.`);
   }
@@ -266,11 +337,12 @@ function parseObservation(
     imageUrl === undefined ||
     priceMinor === undefined ||
     assembledDimensions === undefined ||
+    packages === undefined ||
     dimensionsEvidence === undefined ||
     observedAt === undefined ||
     availability === undefined ||
     dimensionsSource === undefined ||
-    input.currency !== "AUD" ||
+    currency === undefined ||
     input.confidence !== "high"
   ) {
     return undefined;
@@ -283,14 +355,69 @@ function parseObservation(
     productUrl,
     imageUrl,
     priceMinor,
-    currency: "AUD",
+    currency,
     availability,
     assembledDimensions,
-    ...(packageDimensions === undefined ? {} : { packageDimensions }),
+    packages: packages.values,
     dimensionsSource,
     dimensionsEvidence,
     observedAt,
     confidence: "high",
+  };
+}
+
+interface ParsedDeliveryPackages {
+  readonly values: readonly DeliveryPackage[];
+}
+
+function parseDeliveryPackages(
+  input: unknown,
+  legacyInput: unknown,
+  path: string,
+  errors: string[],
+): ParsedDeliveryPackages | undefined {
+  const legacy = legacyInput === null || legacyInput === undefined
+    ? undefined
+    : parseProductDimensions(legacyInput, `${path}.packageDimensions`, errors);
+
+  if (input === undefined) {
+    if (legacyInput !== null && legacyInput !== undefined && legacy === undefined) {
+      return undefined;
+    }
+    return {
+      values: legacy === undefined ? [] : [legacy],
+    };
+  }
+  if (!Array.isArray(input) || input.length > MAX_PACKAGES_PER_PRODUCT) {
+    errors.push(
+      `${path}.packages must be an array of at most ${MAX_PACKAGES_PER_PRODUCT} complete packages.`,
+    );
+    return undefined;
+  }
+
+  const before = errors.length;
+  const values = input.flatMap((entry, index) => {
+    const packagePath = `${path}.packages[${index}]`;
+    const dimensions = parseProductDimensions(entry, packagePath, errors);
+    if (!isRecord(entry) || dimensions === undefined) {
+      return [];
+    }
+    const label = entry.label === undefined
+      ? undefined
+      : readTrimmedString(entry.label, `${packagePath}.label`, errors, 120);
+    if (entry.label !== undefined && label === undefined) {
+      return [];
+    }
+    return [{ ...dimensions, ...(label === undefined ? {} : { label }) }];
+  });
+  if (
+    errors.length > before ||
+    (legacyInput !== null && legacyInput !== undefined && legacy === undefined)
+  ) {
+    return undefined;
+  }
+  return {
+    values,
   };
 }
 
@@ -429,6 +556,22 @@ function readTrimmedString(
   return input.trim();
 }
 
+function readCurrency(
+  input: unknown,
+  path: string,
+  errors: string[],
+): string | undefined {
+  if (
+    typeof input !== "string" ||
+    !/^[A-Z]{3}$/.test(input) ||
+    !ISO_4217_CURRENCIES.has(input)
+  ) {
+    errors.push(`${path} must be an uppercase ISO-4217 three-letter code.`);
+    return undefined;
+  }
+  return input;
+}
+
 function readHttpsUrl(input: unknown, path: string, errors: string[]): string | undefined {
   if (typeof input !== "string" || input.length > 2_048) {
     errors.push(`${path} must be an HTTPS URL.`);
@@ -449,7 +592,7 @@ function readHttpsUrl(input: unknown, path: string, errors: string[]): string | 
 
 function readRetailerUrl(
   input: unknown,
-  retailer: LiveRetailer,
+  retailer: RetailerIdentity,
   path: string,
   errors: string[],
 ): string | undefined {
@@ -458,11 +601,17 @@ function readRetailerUrl(
     return undefined;
   }
   const host = new URL(normalized).hostname.toLowerCase();
-  const allowed = ALLOWED_RETAILER_HOSTS[retailer].some(
+  const liveRetailer = LIVE_RETAILERS.includes(retailer.key as LiveRetailer)
+    ? (retailer.key as LiveRetailer)
+    : undefined;
+  const allowedHosts = liveRetailer === undefined
+    ? [retailer.host]
+    : ALLOWED_RETAILER_HOSTS[liveRetailer];
+  const allowed = allowedHosts.some(
     (domain) => host === domain || host.endsWith(`.${domain}`),
   );
   if (!allowed) {
-    errors.push(`${path} is not on an approved ${retailer} domain.`);
+    errors.push(`${path} is not on the declared ${retailer.key} domain.`);
     return undefined;
   }
   return normalized;
@@ -470,7 +619,7 @@ function readRetailerUrl(
 
 function readRetailerImageUrl(
   input: unknown,
-  retailer: LiveRetailer,
+  retailer: RetailerIdentity,
   path: string,
   errors: string[],
 ): string | undefined {
@@ -479,15 +628,37 @@ function readRetailerImageUrl(
     return undefined;
   }
   const host = new URL(normalized).hostname.toLowerCase();
-  const allowed = ALLOWED_RETAILER_IMAGE_HOSTS[retailer].some(
-    (domain) => host === domain || host.endsWith(`.${domain}`),
-  );
-  if (!allowed) {
-    errors.push(`${path} is not on an approved ${retailer} image host.`);
+  const liveRetailer = LIVE_RETAILERS.includes(retailer.key as LiveRetailer)
+    ? (retailer.key as LiveRetailer)
+    : undefined;
+  if (liveRetailer !== undefined) {
+    const allowed = ALLOWED_RETAILER_IMAGE_HOSTS[liveRetailer].some(
+      (domain) => host === domain || host.endsWith(`.${domain}`),
+    );
+    if (!allowed) {
+      errors.push(`${path} is not on an approved ${retailer.key} image host.`);
+      return undefined;
+    }
+  }
+  return normalized;
+}
+
+function readRetailerHost(
+  input: unknown,
+  path: string,
+  errors: string[],
+): string | undefined {
+  if (typeof input !== "string" || input.length > 253) {
+    errors.push(`${path} must be a DNS hostname.`);
     return undefined;
   }
-  if (!/\.(?:jpe?g|png)$/i.test(new URL(normalized).pathname)) {
-    errors.push(`${path} must point to a JPG, JPEG, or PNG image supported by Meshy.`);
+  const normalized = input.toLowerCase().replace(/\.$/, "");
+  if (
+    !/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(
+      normalized,
+    )
+  ) {
+    errors.push(`${path} must be a DNS hostname.`);
     return undefined;
   }
   return normalized;

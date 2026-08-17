@@ -34,11 +34,11 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Run quality gate
         run: npm run verify
 
-      - name: Run Pixel 5 Playwright flow
+      - name: Run mobile Playwright flows
         run: npm run e2e
