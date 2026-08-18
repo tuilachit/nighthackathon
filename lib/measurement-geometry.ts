@@ -1,12 +1,7 @@
-export type MeasurementSource = "webxr" | "manual" | "demo";
+import type { SpaceMeasurement } from "@/lib/catalog-types";
+export type { SpaceMeasurement } from "@/lib/catalog-types";
 
-export interface SpaceMeasurement {
-  readonly widthMm: number;
-  readonly heightMm: number;
-  readonly depthMm: number;
-  readonly uncertaintyMm: number;
-  readonly source: MeasurementSource;
-}
+export type MeasurementSource = "webxr" | "manual" | "demo";
 
 export interface ProductDimensions {
   readonly widthMm: number;
