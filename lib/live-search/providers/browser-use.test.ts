@@ -48,6 +48,12 @@ describe("createBrowserSearchSession", () => {
         uncertaintyMm: 25,
         source: "manual",
       },
+      [{
+        retailer: { key: "ikea-au", label: "IKEA Australia", host: "ikea.com" },
+        url: "https://www.ikea.com/au/en/p/billy-bookcase-123/",
+        title: "BILLY bookcase",
+        description: "Black bookcase",
+      }],
     );
 
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
@@ -60,6 +66,8 @@ describe("createBrowserSearchSession", () => {
     expect(body.task).toContain('"widthMm":900');
     expect(body.task).toContain("Aim for 3 source-qualified products from each requested retailer");
     expect(body.task).toContain("Do not run Python or execute code");
+    expect(body.task).toContain("Firecrawl already discovered");
+    expect(body.task).toContain("https://www.ikea.com/au/en/p/billy-bookcase-123/");
     expect(body.outputSchema).toMatchObject({
       properties: {
         products: {

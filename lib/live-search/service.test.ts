@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   claimSearchDispatch: vi.fn(),
   completeModelAsset: vi.fn(),
   createBrowserSearchSession: vi.fn(),
+  discoverProductPagesWithFirecrawl: vi.fn(),
   createMeshyImageTask: vi.fn(),
   createSupabaseAdminClient: vi.fn(),
   download: vi.fn(),
@@ -77,6 +78,10 @@ vi.mock("./providers/meshy", async (importOriginal) => {
     getMeshyTask: mocks.getMeshyTask,
   };
 });
+
+vi.mock("./providers/firecrawl", () => ({
+  discoverProductPagesWithFirecrawl: mocks.discoverProductPagesWithFirecrawl,
+}));
 
 import { ProviderRequestError } from "./providers/browser-use";
 import {
@@ -239,6 +244,12 @@ describe("live-search service orchestration", () => {
       provider === "browser_use" ? browserContext() : modelContext()
     );
     mocks.getWorkflowCommand.mockResolvedValue(browserCommand());
+    mocks.discoverProductPagesWithFirecrawl.mockResolvedValue([{
+      retailer: { key: "ikea-au", label: "IKEA Australia", host: "ikea.com" },
+      url: "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/",
+      title: "BILLY bookcase",
+      description: "Narrow bookcase",
+    }]);
     mocks.evaluateLiveProducts.mockReturnValue(EVALUATED_CANDIDATES);
     mocks.cacheRetailerImage.mockImplementation(async (url: string) => ({
       publicUrl: `https://test-project.supabase.co/storage/v1/object/public/product-images-public/${"d".repeat(64)}.jpg`,
@@ -775,7 +786,36 @@ describe("live-search service orchestration", () => {
 
       await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
 
-      expect(mocks.createBrowserSearchSession).toHaveBeenCalledWith(intent, MEASUREMENT);
+      expect(mocks.createBrowserSearchSession).toHaveBeenCalledWith(
+        intent,
+        MEASUREMENT,
+        expect.arrayContaining([
+          expect.objectContaining({ retailer: expect.objectContaining({ key: "ikea-au" }) }),
+        ]),
+      );
+      expect(mocks.recordBrowserSubmission).toHaveBeenCalledOnce();
+    });
+
+    it("falls back to bounded Browser Use when Firecrawl discovery is unavailable", async () => {
+      mocks.claimSearchDispatch.mockResolvedValue({
+        providerTaskId: PROVIDER_TASK_ID,
+        shouldSubmit: true,
+      });
+      mocks.discoverProductPagesWithFirecrawl.mockRejectedValue(
+        new Error("Firecrawl temporarily unavailable"),
+      );
+      mocks.createBrowserSearchSession.mockResolvedValue({
+        id: BROWSER_SESSION_ID,
+        status: "created",
+      });
+
+      await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
+
+      expect(mocks.createBrowserSearchSession).toHaveBeenCalledWith(
+        browserCommand().intent,
+        MEASUREMENT,
+        [],
+      );
       expect(mocks.recordBrowserSubmission).toHaveBeenCalledOnce();
     });
 

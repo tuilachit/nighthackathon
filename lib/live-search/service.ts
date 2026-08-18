@@ -29,6 +29,10 @@ import {
   getBrowserSearchSession,
   parseCompletedBrowserOutput,
 } from "./providers/browser-use";
+import {
+  discoverProductPagesWithFirecrawl,
+  type FirecrawlDiscoveryHit,
+} from "./providers/firecrawl";
 import { hasSameRegistrableDomain } from "./url-security";
 import { createMeshyImageTask, getMeshyTask } from "./providers/meshy";
 import {
@@ -57,9 +61,21 @@ export async function dispatchSearchWorkflow(
     if (!claim.shouldSubmit) {
       return;
     }
+    let discoveryHits: readonly FirecrawlDiscoveryHit[] = [];
+    try {
+      discoveryHits = await discoverProductPagesWithFirecrawl(command.intent);
+    } catch (error) {
+      console.warn(JSON.stringify({
+        level: "warn",
+        message: "firecrawl_discovery_fallback",
+        workflowId,
+        error: errorMessage(error),
+      }));
+    }
     const session = await createBrowserSearchSession(
       command.intent,
       command.measurement,
+      discoveryHits,
     );
     externalTaskId = session.id;
     await recordBrowserSubmission(workflowId, claim.providerTaskId, session.id, {
