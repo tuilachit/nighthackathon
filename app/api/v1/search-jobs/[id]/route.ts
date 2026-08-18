@@ -3,6 +3,7 @@ import { isLiveSearchConfigured } from "@/lib/live-search/env";
 import { requireAuthenticatedUser } from "@/lib/live-search/auth";
 import { apiError, handleRouteError } from "@/lib/live-search/http";
 import { getWorkflowForOwner } from "@/lib/live-search/repository";
+import { publicWorkflowErrorMessage } from "@/lib/live-search/public-errors";
 import { isUuid } from "@/lib/live-search/validation";
 
 export const runtime = "nodejs";
@@ -23,7 +24,16 @@ export async function GET(_request: Request, context: RouteContext): Promise<Nex
   try {
     const user = await requireAuthenticatedUser();
     const workflow = await getWorkflowForOwner(id, user.id);
-    return NextResponse.json(workflow, {
+    const publicWorkflow = workflow.error === undefined
+      ? workflow
+      : {
+          ...workflow,
+          error: {
+            code: workflow.error.code,
+            message: publicWorkflowErrorMessage(workflow.error.code),
+          },
+        };
+    return NextResponse.json(publicWorkflow, {
       headers: { "Cache-Control": "no-store, private" },
     });
   } catch (error) {

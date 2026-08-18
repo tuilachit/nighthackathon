@@ -35,7 +35,7 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
     cronSecret: requiredSecret("CRON_SECRET"),
     abuseHashSecret: requiredSecret("ABUSE_HASH_SECRET"),
     browserUseMaxCostUsd: boundedNumber("BROWSER_USE_MAX_COST_USD", 0.35, 0.05, 2),
-    maxResults: Math.round(boundedNumber("LIVE_SEARCH_MAX_RESULTS", 12, 3, 20)),
+    maxResults: Math.round(boundedNumber("LIVE_SEARCH_MAX_RESULTS", 6, 3, 20)),
   };
 }
 

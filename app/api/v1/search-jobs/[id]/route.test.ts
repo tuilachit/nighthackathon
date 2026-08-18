@@ -90,6 +90,25 @@ describe("get live-search workflow route", () => {
     expect(mocks.getWorkflow).toHaveBeenCalledWith(workflowId, "owner-1");
   });
 
+  it("never returns raw provider progress as a public workflow error", async () => {
+    mocks.getWorkflow.mockResolvedValueOnce({
+      id: workflowId,
+      state: "failed",
+      error: { code: "browser_stopped", message: "Running Python code" },
+      candidates: [],
+    });
+
+    const response = await GET(new Request("https://fitment.example"), context());
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.error).toEqual({
+      code: "browser_stopped",
+      message: "The retailer check ended before validated products were ready. Try a shorter, more specific search.",
+    });
+    expect(JSON.stringify(payload)).not.toContain("Running Python code");
+  });
+
   it("maps authentication and owner-scoped not-found failures", async () => {
     mocks.authenticate.mockRejectedValueOnce(new AuthenticationRequiredError());
     const unauthenticated = await GET(new Request("https://fitment.example"), context());

@@ -29,6 +29,7 @@ import { useFitJourney } from "@/components/fit/journey/FitJourneyProvider";
 import type { CandidateFitStatus, DecisionCandidate, CreateLiveSearchRequest, LiveSearchWorkflow, WorkflowState } from "@/lib/live-search/types";
 import { toDecisionCandidates } from "@/lib/live-search/decision-candidate";
 import { captureProductEvent } from "@/lib/product-events-client";
+import { publicWorkflowErrorMessage } from "@/lib/live-search/public-errors";
 import { fitWorkflowPath, type FitWorkflowSurface } from "@/lib/fit-route-contract";
 import { TurnstileChallenge } from "./TurnstileChallenge";
 import {
@@ -657,7 +658,7 @@ function WorkflowRouteScreen({
       return (
         <JourneyShell
           title={workflow.state === "cancelled" ? "Search cancelled" : "Search needs attention"}
-          support={workflow.error?.message ?? "This retailer check cannot continue."}
+          support={publicWorkflowErrorMessage(workflow.error?.code)}
           backHref="/fit"
           backLabel="Space"
           status="Recovery"

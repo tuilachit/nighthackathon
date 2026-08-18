@@ -25,6 +25,7 @@ export interface BrowserUseSession {
   readonly status: "created" | "idle" | "running" | "stopped" | "timed_out" | "error";
   readonly output?: unknown;
   readonly isTaskSuccessful?: boolean;
+  readonly maxCostUsd?: number;
   readonly totalCostUsd?: number;
   readonly stepCount?: number;
   readonly lastStepSummary?: string;
@@ -153,6 +154,7 @@ function buildSearchTask(
     "For each product, copy only explicit facts for that exact SKU: canonical product URL, direct JPG/PNG/WebP product image URL, listed price and ISO-4217 currency in integer minor units, availability, and assembled width/height/depth in integer millimetres.",
     "Return retailer as {key,label,host}; host is the canonical retailer DNS domain, label is the public retailer name, and key is a stable lowercase kebab-case identifier.",
     "Delivery packages are optional. Return each package only when all width/height/depth axes are explicitly labelled; otherwise return an empty packages array.",
+    "Do not run Python or execute code. Use only read-only browser navigation and return the structured result.",
     "Reject a product rather than infer, estimate, swap axes, use another variant, or mix package and assembled dimensions. Set confidence=high only when all three assembled axes are explicitly present for that exact SKU; otherwise omit the product.",
     "dimensionsEvidence must preserve a short source line with explicit Width/Height/Depth labels, or an unambiguous W/H/D axis legend, plus mm/cm/m units. Never reinterpret L/W/H or an unlabeled number triple. Use partial=true when a retailer could not be completed.",
   ];
@@ -275,6 +277,7 @@ async function parseSessionResponse(response: Response, operation: string): Prom
     status: payload.status,
     ...(payload.output === undefined || payload.output === null ? {} : { output: payload.output }),
     ...(typeof payload.isTaskSuccessful === "boolean" ? { isTaskSuccessful: payload.isTaskSuccessful } : {}),
+    ...(finiteNumber(payload.maxCostUsd) === undefined ? {} : { maxCostUsd: finiteNumber(payload.maxCostUsd) }),
     ...(finiteNumber(payload.totalCostUsd) === undefined ? {} : { totalCostUsd: finiteNumber(payload.totalCostUsd) }),
     ...(finiteNumber(payload.stepCount) === undefined ? {} : { stepCount: finiteNumber(payload.stepCount) }),
     ...(typeof payload.lastStepSummary === "string" ? { lastStepSummary: payload.lastStepSummary } : {}),

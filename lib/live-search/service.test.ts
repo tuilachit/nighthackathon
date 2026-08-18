@@ -433,6 +433,7 @@ describe("live-search service orchestration", () => {
     });
 
     it("turns an unsuccessful terminal provider session into a non-retryable failure", async () => {
+      const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
       mocks.getBrowserSearchSession.mockResolvedValue({
         id: BROWSER_SESSION_ID,
         status: "timed_out",
@@ -449,7 +450,35 @@ describe("live-search service orchestration", () => {
         provider: "browser_use",
         externalTaskId: BROWSER_SESSION_ID,
         errorCode: "browser_timed_out",
-        errorMessage: "Retailer blocked the final page.",
+        errorMessage: "The retailer check took too long before validated products were ready. Try a shorter, more specific search.",
+        retryable: false,
+      });
+      expect(warning).toHaveBeenCalledWith(expect.stringContaining("browser_search_terminal_failure"));
+      expect(warning.mock.calls.flat().join(" ")).not.toContain("Retailer blocked the final page.");
+    });
+
+    it("identifies a stopped session that reached its provider cost ceiling", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      mocks.getBrowserSearchSession.mockResolvedValue({
+        id: BROWSER_SESSION_ID,
+        status: "stopped",
+        isTaskSuccessful: false,
+        maxCostUsd: 0.35,
+        totalCostUsd: 0.35,
+        stepCount: 9,
+        lastStepSummary: "Running Python code",
+      });
+
+      await expect(reconcileBrowserUseTask(BROWSER_SESSION_ID)).resolves.toEqual({
+        complete: true,
+        providerStatus: "stopped",
+      });
+      expect(mocks.failWorkflowStage).toHaveBeenCalledWith({
+        workflowId: WORKFLOW_ID,
+        provider: "browser_use",
+        externalTaskId: BROWSER_SESSION_ID,
+        errorCode: "browser_budget_exhausted",
+        errorMessage: "The retailer check reached its browsing limit before validated products were ready. Try a shorter, more specific search.",
         retryable: false,
       });
     });
