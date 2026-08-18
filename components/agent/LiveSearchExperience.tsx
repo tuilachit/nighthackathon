@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MeasurementSummary } from "@/components/fit/MeasurementSummary";
 import type { SpaceMeasurement } from "@/lib/catalog-types";
+import type { FitWorkflowSurface } from "@/lib/fit-route-contract";
 import type { SavedSpace } from "@/lib/saved-spaces";
 import type {
   CachePolicy,
@@ -28,6 +29,23 @@ import {
   LiveSearchApiError,
   startGuestSession,
 } from "./live-search-api";
+import {
+  clearLinkedCandidateReference,
+  clearPendingSearch,
+  clearPersistedWorkflowId,
+  initialIntentMode,
+  measurementKey,
+  normalizeProductUrl,
+  parseExactProductUrl,
+  parseMeasurementValue,
+  persistLinkedCandidateReference,
+  persistPendingSearch,
+  persistWorkflowId,
+  readLinkedCandidateReference,
+  readPendingSearch,
+  readPersistedWorkflowId,
+  type PendingSearch,
+} from "./live-workflow-state";
 import styles from "./LiveSearchExperience.module.css";
 
 const ProductQuickLookViewer = dynamic(
@@ -55,10 +73,12 @@ const INITIAL_MEASUREMENT: MeasurementDraft = {
   accessWidthMm: "",
 };
 
-interface LiveSearchExperienceProps {
+export interface LiveSearchExperienceProps {
   readonly initialMeasurement?: SpaceMeasurement;
   readonly initialQuery?: string;
   readonly initialWorkflowId?: string;
+  readonly initialSurface?: FitWorkflowSurface;
+  readonly initialCandidateId?: string;
   readonly embedded?: boolean;
   readonly savedSpaces?: readonly SavedSpace[];
   readonly activeSpaceId?: string;
@@ -69,30 +89,11 @@ interface LiveSearchExperienceProps {
   readonly onEditMeasurement?: () => void;
 }
 
-type PendingRequestState = "awaiting-session" | "posting";
-
-interface PendingSearch {
-  readonly request: CreateLiveSearchRequest;
-  readonly idempotencyKey: string;
-  readonly state: PendingRequestState;
-}
-
 interface PreservedLinkedCandidate {
   readonly workflowId: string;
   readonly candidate: LiveCandidate;
   readonly measurementKey: string;
 }
-
-interface StoredLinkedCandidateReference {
-  readonly workflowId: string;
-  readonly candidateId: string;
-  readonly measurementKey: string;
-}
-
-const WORKFLOW_QUERY_PARAMETER = "job";
-const WORKFLOW_SESSION_KEY = "fitment.live-workflow-id";
-const LINKED_CANDIDATE_SESSION_KEY = "fitment.linked-candidate";
-const PENDING_SEARCH_SESSION_KEY = "fitment.pending-search-v1";
 
 const POLLING_STATES: readonly WorkflowState[] = [
   "created",
@@ -123,6 +124,8 @@ export function LiveSearchExperience({
   initialMeasurement,
   initialQuery = "",
   initialWorkflowId,
+  initialSurface = "workflow",
+  initialCandidateId,
   embedded = false,
   savedSpaces = [],
   activeSpaceId,
@@ -169,8 +172,10 @@ export function LiveSearchExperience({
   const [pendingRetry, setPendingRetry] = useState<PendingSearch>();
   const [comparedIds, setComparedIds] = useState<readonly string[]>([]);
   const [showAllFits, setShowAllFits] = useState(false);
-  const [comparisonOpen, setComparisonOpen] = useState(false);
-  const [reviewCandidateId, setReviewCandidateId] = useState<string>();
+  const [comparisonOpen, setComparisonOpen] = useState(initialSurface === "compare");
+  const [reviewCandidateId, setReviewCandidateId] = useState<string | undefined>(
+    initialSurface === "candidate-review" ? initialCandidateId : undefined,
+  );
   const [sharePending, setSharePending] = useState(false);
   const [shareError, setShareError] = useState<string>();
   const [shareResult, setShareResult] = useState<{
@@ -185,6 +190,7 @@ export function LiveSearchExperience({
   const searchInFlight = useRef(false);
   const presentedWorkflowId = useRef<string | undefined>(undefined);
   const modelReadyAssetId = useRef<string | undefined>(undefined);
+  const routeSurfaceApplied = useRef(false);
 
   useEffect(() => {
     const updateNetworkState = (): void => setIsOnline(window.navigator.onLine);
@@ -521,6 +527,45 @@ export function LiveSearchExperience({
     : linkedCandidate ?? currentEligibleCandidates[0];
 
   useEffect(() => {
+    if (routeSurfaceApplied.current || workflow === undefined) return;
+    if (workflow.candidates.length === 0 && POLLING_STATES.includes(workflow.state)) return;
+
+    if (initialSurface === "compare") {
+      const selection = selectDefaultComparisonIds(
+        candidateGroups,
+        currentEligibleCandidates,
+        preservedComparisonCandidate,
+      );
+      setComparedIds(selection);
+      setComparisonOpen(true);
+      if (selection.length > 0) {
+        const selected = eligibleCandidates.filter((candidate) => selection.includes(candidate.id));
+        captureProductEvent("comparison_opened", {
+          selection: "default",
+          count: selection.length,
+          cross_retailer: new Set(
+            selected.map((candidate) => candidate.observation.retailer.key),
+          ).size > 1,
+        });
+      }
+    } else if (initialSurface === "candidate-review" && initialCandidateId !== undefined) {
+      const candidate = currentEligibleCandidates.find(
+        (entry) => entry.id === initialCandidateId && entry.fitStatus === "fits",
+      );
+      setReviewCandidateId(candidate?.id);
+    }
+    routeSurfaceApplied.current = true;
+  }, [
+    candidateGroups,
+    currentEligibleCandidates,
+    eligibleCandidates,
+    initialCandidateId,
+    initialSurface,
+    preservedComparisonCandidate,
+    workflow,
+  ]);
+
+  useEffect(() => {
     if (
       workflow === undefined ||
       workflow.candidates.length === 0 ||
@@ -591,31 +636,11 @@ export function LiveSearchExperience({
     let selection = comparedIds;
     const usedDefault = selection.length === 0;
     if (usedDefault && workflow !== undefined) {
-      if (preservedComparisonCandidate !== undefined) {
-        const linkedRetailer = preservedComparisonCandidate.candidate.observation.retailer.key;
-        const differentRetailer = candidateGroups.fits.find(
-          (candidate) => candidate.observation.retailer.key !== linkedRetailer,
-        ) ?? currentEligibleCandidates.find(
-          (candidate) => candidate.observation.retailer.key !== linkedRetailer,
-        );
-        selection = [preservedComparisonCandidate.candidate.id, differentRetailer?.id].filter(
-          (candidateId): candidateId is string => candidateId !== undefined,
-        );
-      } else {
-        const ikea = candidateGroups.fits.find(
-          (candidate) => candidate.observation.retailer.key === "ikea-au",
-        ) ?? currentEligibleCandidates.find(
-          (candidate) => candidate.observation.retailer.key === "ikea-au",
-        );
-        const kmart = candidateGroups.fits.find(
-          (candidate) => candidate.observation.retailer.key === "kmart-au",
-        ) ?? currentEligibleCandidates.find(
-          (candidate) => candidate.observation.retailer.key === "kmart-au",
-        );
-        selection = [ikea?.id, kmart?.id].filter(
-          (candidateId): candidateId is string => candidateId !== undefined,
-        );
-      }
+      selection = selectDefaultComparisonIds(
+        candidateGroups,
+        currentEligibleCandidates,
+        preservedComparisonCandidate,
+      );
       setComparedIds(selection);
     }
     setComparisonOpen(true);
@@ -1610,255 +1635,6 @@ export function LiveSearchExperience({
   );
 }
 
-function readPersistedWorkflowId(): string | undefined {
-  const urlValue = new URL(window.location.href).searchParams.get(WORKFLOW_QUERY_PARAMETER);
-  let storedValue: string | null = null;
-  try {
-    storedValue = window.sessionStorage.getItem(WORKFLOW_SESSION_KEY);
-  } catch {
-    // URL restoration remains available when browser storage is unavailable.
-  }
-  const candidate = urlValue ?? storedValue;
-  if (candidate === null || !isWorkflowId(candidate)) {
-    if (urlValue !== null || storedValue !== null) {
-      clearPersistedWorkflowId();
-    }
-    return undefined;
-  }
-  return candidate;
-}
-
-function persistWorkflowId(workflowId: string): void {
-  const url = new URL(window.location.href);
-  url.searchParams.set(WORKFLOW_QUERY_PARAMETER, workflowId);
-  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  try {
-    window.sessionStorage.setItem(WORKFLOW_SESSION_KEY, workflowId);
-  } catch {
-    // The owner-scoped URL remains the durable browser handle.
-  }
-}
-
-function clearPersistedWorkflowId(): void {
-  const url = new URL(window.location.href);
-  url.searchParams.delete(WORKFLOW_QUERY_PARAMETER);
-  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
-  try {
-    window.sessionStorage.removeItem(WORKFLOW_SESSION_KEY);
-  } catch {
-    // Private-browsing storage failures are non-fatal.
-  }
-}
-
-function readPendingSearch(): PendingSearch | undefined {
-  let raw: string | null = null;
-  try {
-    raw = window.sessionStorage.getItem(PENDING_SEARCH_SESSION_KEY);
-  } catch {
-    return undefined;
-  }
-  if (raw === null) {
-    return undefined;
-  }
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isRecord(parsed) || parsed.version !== 1) {
-      clearPendingSearch();
-      return undefined;
-    }
-    const request = parseStoredSearchRequest(parsed.request);
-    const idempotencyKey = typeof parsed.idempotencyKey === "string"
-      ? parsed.idempotencyKey
-      : undefined;
-    const state = parsed.state === "awaiting-session" || parsed.state === "posting"
-      ? parsed.state
-      : undefined;
-    if (
-      request === undefined ||
-      idempotencyKey === undefined ||
-      idempotencyKey.length < 16 ||
-      idempotencyKey.length > 200 ||
-      state === undefined
-    ) {
-      clearPendingSearch();
-      return undefined;
-    }
-    return { request, idempotencyKey, state };
-  } catch {
-    clearPendingSearch();
-    return undefined;
-  }
-}
-
-function persistPendingSearch(submission: PendingSearch): void {
-  try {
-    window.sessionStorage.setItem(
-      PENDING_SEARCH_SESSION_KEY,
-      JSON.stringify({ version: 1, ...submission }),
-    );
-  } catch {
-    // The in-memory idempotency key still protects the current tab when storage is unavailable.
-  }
-}
-
-function clearPendingSearch(): void {
-  try {
-    window.sessionStorage.removeItem(PENDING_SEARCH_SESSION_KEY);
-  } catch {
-    // Private-browsing storage failures are non-fatal.
-  }
-}
-
-function parseStoredSearchRequest(input: unknown): CreateLiveSearchRequest | undefined {
-  if (!isRecord(input)) {
-    return undefined;
-  }
-  const intent = parseStoredIntent(input.intent);
-  const measurement = parseStoredMeasurement(input.measurement);
-  const cachePolicy = input.cachePolicy === "prefer-recent" || input.cachePolicy === "force-refresh"
-    ? input.cachePolicy
-    : undefined;
-  if (intent === undefined || measurement === undefined || cachePolicy === undefined) {
-    return undefined;
-  }
-  return { intent, measurement, cachePolicy };
-}
-
-function parseStoredIntent(input: unknown): CreateLiveSearchRequest["intent"] | undefined {
-  if (!isRecord(input)) {
-    return undefined;
-  }
-  if (input.kind === "product-link" && typeof input.url === "string") {
-    const url = parseExactProductUrl(input.url);
-    return url === undefined ? undefined : { kind: "product-link", url };
-  }
-  if (
-    input.kind !== "prompt" ||
-    typeof input.text !== "string" ||
-    input.text.trim().length === 0 ||
-    input.text.length > 500 ||
-    !Array.isArray(input.retailers)
-  ) {
-    return undefined;
-  }
-  const retailers = [...new Set(input.retailers)].filter(
-    (retailer): retailer is LiveRetailer => retailer === "ikea-au" || retailer === "kmart-au",
-  );
-  if (retailers.length === 0 || retailers.length !== input.retailers.length) {
-    return undefined;
-  }
-  return { kind: "prompt", text: input.text.trim(), retailers };
-}
-
-function parseStoredMeasurement(input: unknown): SpaceMeasurement | undefined {
-  if (!isRecord(input)) {
-    return undefined;
-  }
-  const widthMm = parseMeasurementValue(String(input.widthMm));
-  const heightMm = parseMeasurementValue(String(input.heightMm));
-  const depthMm = parseMeasurementValue(String(input.depthMm));
-  const accessWidthMm = input.accessWidthMm === undefined
-    ? undefined
-    : parseMeasurementValue(String(input.accessWidthMm));
-  const uncertaintyMm = typeof input.uncertaintyMm === "number" &&
-    Number.isInteger(input.uncertaintyMm) &&
-    input.uncertaintyMm >= 0 &&
-    input.uncertaintyMm <= 1_000
-      ? input.uncertaintyMm
-      : undefined;
-  const source = input.source === "manual" || input.source === "webxr" || input.source === "demo"
-    ? input.source
-    : undefined;
-  if (
-    widthMm === undefined ||
-    heightMm === undefined ||
-    depthMm === undefined ||
-    (input.accessWidthMm !== undefined && accessWidthMm === undefined) ||
-    uncertaintyMm === undefined ||
-    source === undefined
-  ) {
-    return undefined;
-  }
-  return {
-    widthMm,
-    heightMm,
-    depthMm,
-    uncertaintyMm,
-    ...(accessWidthMm === undefined ? {} : { accessWidthMm }),
-    source,
-  };
-}
-
-function isRecord(input: unknown): input is Record<string, unknown> {
-  return typeof input === "object" && input !== null && !Array.isArray(input);
-}
-
-function readLinkedCandidateReference(): StoredLinkedCandidateReference | undefined {
-  let raw: string | null = null;
-  try {
-    raw = window.sessionStorage.getItem(LINKED_CANDIDATE_SESSION_KEY);
-  } catch {
-    return undefined;
-  }
-  if (raw === null) {
-    return undefined;
-  }
-  try {
-    const parsed = JSON.parse(raw) as Partial<StoredLinkedCandidateReference>;
-    if (
-      typeof parsed.workflowId !== "string" ||
-      !isWorkflowId(parsed.workflowId) ||
-      typeof parsed.candidateId !== "string" ||
-      !isWorkflowId(parsed.candidateId) ||
-      typeof parsed.measurementKey !== "string"
-    ) {
-      clearLinkedCandidateReference();
-      return undefined;
-    }
-    return {
-      workflowId: parsed.workflowId,
-      candidateId: parsed.candidateId,
-      measurementKey: parsed.measurementKey,
-    };
-  } catch {
-    clearLinkedCandidateReference();
-    return undefined;
-  }
-}
-
-function persistLinkedCandidateReference(reference: StoredLinkedCandidateReference): void {
-  try {
-    window.sessionStorage.setItem(
-      LINKED_CANDIDATE_SESSION_KEY,
-      JSON.stringify(reference),
-    );
-  } catch {
-    // The current render still preserves the comparison when storage is unavailable.
-  }
-}
-
-function clearLinkedCandidateReference(): void {
-  try {
-    window.sessionStorage.removeItem(LINKED_CANDIDATE_SESSION_KEY);
-  } catch {
-    // Private-browsing storage failures are non-fatal.
-  }
-}
-
-function isWorkflowId(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-function measurementKey(measurement: SpaceMeasurement): string {
-  return [
-    measurement.widthMm,
-    measurement.heightMm,
-    measurement.depthMm,
-    measurement.accessWidthMm ?? "unknown",
-    measurement.uncertaintyMm,
-  ].join(":");
-}
-
 function isExactLinkWorkflow(workflow: LiveSearchWorkflow): boolean {
   return workflow.intent?.kind === "product-link" ||
     parseExactProductUrl(workflow.queryText) !== undefined;
@@ -2440,6 +2216,38 @@ function partitionCandidates(
   };
 }
 
+function selectDefaultComparisonIds(
+  candidateGroups: ReturnType<typeof partitionCandidates>,
+  currentEligibleCandidates: readonly LiveCandidate[],
+  preservedComparisonCandidate: PreservedLinkedCandidate | undefined,
+): readonly string[] {
+  if (preservedComparisonCandidate !== undefined) {
+    const linkedRetailer = preservedComparisonCandidate.candidate.observation.retailer.key;
+    const differentRetailer = candidateGroups.fits.find(
+      (candidate) => candidate.observation.retailer.key !== linkedRetailer,
+    ) ?? currentEligibleCandidates.find(
+      (candidate) => candidate.observation.retailer.key !== linkedRetailer,
+    );
+    return [preservedComparisonCandidate.candidate.id, differentRetailer?.id].filter(
+      (candidateId): candidateId is string => candidateId !== undefined,
+    );
+  }
+
+  const ikea = candidateGroups.fits.find(
+    (candidate) => candidate.observation.retailer.key === "ikea-au",
+  ) ?? currentEligibleCandidates.find(
+    (candidate) => candidate.observation.retailer.key === "ikea-au",
+  );
+  const kmart = candidateGroups.fits.find(
+    (candidate) => candidate.observation.retailer.key === "kmart-au",
+  ) ?? currentEligibleCandidates.find(
+    (candidate) => candidate.observation.retailer.key === "kmart-au",
+  );
+  return [ikea?.id, kmart?.id].filter(
+    (candidateId): candidateId is string => candidateId !== undefined,
+  );
+}
+
 function validateForm(
   queryText: string,
   draft: MeasurementDraft,
@@ -2485,20 +2293,6 @@ function validateForm(
   };
 }
 
-function initialIntentMode(): IntentMode {
-  if (typeof window === "undefined") {
-    return "describe";
-  }
-  return new URL(window.location.href).searchParams.get("mode") === "link"
-    ? "link"
-    : "describe";
-}
-
-function parseMeasurementValue(input: string): number | undefined {
-  const value = Number(input);
-  return Number.isInteger(value) && value >= 100 && value <= 10_000 ? value : undefined;
-}
-
 function measurementToDraft(measurement?: SpaceMeasurement): MeasurementDraft {
   if (measurement === undefined) {
     return INITIAL_MEASUREMENT;
@@ -2510,42 +2304,6 @@ function measurementToDraft(measurement?: SpaceMeasurement): MeasurementDraft {
     accessWidthMm:
       measurement.accessWidthMm === undefined ? "" : String(measurement.accessWidthMm),
   };
-}
-
-function parseExactProductUrl(input: string): string | undefined {
-  const trimmed = input.trim();
-  if (!/^https:\/\//i.test(trimmed) || /\s/.test(trimmed)) {
-    return undefined;
-  }
-  try {
-    return normalizeProductUrl(trimmed);
-  } catch {
-    return undefined;
-  }
-}
-
-function normalizeProductUrl(input: string): string {
-  const url = new URL(input);
-  url.hash = "";
-  for (const key of Array.from(url.searchParams.keys())) {
-    if (isTrackingParameter(key)) {
-      url.searchParams.delete(key);
-    }
-  }
-  url.searchParams.sort();
-  url.pathname = url.pathname.replace(/\/+$/, "") || "/";
-  return url.toString();
-}
-
-function isTrackingParameter(key: string): boolean {
-  return /^utm_/i.test(key) || [
-    "fbclid",
-    "gclid",
-    "dclid",
-    "msclkid",
-    "mc_cid",
-    "mc_eid",
-  ].includes(key.toLowerCase());
 }
 
 function retailerLabel(retailer: RetailerIdentity): string {

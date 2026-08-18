@@ -230,7 +230,8 @@ describe("LiveSearchExperience", () => {
     expect(await screen.findByRole("heading", { name: "Fits" })).toBeInTheDocument();
     expect(getLiveSearch).toHaveBeenCalledWith(WORKFLOW_ID, expect.any(AbortSignal));
     expect(window.sessionStorage.getItem("fitment.live-workflow-id")).toBe(WORKFLOW_ID);
-    expect(window.location.search).toBe(`?job=${WORKFLOW_ID}`);
+    expect(window.location.pathname).toBe(`/fit/jobs/${WORKFLOW_ID}`);
+    expect(window.location.search).toBe("");
   });
 
   it("preserves the paid workflow handle through a transient restore failure", async () => {
@@ -246,6 +247,35 @@ describe("LiveSearchExperience", () => {
     expect(window.sessionStorage.getItem("fitment.live-workflow-id")).toBeNull();
     expect(screen.queryByText(/saved live search is not available/i)).not.toBeInTheDocument();
     view.unmount();
+  });
+
+  it("opens the canonical comparison surface with the default cross-retailer pair", async () => {
+    render(
+      <LiveSearchExperience
+        initialWorkflowId={WORKFLOW_ID}
+        initialSurface="compare"
+      />,
+    );
+
+    const comparison = await screen.findByRole("region", {
+      name: "Live product comparison",
+    });
+    expect(within(comparison).getByText("BILLY narrow bookcase")).toBeInTheDocument();
+    expect(within(comparison).getByText("Wide modular shelf")).toBeInTheDocument();
+  });
+
+  it("opens the generation review only for the fit selected by its canonical route", async () => {
+    render(
+      <LiveSearchExperience
+        initialWorkflowId={WORKFLOW_ID}
+        initialSurface="candidate-review"
+        initialCandidateId={FIT_ID}
+      />,
+    );
+
+    expect(await screen.findByRole("dialog", {
+      name: "Review before generating 3D",
+    })).toBeInTheDocument();
   });
 
   it("clears a saved workflow only when ownership is definitively unavailable", async () => {
