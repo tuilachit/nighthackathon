@@ -15,6 +15,7 @@ export type BrowserUseModel =
 
 export interface LiveSearchServerEnvironment extends PublicSupabaseEnvironment {
   readonly secretKey: string;
+  readonly firecrawlApiKey: string;
   readonly browserUseApiKey: string;
   readonly browserUseWebhookSecret: string;
   readonly browserUseModel: BrowserUseModel;
@@ -37,6 +38,7 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
   return {
     ...getPublicSupabaseEnvironment(),
     secretKey: requiredEnvironment("SUPABASE_SECRET_KEY"),
+    firecrawlApiKey: requiredEnvironment("FIRECRAWL_API_KEY"),
     browserUseApiKey: requiredEnvironment("BROWSER_USE_API_KEY"),
     browserUseWebhookSecret: requiredSecret("BROWSER_USE_WEBHOOK_SECRET"),
     browserUseModel: browserUseModel(),
@@ -50,7 +52,7 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
 }
 
 function browserUseModel(): BrowserUseModel {
-  const value = process.env.BROWSER_USE_MODEL?.trim() || "bu-mini";
+  const value = process.env.BROWSER_USE_MODEL?.trim() || "claude-sonnet-4.6";
   if (
     value === "bu-mini" ||
     value === "bu-max" ||
@@ -70,6 +72,7 @@ export function isLiveSearchConfigured(): boolean {
     "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
     "SUPABASE_SECRET_KEY",
+    "FIRECRAWL_API_KEY",
     "BROWSER_USE_API_KEY",
     "BROWSER_USE_WEBHOOK_SECRET",
     "MESHY_API_KEY",

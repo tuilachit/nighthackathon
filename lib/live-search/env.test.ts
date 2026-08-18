@@ -8,6 +8,7 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
   vi.stubEnv("SUPABASE_SECRET_KEY", "secret-key");
+  vi.stubEnv("FIRECRAWL_API_KEY", "fc-test-key");
   vi.stubEnv("BROWSER_USE_API_KEY", "browser-key");
   vi.stubEnv("BROWSER_USE_WEBHOOK_SECRET", "b".repeat(32));
   vi.stubEnv("MESHY_API_KEY", "meshy-key");
@@ -22,8 +23,14 @@ afterEach(() => {
 });
 
 describe("getLiveSearchServerEnvironment", () => {
-  it("defaults live browsing to the bounded low-cost model", () => {
-    expect(getLiveSearchServerEnvironment().browserUseModel).toBe("bu-mini");
+  it("defaults difficult rendered-page recovery to Claude Sonnet", () => {
+    expect(getLiveSearchServerEnvironment().browserUseModel).toBe(
+      "claude-sonnet-4.6",
+    );
+  });
+
+  it("keeps the Firecrawl key server-only in the live environment", () => {
+    expect(getLiveSearchServerEnvironment().firecrawlApiKey).toBe("fc-test-key");
   });
 
   it("allows an explicit supported model override", () => {
