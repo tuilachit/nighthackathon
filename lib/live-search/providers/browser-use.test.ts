@@ -7,12 +7,13 @@ vi.mock("@/lib/live-search/env", () => ({
   getLiveSearchServerEnvironment: () => ({
     browserUseApiKey: "browser-key",
     browserUseMaxCostUsd: 0.35,
-    maxResults: 12,
+    maxResults: 6,
   }),
 }));
 
 import {
   createBrowserSearchSession,
+  getBrowserSearchSession,
   stopBrowserSearchSession,
   verifyBrowserUseWebhook,
 } from "./browser-use";
@@ -56,7 +57,8 @@ describe("createBrowserSearchSession", () => {
       maxCostUsd: 0.35,
     });
     expect(body.task).toContain('"widthMm":900');
-    expect(body.task).toContain("Aim for 6 source-qualified products from each requested retailer");
+    expect(body.task).toContain("Aim for 3 source-qualified products from each requested retailer");
+    expect(body.task).toContain("Do not run Python or execute code");
     expect(body.outputSchema).toMatchObject({
       properties: {
         products: {
@@ -94,7 +96,27 @@ describe("createBrowserSearchSession", () => {
     const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body)) as Record<string, unknown>;
     expect(body.task).toContain("Visit this exact submitted product page only");
     expect(body.task).toContain("https://www.example.com.au/products/table?variant=oak");
-    expect(body.task).not.toContain("Aim for 6 source-qualified products");
+    expect(body.task).not.toContain("Aim for 3 source-qualified products");
+  });
+
+  it("parses the provider cost ceiling and actual cost for terminal diagnosis", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "session-cost",
+      status: "stopped",
+      isTaskSuccessful: false,
+      maxCostUsd: "0.35",
+      totalCostUsd: "0.35",
+      stepCount: 9,
+      lastStepSummary: "Running Python code",
+    }), { status: 200 })));
+
+    await expect(getBrowserSearchSession("session-cost")).resolves.toMatchObject({
+      id: "session-cost",
+      status: "stopped",
+      maxCostUsd: 0.35,
+      totalCostUsd: 0.35,
+      stepCount: 9,
+    });
   });
 });
 

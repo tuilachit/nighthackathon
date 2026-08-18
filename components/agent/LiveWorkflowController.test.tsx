@@ -241,6 +241,23 @@ describe("LiveWorkflowController", () => {
     expect(screen.queryByText("Products checked against your space")).not.toBeInTheDocument();
   });
 
+  it("shows recovery copy without leaking provider progress text", async () => {
+    mocks.getLiveSearch.mockResolvedValueOnce(workflowFixture({
+      state: "failed",
+      error: { code: "browser_stopped", message: "Running Python code" },
+      candidates: [],
+    }));
+    renderJourney(
+      <LiveWorkflowController workflowId={WORKFLOW_ID} surface="workflow" />,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Search needs attention" })).toBeVisible();
+    expect(screen.getByText(
+      "The retailer check ended before validated products were ready. Try a shorter, more specific search.",
+    )).toBeVisible();
+    expect(screen.queryByText("Running Python code")).not.toBeInTheDocument();
+  });
+
   it("never lets a slower workflow refresh overwrite a newer snapshot", async () => {
     mocks.getLiveSearch.mockResolvedValueOnce(workflowFixture({
       state: "searching",
@@ -462,10 +479,12 @@ function workflowFixture({
     ),
   ],
   updatedAt = "2026-08-18T00:00:00.000Z",
+  error,
 }: {
   readonly state?: LiveSearchWorkflow["state"];
   readonly candidates?: readonly LiveCandidate[];
   readonly updatedAt?: string;
+  readonly error?: LiveSearchWorkflow["error"];
 } = {}): LiveSearchWorkflow {
   return {
     id: WORKFLOW_ID,
@@ -485,6 +504,7 @@ function workflowFixture({
     candidates,
     isPartial: false,
     coverageNotes: [],
+    ...(error === undefined ? {} : { error }),
     createdAt: "2026-08-18T00:00:00.000Z",
     updatedAt,
   };

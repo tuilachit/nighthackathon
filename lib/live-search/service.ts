@@ -4,6 +4,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { EXTRACTION_SCHEMA_VERSION } from "./discovery-cache";
 import { getPublicSupabaseEnvironment } from "./env";
 import { evaluateLiveProducts } from "./evaluate";
+import { publicWorkflowErrorMessage } from "./public-errors";
 import { cacheRetailerImage } from "./image-cache";
 import { sha256Hex, stableJson } from "./hashing";
 import { rescaleGlbToDimensions } from "./model-processing/glb";
@@ -133,13 +134,32 @@ export async function reconcileBrowserUseTask(
     return { complete: false, providerStatus: session.status };
   }
   if (session.status !== "stopped" || session.isTaskSuccessful !== true || session.output === undefined) {
-    const message = session.lastStepSummary ?? `Browser search ended with ${session.status}.`;
+    const costLimitReached =
+      session.status === "stopped" &&
+      session.totalCostUsd !== undefined &&
+      session.maxCostUsd !== undefined &&
+      session.totalCostUsd >= session.maxCostUsd;
+    const errorCode = costLimitReached
+      ? "browser_budget_exhausted"
+      : `browser_${session.status}`;
+    console.warn(JSON.stringify({
+      level: "warn",
+      message: "browser_search_terminal_failure",
+      workflowId: context.workflowId,
+      sessionId: externalTaskId,
+      providerStatus: session.status,
+      isTaskSuccessful: session.isTaskSuccessful ?? null,
+      maxCostUsd: session.maxCostUsd ?? null,
+      totalCostUsd: session.totalCostUsd ?? null,
+      stepCount: session.stepCount ?? null,
+      costLimitReached,
+    }));
     await failWorkflowStage({
       workflowId: context.workflowId,
       provider: "browser_use",
       externalTaskId,
-      errorCode: `browser_${session.status}`,
-      errorMessage: message,
+      errorCode,
+      errorMessage: publicWorkflowErrorMessage(errorCode),
       // A terminal Browser Use session may already have consumed budget. A new
       // paid session requires a fresh user command rather than an automatic retry.
       retryable: false,
