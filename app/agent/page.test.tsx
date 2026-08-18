@@ -25,7 +25,7 @@ describe("legacy /agent redirect", () => {
       }),
     ).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith(
-      "/fit?job=00000000-0000-4000-8000-000000000001",
+      "/fit/jobs/00000000-0000-4000-8000-000000000001",
     );
   });
 });

@@ -3,8 +3,8 @@ import { captureProductEvent, getJourneyToken, privacySignalEnabled } from "./pr
 
 describe("product events client", () => {
   beforeEach(() => {
-    window.sessionStorage.clear();
     vi.restoreAllMocks();
+    window.sessionStorage.clear();
   });
 
   it("creates one stable opaque token per browser session", () => {
@@ -20,6 +20,18 @@ describe("product events client", () => {
       setItem: () => { throw new Error("blocked"); },
     } as unknown as Storage;
     expect(getJourneyToken(storage, window.crypto)).toMatch(/^[A-Za-z0-9_-]{24}$/);
+  });
+
+  it("never blocks the journey when session storage itself is unavailable", () => {
+    const fetchMock = vi.spyOn(window, "fetch");
+    vi.spyOn(window, "sessionStorage", "get").mockImplementation(() => {
+      throw new DOMException("Storage is blocked", "SecurityError");
+    });
+
+    expect(() =>
+      captureProductEvent("cache_hit", { age_bucket: "under_1h" }),
+    ).not.toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("honours Do Not Track and sends an allowlisted event otherwise", async () => {

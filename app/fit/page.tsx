@@ -1,24 +1,30 @@
 import type { Metadata } from "next";
-import { FitDemoClient } from "@/components/fit/FitDemoClient";
-import { loadFurnitureCatalog } from "@/lib/catalog-source";
-import { DEMO_SPACE_MEASUREMENT } from "@/lib/fit-config";
+import { redirect } from "next/navigation";
+import { SpaceHomeScreen } from "@/components/fit/journey/SpaceHomeScreen";
+import {
+  resolveFitEntry,
+  type FitCompatibilitySearchParams,
+} from "@/lib/fit-route-contract";
 
 export const metadata: Metadata = {
   title: "Find furniture that fits",
   description: "Compare source-backed furniture against your measured space and access opening.",
 };
 
-export const dynamic = "force-static";
+interface FitPageProps {
+  readonly searchParams: Promise<FitCompatibilitySearchParams>;
+}
 
-export default async function FitPage(): Promise<React.JSX.Element> {
-  const catalog = await loadFurnitureCatalog();
+export default async function FitPage({ searchParams }: FitPageProps): Promise<React.JSX.Element> {
+  const params = await searchParams;
+  const entry = resolveFitEntry(params);
+  if (entry.kind === "redirect") redirect(entry.href);
+  const mode = firstSearchParam(params.mode);
+  return <SpaceHomeScreen initialMode={mode === "link" ? "link" : "describe"} />;
+}
 
-  return (
-    <FitDemoClient
-      demoMeasurement={DEMO_SPACE_MEASUREMENT}
-      products={catalog.products}
-      catalogSource={catalog.source}
-      retailerCount={catalog.retailerCount}
-    />
-  );
+function firstSearchParam(
+  value: string | readonly string[] | undefined,
+): string | undefined {
+  return typeof value === "string" ? value : value?.[0];
 }

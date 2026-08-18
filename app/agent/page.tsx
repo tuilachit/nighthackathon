@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
+import { resolveAgentEntry } from "@/lib/fit-route-contract";
 
 export default async function AgentPage({
   searchParams,
 }: {
   readonly searchParams: Promise<{ readonly job?: string | readonly string[] }>;
 }): Promise<never> {
-  const resolved = await searchParams;
-  const job = Array.isArray(resolved.job) ? resolved.job[0] : resolved.job;
-  redirect(job === undefined ? "/fit" : `/fit?job=${encodeURIComponent(job)}`);
+  redirect(resolveAgentEntry(await searchParams));
 }

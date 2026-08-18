@@ -10,7 +10,12 @@ export function captureProductEvent(
   if (typeof window === "undefined" || privacySignalEnabled(window.navigator)) {
     return;
   }
-  const journeyToken = getJourneyToken(window.sessionStorage, window.crypto);
+  let journeyToken: string;
+  try {
+    journeyToken = getJourneyToken(window.sessionStorage, window.crypto);
+  } catch {
+    return;
+  }
   const body = JSON.stringify({ name, journeyToken, properties });
   if (new TextEncoder().encode(body).byteLength > 2_048) {
     return;
@@ -30,7 +35,12 @@ export function privacySignalEnabled(navigatorValue: Navigator): boolean {
 }
 
 export function getJourneyToken(storage: Storage, cryptoValue: Crypto): string {
-  const existing = storage.getItem(JOURNEY_TOKEN_KEY);
+  let existing: string | null = null;
+  try {
+    existing = storage.getItem(JOURNEY_TOKEN_KEY);
+  } catch {
+    // A fresh in-memory token still keeps analytics best-effort and non-blocking.
+  }
   if (existing !== null && /^[A-Za-z0-9_-]{22,96}$/.test(existing)) {
     return existing;
   }
