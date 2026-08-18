@@ -54,7 +54,7 @@ export interface FirecrawlProductExtraction {
 /** Discovers bounded product-page candidates without opening an interactive browser. */
 export async function discoverProductPagesWithFirecrawl(
   intent: LiveSearchIntent,
-  maxResults: number,
+  maxResults = getLiveSearchServerEnvironment().maxResults,
   fetchImplementation: FetchImplementation = fetch,
 ): Promise<readonly FirecrawlDiscoveryHit[]> {
   if (intent.kind === "product-link") {
