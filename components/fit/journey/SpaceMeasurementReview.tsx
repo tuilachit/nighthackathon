@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { MeasurementEnvelopeDiagram } from "@/components/fit/MeasurementEnvelopeDiagram";
 import type { SpaceMeasurement } from "@/lib/catalog-types";
 import { parseMeasurementInput } from "@/lib/measurement-parser";
 import {
@@ -44,6 +45,10 @@ export function SpaceMeasurementReview({
   const [message, setMessage] = useState<string | undefined>(undefined);
   const accessInputRef = useRef<HTMLInputElement>(null);
   const shouldFocusAccessRef = useRef(false);
+  const diagramResult = parseReviewValues(values, showAccess);
+  const diagramMeasurement = diagramResult.status === "complete"
+    ? diagramResult.measurement
+    : measurement;
 
   useEffect(() => {
     if (!showAccess || !shouldFocusAccessRef.current) return;
@@ -102,7 +107,7 @@ export function SpaceMeasurementReview({
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-xl flex-col bg-[#f4f7f5] px-4 pb-8 pt-8 text-[#17221f] sm:px-6">
       <header className="border-b border-[#17221f]/25 pb-5">
-        <p className="fit-data text-[10px] font-bold uppercase tracking-[0.16em] text-[#17221f]/60">
+        <p className="fit-data text-[10px] font-bold uppercase tracking-[0.16em] text-[#17221f]/65">
           Measurement review
         </p>
         <h1 className="fit-display mt-2 text-[36px] font-bold leading-none tracking-[-0.04em]">
@@ -114,8 +119,11 @@ export function SpaceMeasurementReview({
       </header>
 
       <form className="mt-6 flex flex-1 flex-col" onSubmit={submit} noValidate>
+        <div className="mb-6 border border-[#17221f]/25">
+          <MeasurementEnvelopeDiagram measurement={diagramMeasurement} />
+        </div>
         <fieldset>
-          <legend className="fit-data text-[10px] font-bold uppercase tracking-[0.14em] text-[#17221f]/60">
+          <legend className="fit-data text-[10px] font-bold uppercase tracking-[0.14em] text-[#17221f]/65">
             Measured envelope · millimetres
           </legend>
           <div className="mt-3 grid grid-cols-1 gap-3 min-[390px]:grid-cols-3">
@@ -196,7 +204,7 @@ export function SpaceMeasurementReview({
           )}
         </section>
 
-        <p className="fit-data mt-4 text-[10px] font-bold uppercase tracking-[0.1em] text-[#17221f]/55">
+        <p className="fit-data mt-4 text-[10px] font-bold uppercase tracking-[0.1em] text-[#17221f]/65">
           Manual measurement · ±25 mm allowance
         </p>
 
@@ -269,7 +277,7 @@ function MeasurementEdit({
           onBlur={onBlur}
           className="fit-data min-h-12 w-full rounded-sm border border-[#17221f]/45 bg-white py-3 pl-3 pr-10 text-base font-bold tabular-nums outline-none focus-visible:border-[#17221f] focus-visible:ring-2 focus-visible:ring-[#2f6b59] focus-visible:ring-offset-2"
         />
-        <span className="fit-data pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-bold uppercase text-[#17221f]/55">
+        <span className="fit-data pointer-events-none absolute inset-y-0 right-3 flex items-center text-[10px] font-bold uppercase text-[#17221f]/65">
           mm
         </span>
       </span>

@@ -10,7 +10,7 @@ vi.mock("@/lib/live-search/repository", () => ({
   resolveComparisonShare: mocks.resolveShare,
 }));
 
-import { GET } from "./route";
+import { dynamic, GET } from "./route";
 
 const token = "A".repeat(43);
 const expiresAt = new Date(Date.now() + 60 * 60 * 1_000).toISOString();
@@ -73,13 +73,14 @@ describe("resolve public comparison share route", () => {
     });
   });
 
-  it("resolves by token hash and returns a cacheable public snapshot", async () => {
+  it("resolves by token hash without caching beyond the exact expiry", async () => {
     const response = await GET(new Request("https://fitment.example"), context());
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("cache-control")).toMatch(
-      /^public, max-age=60, s-maxage=\d+, stale-while-revalidate=300$/,
-    );
+    expect(dynamic).toBe("force-dynamic");
+    expect(response.headers.get("cache-control")).toBe("private, no-store, max-age=0");
+    expect(response.headers.get("cdn-cache-control")).toBe("no-store");
+    expect(response.headers.get("vercel-cdn-cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual({ snapshot, expiresAt });
     expect(mocks.resolveShare).toHaveBeenCalledWith(expect.stringMatching(/^[0-9a-f]{64}$/));
     expect(mocks.resolveShare.mock.calls[0]?.[0]).not.toBe(token);
@@ -91,6 +92,7 @@ describe("resolve public comparison share route", () => {
       context("not-a-token"),
     );
     expect(malformed.status).toBe(404);
+    expect(malformed.headers.get("cache-control")).toBe("private, no-store, max-age=0");
     expect(mocks.resolveShare).not.toHaveBeenCalled();
 
     mocks.resolveShare.mockResolvedValueOnce(undefined);

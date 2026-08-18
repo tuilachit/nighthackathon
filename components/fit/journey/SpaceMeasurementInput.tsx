@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { SpaceMeasurement } from "@/lib/catalog-types";
 import {
@@ -19,6 +20,7 @@ import type { MeasurementReviewStorage } from "@/lib/pending-measurement-review"
 export interface SpaceMeasurementInputProps {
   readonly initialMeasurement?: SpaceMeasurement;
   readonly editingSpaceId?: string;
+  readonly backHref?: string;
   readonly onParsed: (
     measurement: SpaceMeasurement,
     editingSpaceId?: string,
@@ -29,6 +31,7 @@ export interface SpaceMeasurementInputProps {
 export function SpaceMeasurementInput({
   initialMeasurement,
   editingSpaceId,
+  backHref,
   onParsed,
 }: SpaceMeasurementInputProps): React.JSX.Element {
   const [selectedUnit, setSelectedUnit] = useState<MeasurementUnit>("cm");
@@ -64,7 +67,15 @@ export function SpaceMeasurementInput({
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-xl flex-col bg-[#f4f7f5] px-4 pb-8 pt-8 text-[#17221f] sm:px-6">
       <header className="border-b border-[#17221f]/25 pb-5">
-        <p className="fit-data text-[10px] font-bold uppercase tracking-[0.16em] text-[#17221f]/60">
+        {backHref === undefined ? null : (
+          <Link
+            href={backHref}
+            className="mb-3 inline-flex min-h-11 items-center text-sm font-bold underline decoration-[#17221f]/30 underline-offset-4 hover:decoration-[#17221f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17221f]"
+          >
+            Space
+          </Link>
+        )}
+        <p className="fit-data text-[10px] font-bold uppercase tracking-[0.16em] text-[#17221f]/65">
           Space measurement
         </p>
         <h1 className="fit-display mt-2 text-[36px] font-bold leading-none tracking-[-0.04em]">
@@ -94,7 +105,7 @@ export function SpaceMeasurementInput({
           autoComplete="off"
           spellCheck={false}
           aria-describedby="space-measurement-hint space-measurement-error"
-          className="fit-data mt-2 min-h-[112px] w-full resize-y rounded-sm border border-[#17221f]/45 bg-white px-3 py-3 text-base leading-6 shadow-none outline-none placeholder:text-[#17221f]/40 focus-visible:border-[#17221f] focus-visible:ring-2 focus-visible:ring-[#2f6b59] focus-visible:ring-offset-2"
+          className="fit-data mt-2 min-h-[112px] w-full resize-y rounded-sm border border-[#17221f]/45 bg-white px-3 py-3 text-base leading-6 shadow-none outline-none placeholder:text-[#17221f]/65 focus-visible:border-[#17221f] focus-visible:ring-2 focus-visible:ring-[#2f6b59] focus-visible:ring-offset-2"
         />
         <p
           id="space-measurement-hint"

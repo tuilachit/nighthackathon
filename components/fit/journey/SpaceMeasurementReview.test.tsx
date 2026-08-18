@@ -39,6 +39,9 @@ describe("SpaceMeasurementReview", () => {
     expect(screen.getByLabelText("Width")).toHaveValue(900);
     expect(screen.getByLabelText("Height")).toHaveValue(1800);
     expect(screen.getByLabelText("Depth")).toHaveValue(350);
+    expect(
+      screen.getByRole("img", { name: /schematic measured envelope/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Doorway not checked")).toBeInTheDocument();
     expect(screen.queryByLabelText("Doorway")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Width")).toHaveAttribute(

@@ -131,15 +131,3 @@ export interface ProductSearchResults {
   readonly fitsSpaceButFailsAccess: readonly EvaluatedProduct[];
   readonly nearMisses: readonly EvaluatedProduct[];
 }
-
-export interface ProductSelection {
-  readonly product: CatalogProduct;
-  readonly fit: FitEvaluation;
-  readonly access: AccessEvaluation;
-}
-
-export interface FitSearchExperienceProps {
-  readonly measurement: SpaceMeasurement;
-  readonly initialQuery?: string;
-  readonly onSelectProduct: (selection: ProductSelection) => void;
-}

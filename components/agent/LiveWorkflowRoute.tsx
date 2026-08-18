@@ -1,12 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { CandidateFitStatus } from "@/lib/live-search/types";
 import type { FitWorkflowSurface } from "@/lib/fit-route-contract";
 
-const LiveSearchExperience = dynamic(
+const LiveWorkflowController = dynamic(
   () =>
-    import("./LiveSearchExperience").then(
-      (module) => module.LiveSearchExperience,
+    import("./LiveWorkflowController").then(
+      (module) => module.LiveWorkflowController,
     ),
   {
     ssr: false,
@@ -24,27 +25,31 @@ const LiveSearchExperience = dynamic(
 
 export interface LiveWorkflowRouteProps {
   readonly workflowId?: string;
-  readonly surface?: FitWorkflowSurface;
+  readonly surface?: FitWorkflowSurface | "search" | "model";
   readonly candidateId?: string;
+  readonly initialTier?: CandidateFitStatus;
+  readonly initialPageIndex?: number;
+  readonly initialMode?: "describe" | "link";
+  readonly initialValue?: string;
 }
 
 /** Keeps provider and session code out of the static measurement routes. */
 export function LiveWorkflowRoute({
   workflowId,
-  surface = "workflow",
+  surface = workflowId === undefined ? "search" : "workflow",
   candidateId,
+  initialTier,
+  initialPageIndex,
+  initialMode,
+  initialValue,
 }: LiveWorkflowRouteProps): React.JSX.Element {
-  return (
-    <main
-      id="fit-main"
-      data-fit-route-surface={surface}
-      className="min-h-screen bg-[#f4f7f5] px-4 pb-20 pt-20 text-[#17221f] sm:px-6"
-    >
-      <LiveSearchExperience
-        initialWorkflowId={workflowId}
-        initialSurface={surface}
-        initialCandidateId={candidateId}
-      />
-    </main>
-  );
+  return <LiveWorkflowController
+    workflowId={workflowId}
+    surface={surface}
+    candidateId={candidateId}
+    initialTier={initialTier}
+    initialPageIndex={initialPageIndex}
+    initialMode={initialMode}
+    initialValue={initialValue}
+  />;
 }

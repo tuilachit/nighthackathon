@@ -97,7 +97,9 @@ describe("DemoDecisionResults", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Compare two" }));
+    await user.click(
+      screen.getByRole("button", { name: "Compare top matches" }),
+    );
 
     expect(onOpenComparison).toHaveBeenCalledOnce();
     const pair = onOpenComparison.mock.calls[0][0];
@@ -121,7 +123,9 @@ describe("DemoDecisionResults", () => {
     );
 
     await user.click(screen.getByRole("tab", { name: /Doorway/ }));
-    await user.click(screen.getByRole("button", { name: "Compare two" }));
+    await user.click(
+      screen.getByRole("button", { name: "Compare top matches" }),
+    );
 
     expect(onSelectTier).toHaveBeenCalledWith("access_issue");
     expect(fetchSpy).not.toHaveBeenCalled();

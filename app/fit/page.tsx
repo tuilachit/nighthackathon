@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { FitDemoClient } from "@/components/fit/FitDemoClient";
-import { loadFurnitureCatalog } from "@/lib/catalog-source";
-import { DEMO_SPACE_MEASUREMENT } from "@/lib/fit-config";
+import { SpaceHomeScreen } from "@/components/fit/journey/SpaceHomeScreen";
 import {
   resolveFitEntry,
   type FitCompatibilitySearchParams,
@@ -18,16 +16,15 @@ interface FitPageProps {
 }
 
 export default async function FitPage({ searchParams }: FitPageProps): Promise<React.JSX.Element> {
-  const entry = resolveFitEntry(await searchParams);
+  const params = await searchParams;
+  const entry = resolveFitEntry(params);
   if (entry.kind === "redirect") redirect(entry.href);
-  const catalog = await loadFurnitureCatalog();
+  const mode = firstSearchParam(params.mode);
+  return <SpaceHomeScreen initialMode={mode === "link" ? "link" : "describe"} />;
+}
 
-  return (
-    <FitDemoClient
-      demoMeasurement={DEMO_SPACE_MEASUREMENT}
-      products={catalog.products}
-      catalogSource={catalog.source}
-      retailerCount={catalog.retailerCount}
-    />
-  );
+function firstSearchParam(
+  value: string | readonly string[] | undefined,
+): string | undefined {
+  return typeof value === "string" ? value : value?.[0];
 }

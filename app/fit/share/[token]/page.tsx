@@ -12,7 +12,8 @@ import { resolveComparisonShare } from "@/lib/live-search/repository";
 
 export const runtime = "nodejs";
 export const preferredRegion = "syd1";
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Shared furniture comparison · Fitment",

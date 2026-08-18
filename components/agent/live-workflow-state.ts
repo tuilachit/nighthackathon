@@ -18,6 +18,7 @@ export interface StoredLinkedCandidateReference {
   readonly workflowId: string;
   readonly candidateId: string;
   readonly measurementKey: string;
+  readonly targetWorkflowId?: string;
 }
 
 export const WORKFLOW_SESSION_KEY = "fitment.live-workflow-id";
@@ -36,14 +37,22 @@ export function readPersistedWorkflowId(): string | undefined {
     // Canonical paths and legacy query parameters remain available without storage.
   }
 
-  const candidate = pathValue ?? queryValue ?? storedValue;
-  if (!isFitWorkflowId(candidate)) {
-    if (queryValue !== null || storedValue !== null) {
-      clearPersistedWorkflowId();
-    }
-    return undefined;
+  const validQueryValue = isFitWorkflowId(queryValue) ? queryValue : undefined;
+  const validStoredValue = isFitWorkflowId(storedValue) ? storedValue : undefined;
+
+  if (queryValue !== null && validQueryValue === undefined) {
+    url.searchParams.delete("job");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
   }
-  return candidate;
+  if (storedValue !== null && validStoredValue === undefined) {
+    try {
+      window.sessionStorage.removeItem(WORKFLOW_SESSION_KEY);
+    } catch {
+      // Invalid storage is ignored when browser storage is unavailable.
+    }
+  }
+
+  return pathValue ?? validQueryValue ?? validStoredValue;
 }
 
 /** Persists the owner handle and replaces legacy URLs with the canonical workflow path. */
@@ -80,6 +89,15 @@ export function clearPersistedWorkflowId(): void {
     window.sessionStorage.removeItem(WORKFLOW_SESSION_KEY);
   } catch {
     // Private-browsing storage failures are non-fatal.
+  }
+}
+
+/** Drops only the session resume handle while preserving the current canonical route. */
+export function forgetWorkflowSessionHandle(): void {
+  try {
+    window.sessionStorage.removeItem(WORKFLOW_SESSION_KEY);
+  } catch {
+    // Canonical terminal URLs remain usable without session storage.
   }
 }
 
@@ -155,7 +173,9 @@ export function readLinkedCandidateReference(): StoredLinkedCandidateReference |
     if (
       !isFitWorkflowId(parsed.workflowId) ||
       !isFitWorkflowId(parsed.candidateId) ||
-      typeof parsed.measurementKey !== "string"
+      typeof parsed.measurementKey !== "string" ||
+      (parsed.targetWorkflowId !== undefined &&
+        !isFitWorkflowId(parsed.targetWorkflowId))
     ) {
       clearLinkedCandidateReference();
       return undefined;
@@ -164,6 +184,9 @@ export function readLinkedCandidateReference(): StoredLinkedCandidateReference |
       workflowId: parsed.workflowId,
       candidateId: parsed.candidateId,
       measurementKey: parsed.measurementKey,
+      ...(parsed.targetWorkflowId === undefined
+        ? {}
+        : { targetWorkflowId: parsed.targetWorkflowId }),
     };
   } catch {
     clearLinkedCandidateReference();
@@ -200,13 +223,6 @@ export function measurementKey(measurement: SpaceMeasurement): string {
     measurement.accessWidthMm ?? "unknown",
     measurement.uncertaintyMm,
   ].join(":");
-}
-
-export function initialIntentMode(): "describe" | "link" {
-  if (typeof window === "undefined") return "describe";
-  return new URL(window.location.href).searchParams.get("mode") === "link"
-    ? "link"
-    : "describe";
 }
 
 export function parseMeasurementValue(input: string): number | undefined {
@@ -285,7 +301,7 @@ function parseStoredMeasurement(input: unknown): SpaceMeasurement | undefined {
   const depthMm = parseMeasurementValue(String(input.depthMm));
   const accessWidthMm = input.accessWidthMm === undefined
     ? undefined
-    : parseMeasurementValue(String(input.accessWidthMm));
+    : parseAccessMeasurementValue(String(input.accessWidthMm));
   const uncertaintyMm = typeof input.uncertaintyMm === "number" &&
     Number.isInteger(input.uncertaintyMm) &&
     input.uncertaintyMm >= 0 &&
@@ -313,6 +329,13 @@ function parseStoredMeasurement(input: unknown): SpaceMeasurement | undefined {
     ...(accessWidthMm === undefined ? {} : { accessWidthMm }),
     source,
   };
+}
+
+function parseAccessMeasurementValue(input: string): number | undefined {
+  const value = Number(input);
+  return Number.isInteger(value) && value >= 300 && value <= 3_000
+    ? value
+    : undefined;
 }
 
 function parseCachePolicy(input: unknown): CachePolicy | undefined {

@@ -65,11 +65,13 @@ export function formatPackage(deliveryPackage: DeliveryPackage): string {
 }
 
 export function formatObservedDate(value: string): string {
-  return new Intl.DateTimeFormat("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(new Date(value));
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "Date unavailable";
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ] as const;
+  return `${date.getUTCDate()} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
 }
 
 export function provenanceSourceLabel(

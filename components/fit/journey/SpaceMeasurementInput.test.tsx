@@ -13,7 +13,7 @@ describe("SpaceMeasurementInput", () => {
   });
 
   it("presents the compact one-line entry with an accessible unit choice", () => {
-    render(<SpaceMeasurementInput onParsed={vi.fn()} />);
+    render(<SpaceMeasurementInput backHref="/fit" onParsed={vi.fn()} />);
 
     expect(
       screen.getByRole("heading", { name: "Enter your space" }),
@@ -27,6 +27,10 @@ describe("SpaceMeasurementInput", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Default unit")).toHaveValue("cm");
+    expect(screen.getByRole("link", { name: "Space" })).toHaveAttribute(
+      "href",
+      "/fit",
+    );
     expect(
       screen.getByRole("button", { name: "Check measurements" }),
     ).toHaveClass("min-h-12");

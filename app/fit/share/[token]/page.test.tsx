@@ -16,7 +16,7 @@ vi.mock("@/components/fit/PublicSharedComparison", () => ({
   PublicSharedComparison: () => null,
 }));
 
-import SharedComparisonPage from "./page";
+import SharedComparisonPage, { dynamic, revalidate } from "./page";
 
 const token = "A".repeat(43);
 const expiresAt = new Date(Date.now() + 60 * 60 * 1_000).toISOString();
@@ -74,6 +74,8 @@ describe("public shared comparison page", () => {
   it("renders a validated, unexpired public snapshot", async () => {
     const element = await SharedComparisonPage(pageProps());
 
+    expect(dynamic).toBe("force-dynamic");
+    expect(revalidate).toBe(0);
     expect(element.props.snapshot).toEqual(snapshot);
     expect(mocks.notFound).not.toHaveBeenCalled();
     expect(mocks.resolveShare).toHaveBeenCalledWith(expect.stringMatching(/^[0-9a-f]{64}$/));

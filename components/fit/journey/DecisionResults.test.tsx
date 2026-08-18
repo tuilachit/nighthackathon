@@ -117,10 +117,69 @@ describe("DecisionResults", () => {
     const onOpenComparison = vi.fn();
     render(<DecisionResults {...defaultProps({ onOpenComparison })} />);
 
-    expect(screen.getByText("Start with the top fits from two retailers")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Compare two" }));
+    expect(screen.getByText("Start with top matches from two retailers")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Compare top matches" }));
 
     expect(onOpenComparison).toHaveBeenCalledWith(["ikea-1", "kmart-1"]);
+  });
+
+  it("uses a controller-supplied linked product as the first default", async () => {
+    const user = userEvent.setup();
+    const onOpenComparison = vi.fn();
+    render(
+      <DecisionResults
+        {...defaultProps({
+          defaultComparisonKeys: ["near-1", "kmart-1"],
+          onOpenComparison,
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Compare top matches" }));
+    expect(onOpenComparison).toHaveBeenCalledWith(["near-1", "kmart-1"]);
+  });
+
+  it("holds the default action while a linked product is being restored", () => {
+    render(
+      <DecisionResults
+        {...defaultProps({
+          defaultComparisonKeys: [],
+          defaultComparisonPending: true,
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Restoring linked product")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Compare top matches" }),
+    ).toBeDisabled();
+  });
+
+  it("falls back through doorway and near-miss tiers for a second retailer", async () => {
+    const user = userEvent.setup();
+    const onOpenComparison = vi.fn();
+    const kmartDoorway = candidateFixture({
+      key: "kmart-doorway",
+      name: "Kmart doorway option",
+      retailer: "kmart",
+      fitStatus: "access_issue",
+    });
+    render(
+      <DecisionResults
+        {...defaultProps({
+          candidates: [fits[0], kmartDoorway, nearMiss],
+          onOpenComparison,
+        })}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Compare top matches" }),
+    );
+    expect(onOpenComparison).toHaveBeenCalledWith([
+      "ikea-1",
+      "kmart-doorway",
+    ]);
   });
 
   it("requires exactly two explicit selections and keeps deselection available", async () => {
@@ -132,7 +191,7 @@ describe("DecisionResults", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Compare two" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Select one more" })).toBeDisabled();
     expect(screen.getByText("Choose one more product")).toBeInTheDocument();
 
     await user.click(screen.getAllByRole("button", { name: "Compare" })[0]);

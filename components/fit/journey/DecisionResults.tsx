@@ -18,6 +18,8 @@ export interface DecisionResultsProps {
   readonly selectedTier: CandidateFitStatus;
   readonly pageIndex: number;
   readonly comparedKeys: readonly string[];
+  readonly defaultComparisonKeys?: readonly string[];
+  readonly defaultComparisonPending?: boolean;
   readonly onSelectTier: (tier: CandidateFitStatus) => void;
   readonly onPageChange: (pageIndex: number) => void;
   readonly onToggleCompare: (candidateKey: string) => void;
@@ -36,6 +38,8 @@ export function DecisionResults({
   selectedTier,
   pageIndex,
   comparedKeys,
+  defaultComparisonKeys,
+  defaultComparisonPending = false,
   onSelectTier,
   onPageChange,
   onToggleCompare,
@@ -53,8 +57,16 @@ export function DecisionResults({
     pageStart,
     pageStart + RESULTS_PAGE_SIZE,
   );
-  const comparePair = resolveComparePair(candidates, comparedKeys);
-  const compareState = comparisonState(comparedKeys, comparePair);
+  const comparePair = resolveComparePair(
+    candidates,
+    comparedKeys,
+    defaultComparisonKeys,
+  );
+  const compareState = comparisonState(
+    comparedKeys,
+    comparePair,
+    defaultComparisonPending,
+  );
 
   return (
     <section aria-labelledby="decision-results-title" className="relative">
@@ -70,7 +82,7 @@ export function DecisionResults({
             One result tier at a time. Source facts stay attached to every item.
           </p>
         </div>
-        <span className="fit-data shrink-0 text-[9px] font-bold uppercase tracking-[0.08em] text-[#17221f]/60">
+        <span className="fit-data shrink-0 text-[9px] font-bold uppercase tracking-[0.08em] text-[#17221f]/65">
           {candidates.length} checked
         </span>
       </div>
@@ -116,7 +128,7 @@ export function DecisionResults({
               <span className="block text-[11px] font-bold text-[#17221f]">
                 {presentation.label}
               </span>
-              <span className={`fit-data mt-0.5 block text-[9px] font-bold ${isSelected ? presentation.textClass : "text-[#17221f]/55"}`}>
+              <span className={`fit-data mt-0.5 block text-[9px] font-bold ${isSelected ? presentation.textClass : "text-[#17221f]/65"}`}>
                 {tierCounts[tierKey]}
               </span>
             </button>
@@ -131,11 +143,11 @@ export function DecisionResults({
         className="mt-3"
       >
         <div className="flex min-h-8 items-center justify-between gap-3">
-          <p className="fit-data text-[9px] font-bold uppercase tracking-[0.08em] text-[#17221f]/60">
+          <p className="fit-data text-[9px] font-bold uppercase tracking-[0.08em] text-[#17221f]/65">
             {TIER_PRESENTATION[selectedTier].label} · {activeCandidates.length}
           </p>
           {activeCandidates.length > RESULTS_PAGE_SIZE ? (
-            <p className="fit-data text-[9px] font-bold text-[#17221f]/60">
+            <p className="fit-data text-[9px] font-bold text-[#17221f]/65">
               {pageStart + 1}–{Math.min(pageStart + RESULTS_PAGE_SIZE, activeCandidates.length)} of {activeCandidates.length}
             </p>
           ) : null}
@@ -191,7 +203,7 @@ export function DecisionResults({
 
       <div className="fit-comparison-tray sticky bottom-3 z-20 mt-4 flex items-center justify-between gap-3 border border-[#17221f] bg-white p-2.5">
         <div className="min-w-0">
-          <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/55">
+          <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
             Compare in one envelope
           </p>
           <p className="mt-1 truncate text-xs font-bold text-[#17221f]">
@@ -208,7 +220,11 @@ export function DecisionResults({
           }}
           className="min-h-11 shrink-0 cursor-pointer bg-[#17221f] px-4 text-xs font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17221f] disabled:cursor-not-allowed disabled:bg-[#17221f]/35"
         >
-          Compare two
+          {comparedKeys.length === 0
+            ? "Compare top matches"
+            : comparedKeys.length === 2
+              ? "Compare 2 selected"
+              : "Select one more"}
         </button>
       </div>
     </section>
@@ -247,25 +263,40 @@ function keyboardTier(
 function resolveComparePair(
   candidates: readonly DecisionCandidate[],
   comparedKeys: readonly string[],
+  defaultComparisonKeys?: readonly string[],
 ): readonly DecisionCandidate[] {
   if (comparedKeys.length > 0) {
     return comparedKeys
       .map((key) => candidates.find((candidate) => candidate.key === key))
       .filter((candidate): candidate is DecisionCandidate => candidate !== undefined);
   }
+  if (defaultComparisonKeys !== undefined) {
+    return defaultComparisonKeys
+      .map((key) => candidates.find((candidate) => candidate.key === key))
+      .filter((candidate): candidate is DecisionCandidate => candidate !== undefined);
+  }
+  const tierPrioritized = [
+    ...candidates.filter((candidate) => candidate.fitStatus === "fits"),
+    ...candidates.filter((candidate) => candidate.fitStatus === "access_issue"),
+    ...candidates.filter((candidate) => candidate.fitStatus === "near_miss"),
+  ];
   return selectDefaultCrossRetailerComparison(
-    candidates.filter((candidate) => candidate.fitStatus === "fits"),
+    tierPrioritized,
   );
 }
 
 function comparisonState(
   comparedKeys: readonly string[],
   comparePair: readonly DecisionCandidate[],
+  defaultComparisonPending: boolean,
 ): { readonly label: string; readonly disabled: boolean } {
   if (comparedKeys.length === 0) {
+    if (defaultComparisonPending) {
+      return { label: "Restoring linked product", disabled: true };
+    }
     return comparePair.length === 2
-      ? { label: "Start with the top fits from two retailers", disabled: false }
-      : { label: "Two fitting products are needed", disabled: true };
+      ? { label: "Start with top matches from two retailers", disabled: false }
+      : { label: "Two products are needed", disabled: true };
   }
   if (comparedKeys.length === 1) {
     return { label: "Choose one more product", disabled: true };

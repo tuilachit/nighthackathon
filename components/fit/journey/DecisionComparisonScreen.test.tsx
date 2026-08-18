@@ -80,9 +80,32 @@ describe("DecisionComparisonScreen", () => {
     expect(buttons).toHaveLength(1);
     expect(buttons[0]).toHaveAccessibleName("Approve one product");
     await user.click(buttons[0]);
-    expect(onContinue).toHaveBeenCalledOnce();
+    expect(onContinue).toHaveBeenCalledWith(first);
 
     await user.click(screen.getAllByRole("link", { name: "Retailer source ↗" })[1]);
     expect(onRetailerOutbound).toHaveBeenCalledWith(second);
+  });
+
+  it("changes the single continuation target without adding another primary button", async () => {
+    const user = userEvent.setup();
+    const onContinue = vi.fn();
+    render(
+      <DecisionComparisonScreen
+        measurement={measurement}
+        candidates={[first, second]}
+        onContinue={onContinue}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: `Continue with ${first.name}` }),
+    ).toBeVisible();
+    await user.click(
+      screen.getAllByRole("radio", { name: "Choose this product" })[1],
+    );
+    await user.click(
+      screen.getByRole("button", { name: `Continue with ${second.name}` }),
+    );
+    expect(onContinue).toHaveBeenCalledWith(second);
   });
 });

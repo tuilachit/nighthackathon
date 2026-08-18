@@ -55,7 +55,7 @@ export function DecisionCandidateCard({
             <p className="fit-data text-xl font-bold leading-none text-[#17221f]">
               {formatListedPrice(candidate)}
             </p>
-            <span className="fit-data text-[8px] font-bold uppercase tracking-[0.08em] text-[#17221f]/60">
+            <span className="fit-data text-[8px] font-bold uppercase tracking-[0.08em] text-[#17221f]/65">
               {candidate.price.currency} listed
             </span>
           </div>
@@ -66,7 +66,7 @@ export function DecisionCandidateCard({
       </div>
 
       <div className={`border-y px-3 py-2.5 ${tier.borderClass} ${tier.surfaceClass}`}>
-        <p className="fit-data text-[8px] font-bold uppercase tracking-[0.11em] text-[#17221f]/60">
+        <p className="fit-data text-[8px] font-bold uppercase tracking-[0.11em] text-[#17221f]/65">
           Minimum clearance
         </p>
         <div
@@ -82,13 +82,13 @@ export function DecisionCandidateCard({
 
       <details className="group border-b border-[#17221f]/20">
         <summary className="fit-data flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 text-[10px] font-bold uppercase tracking-[0.06em] text-[#17221f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#17221f]">
-          Dimensions and source facts
+          Product details
           <span aria-hidden="true" className="text-sm group-open:rotate-45">+</span>
         </summary>
         <div className="space-y-3 border-t border-[#17221f]/15 bg-[#f4f7f5]/70 px-3 py-3 text-xs leading-5 text-[#17221f]/80">
           <Fact label="Assembled" value={formatDimensions(candidate.assembledDimensions)} />
           <div>
-            <p className="fit-data text-[8px] font-bold uppercase tracking-[0.08em] text-[#17221f]/55">
+            <p className="fit-data text-[8px] font-bold uppercase tracking-[0.08em] text-[#17221f]/65">
               Delivery packages
             </p>
             {candidate.packages.length === 0 ? (
@@ -150,7 +150,7 @@ function ProductImage({
       <div
         role="img"
         aria-label={`${candidate.name} image unavailable`}
-        className="fit-data flex h-[120px] items-center justify-center border border-[#17221f]/20 bg-[#f4f7f5] p-2 text-center text-[9px] font-bold uppercase tracking-[0.06em] text-[#17221f]/55"
+        className="fit-data flex h-[120px] items-center justify-center border border-[#17221f]/20 bg-[#f4f7f5] p-2 text-center text-[9px] font-bold uppercase tracking-[0.06em] text-[#17221f]/65"
       >
         Image unavailable
       </div>
@@ -182,7 +182,7 @@ function Fact({
 }): React.JSX.Element {
   return (
     <div>
-      <p className="fit-data text-[8px] font-bold uppercase tracking-[0.08em] text-[#17221f]/55">
+      <p className="fit-data text-[8px] font-bold uppercase tracking-[0.08em] text-[#17221f]/65">
         {label}
       </p>
       <p className="mt-1">{value}</p>
