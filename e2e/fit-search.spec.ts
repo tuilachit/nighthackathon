@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page, type Route } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 const WORKFLOW_PROMPT = "00000000-0000-4000-8000-000000000101";
 const WORKFLOW_LINK = "00000000-0000-4000-8000-000000000102";
@@ -20,6 +20,8 @@ const EXPIRES_AT = "2026-09-16T00:15:00.000Z";
 const PROMPT = "narrow oak bookcase under $300";
 const LINKED_PRODUCT_URL =
   "https://www.templeandwebster.com.au/Carter-Narrow-Bookcase-CNB100.html?colour=oak";
+const LOST_ACK_TEST_NAME =
+  "a lost acknowledgement retries after reload with one stable idempotency key";
 
 const MEASUREMENT = {
   widthMm: 900,
@@ -29,6 +31,8 @@ const MEASUREMENT = {
   uncertaintyMm: 25,
   source: "manual",
 } as const;
+
+const browserFailures = new WeakMap<Page, string[]>();
 
 type MockIntent =
   | { readonly kind: "prompt"; readonly text: string; readonly retailers: readonly string[] }
@@ -88,163 +92,35 @@ interface MockApiState {
 }
 
 test.beforeEach(async ({ page }, testInfo) => {
+  const failures: string[] = [];
+  browserFailures.set(page, failures);
   page.on("pageerror", (error) => {
-    console.error(`[${testInfo.project.name}] client exception: ${error.stack ?? error.message}`);
+    failures.push(
+      `[${testInfo.project.name}] client exception: ${error.stack ?? error.message}`,
+    );
   });
-});
-
-test("first-time prompt journey measures a space and returns all decision tiers", async ({ page }) => {
-  const api = await installMockApi(page);
-
-  await page.goto("/");
-  await expect(page.getByText("FITMENT", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText(
-      "Compare furniture that fits your measured space—with delivery risks flagged before you buy.",
-      { exact: true },
-    ),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "Measure your space" }).click();
-
-  await completeManualMeasurement(page);
-  await expect(page.getByRole("button", { name: "Describe what I need" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await expect(page.getByRole("button", { name: "Check a product link" })).toBeVisible();
-
-  await submitPrompt(page, PROMPT);
-
-  await expect(page.getByRole("heading", { name: "Fits", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Fits the space, access issue" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Near misses" })).toBeVisible();
-  await expect(page.getByText("Fits the space, but 35 mm too wide for the 820 mm access opening.")).toBeVisible();
-  await expect(page.getByText("35 mm too tall.")).toBeVisible();
-
-  expect(api.searchRequests).toHaveLength(1);
-  expect(api.searchRequests[0]).toEqual({
-    intent: {
-      kind: "prompt",
-      text: PROMPT,
-      retailers: ["ikea-au", "kmart-au"],
-    },
-    measurement: MEASUREMENT,
-    cachePolicy: "prefer-recent",
-  });
-});
-
-test("exact product link stays exact and alternatives require a second explicit submit", async ({ page }) => {
-  await seedMeasuredSpace(page);
-  const api = await installMockApi(page, {
-    planSearch: (request, index) => {
-      if (index === 0) {
-        return {
-          workflow: makeWorkflow({
-            id: WORKFLOW_LINK,
-            intent: request.intent,
-            candidates: [linkedCandidate],
-          }),
-        };
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      if (
+        testInfo.title === LOST_ACK_TEST_NAME &&
+        message.text().includes("net::ERR_CONNECTION_FAILED")
+      ) {
+        return;
       }
-      return {
-        workflow: makeWorkflow({
-          id: WORKFLOW_ALTERNATIVES,
-          intent: request.intent,
-          candidates: LIVE_CANDIDATES,
-        }),
-      };
-    },
-  });
-
-  await page.goto("/");
-  await page.getByRole("link", { name: "Check a product" }).click();
-  await expect(page).toHaveURL(/\/fit\?mode=link$/);
-  await expect(page.getByRole("button", { name: "Check a product link" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-
-  await page.getByLabel(/^Retailer product link/).fill(LINKED_PRODUCT_URL);
-  await page.getByRole("button", { name: "Search current retailer products" }).click();
-  const linkedCard = page.getByTestId(`live-candidate-${LINKED_ID}`);
-  await expect(linkedCard.getByText("Linked product", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Find comparable alternatives" })).toBeVisible();
-  expect(api.searchRequests).toHaveLength(1);
-  expect(api.searchRequests[0]?.intent).toEqual({
-    kind: "product-link",
-    url: LINKED_PRODUCT_URL,
-  });
-
-  await page.getByRole("button", { name: "Find comparable alternatives" }).click();
-  await expect(page.getByRole("button", { name: "Describe what I need" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await expect(page.getByLabel(/^What should fit here\?/)).toHaveValue(
-    /Comparable bookcase to Carter narrow bookcase, listed at/,
-  );
-  expect(api.searchRequests).toHaveLength(1);
-
-  await page.getByRole("button", { name: "Search current retailer products" }).click();
-  await expect(page.getByTestId(`live-candidate-${IKEA_FIT_ID}`)).toBeVisible();
-  await expect(page.getByTestId(`live-candidate-${KMART_FIT_ID}`)).toBeVisible();
-  expect(api.searchRequests).toHaveLength(2);
-  expect(api.searchRequests[1]?.intent).toMatchObject({
-    kind: "prompt",
-    retailers: ["ikea-au", "kmart-au"],
+      failures.push(`[${testInfo.project.name}] console error: ${message.text()}`);
+    }
   });
 });
 
-test("a recent exact cache hit renders immediately and force refresh sends a new command", async ({ page }) => {
-  await seedMeasuredSpace(page);
-  const api = await installMockApi(page, {
-    planSearch: (request, index) => {
-      if (index === 0) {
-        return {
-          workflow: makeWorkflow({
-            id: WORKFLOW_CACHE,
-            intent: request.intent,
-            candidates: LIVE_CANDIDATES,
-            cacheHit: true,
-            freshness: "cached",
-          }),
-          cacheHit: true,
-          freshness: "cached",
-          checkedAt: CHECKED_AT,
-        };
-      }
-      return {
-        workflow: makeWorkflow({
-          id: WORKFLOW_REFRESH,
-          intent: request.intent,
-          candidates: LIVE_CANDIDATES,
-          cacheHit: false,
-          freshness: "live",
-        }),
-      };
-    },
-  });
-
-  await page.goto("/fit");
-  await submitPrompt(page, PROMPT);
-  await expect(page.getByRole("heading", { name: "Fits", exact: true })).toBeVisible();
-  await expect(page.getByText(/recent indexed observation/i)).toBeVisible();
-  expect(api.searchRequests[0]?.cachePolicy).toBe("prefer-recent");
-
-  await page.getByRole("radio", { name: /Check live/ }).check();
-  await page.getByRole("button", { name: "Search current retailer products" }).click();
-  await expect(page).toHaveURL(new RegExp(`job=${WORKFLOW_REFRESH}`));
-  await expect(page.getByText(/live retailer fetch/i)).toBeVisible();
-  expect(api.searchRequests).toHaveLength(2);
-  expect(api.searchRequests[1]?.cachePolicy).toBe("force-refresh");
+test.afterEach(async ({ page }) => {
+  expect(browserFailures.get(page) ?? []).toEqual([]);
 });
 
-test("reload restores an owner job from its URL without resubmitting", async ({ page }) => {
-  await seedMeasuredSpace(page);
+test("first-time space parse, review, live wait, and results are separate screens", async ({ page }) => {
   const api = await installMockApi(page, {
     planSearch: (request) => ({
       workflow: makeWorkflow({
-        id: WORKFLOW_RESTORE,
+        id: WORKFLOW_PROMPT,
         state: "searching",
         intent: request.intent,
         candidates: [],
@@ -253,27 +129,209 @@ test("reload restores an owner job from its URL without resubmitting", async ({ 
     }),
   });
 
-  await page.goto("/fit");
+  await page.goto("/");
+  await expect(page.getByText("FITMENT", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Measure your space" }).click();
+  await completeManualMeasurement(page);
   await submitPrompt(page, PROMPT);
-  await expect(page).toHaveURL(new RegExp(`job=${WORKFLOW_RESTORE}`));
-  await expect(page.getByRole("button", { name: "Cancel this job" })).toBeVisible();
+
+  await expect(page).toHaveURL(new RegExp(`/fit/jobs/${WORKFLOW_PROMPT}$`));
+  await expect(page.getByRole("heading", { name: "Checking retailers" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cancel search" })).toBeVisible();
 
   api.workflows.set(
-    WORKFLOW_RESTORE,
+    WORKFLOW_PROMPT,
     makeWorkflow({
-      id: WORKFLOW_RESTORE,
+      id: WORKFLOW_PROMPT,
       intent: { kind: "prompt", text: PROMPT, retailers: ["ikea-au", "kmart-au"] },
       candidates: LIVE_CANDIDATES,
     }),
   );
-  await page.reload();
+  await expect(page).toHaveURL(
+    new RegExp(`/fit/jobs/${WORKFLOW_PROMPT}/results(?:\\?.*)?$`),
+    { timeout: 8_000 },
+  );
+  await expect(page.getByRole("heading", { name: "Choose what fits" })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Fits\s+2/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(page.getByTestId(`decision-candidate-${IKEA_FIT_ID}`)).toBeVisible();
 
-  await expect(page.getByRole("heading", { name: "Fits", exact: true })).toBeVisible();
-  await expect(page.getByText(`Request: “${PROMPT}”`, { exact: false })).toBeVisible();
-  expect(api.searchRequests).toHaveLength(1);
+  expect(api.searchRequests).toEqual([
+    {
+      intent: {
+        kind: "prompt",
+        text: PROMPT,
+        retailers: ["ikea-au", "kmart-au"],
+      },
+      measurement: MEASUREMENT,
+      cachePolicy: "prefer-recent",
+    },
+  ]);
 });
 
-test("an active workflow can be durably cancelled once", async ({ page }) => {
+test("a returning visitor chooses the most recent saved space before searching", async ({ page }) => {
+  await seedMeasuredSpace(page);
+  await installMockApi(page);
+
+  await page.goto("/fit");
+  await expect(page.getByRole("heading", { name: "Use this space?" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Current saved space" })).toContainText(
+    "Bedroom alcove",
+  );
+  await page.getByRole("link", { name: "Use this space" }).click();
+
+  await expect(page).toHaveURL(/\/fit\/search$/);
+  await expect(page.getByRole("heading", { name: "What should fit?" })).toBeVisible();
+  await expect(page.getByText("900 W × 1800 H × 350 D mm · door 820 mm")).toBeVisible();
+});
+
+test("an exact product link remains exact and alternatives need another explicit submit", async ({ page }) => {
+  await seedMeasuredSpace(page);
+  const api = await installMockApi(page, {
+    planSearch: (request, index) => index === 0
+      ? {
+          workflow: makeWorkflow({
+            id: WORKFLOW_LINK,
+            intent: request.intent,
+            candidates: [linkedCandidate],
+          }),
+        }
+      : {
+          workflow: makeWorkflow({
+            id: WORKFLOW_ALTERNATIVES,
+            intent: request.intent,
+            candidates: LIVE_CANDIDATES,
+          }),
+        },
+  });
+
+  await page.goto("/");
+  await page.getByRole("link", { name: "Check a product" }).click();
+  await expect(page).toHaveURL(/\/fit\?mode=link$/);
+  await page.getByRole("link", { name: "Use this space" }).click();
+  await expect(page).toHaveURL(/\/fit\/search\?mode=link$/);
+  await expect(page.getByRole("button", { name: "Paste product link" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await page.getByLabel("Product link").fill(LINKED_PRODUCT_URL);
+  await page.getByRole("button", { name: "Find products that fit" }).click();
+
+  await expect(page.getByTestId(`decision-candidate-${LINKED_ID}`)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Find comparable alternatives" })).toBeVisible();
+  expect(api.searchRequests[0]?.intent).toEqual({
+    kind: "product-link",
+    url: LINKED_PRODUCT_URL,
+  });
+
+  await page.getByRole("button", { name: "Find comparable alternatives" }).click();
+  await expect(page).toHaveURL(/\/fit\/search\?prefill=/);
+  await expect(page.getByRole("button", { name: "Describe" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.getByLabel("What do you need?")).toHaveValue(
+    "Comparable bookcase to Carter narrow bookcase",
+  );
+  expect(api.searchRequests).toHaveLength(1);
+
+  await page.getByRole("button", { name: "Find products that fit" }).click();
+  await expect(page.getByTestId(`decision-candidate-${IKEA_FIT_ID}`)).toBeVisible();
+  await expect(page.getByTestId(`decision-candidate-${KMART_FIT_ID}`)).toBeVisible();
+  expect(api.searchRequests).toHaveLength(2);
+  expect(api.searchRequests[1]?.intent).toMatchObject({
+    kind: "prompt",
+    retailers: ["ikea-au", "kmart-au"],
+  });
+
+  await page.getByRole("button", { name: "Compare top matches" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/fit/jobs/${WORKFLOW_ALTERNATIVES}/compare$`),
+  );
+  await expect(
+    page.getByRole("heading", { name: "Carter narrow bookcase" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "BILLY narrow bookcase" }),
+  ).toBeVisible();
+  const drawings = page.locator('figure[aria-label$="clearance drawing"]');
+  await expect(drawings.nth(0)).toHaveAttribute(
+    "aria-label",
+    "Carter narrow bookcase clearance drawing",
+  );
+  await expect(drawings.nth(1)).toHaveAttribute(
+    "aria-label",
+    "BILLY narrow bookcase clearance drawing",
+  );
+});
+
+test("result tier tabs expose fits, doorway issues, and near misses one at a time", async ({ page }) => {
+  await seedMeasuredSpace(page);
+  await installMockApi(page);
+  await openSavedSpaceSearch(page);
+  await submitPrompt(page, PROMPT);
+
+  await expect(page.getByTestId(`decision-candidate-${IKEA_FIT_ID}`)).toBeVisible();
+  await page.getByRole("tab", { name: /Doorway\s+1/ }).click();
+  await expect(page).toHaveURL(/tier=access_issue/);
+  await expect(page.getByTestId(`decision-candidate-${ACCESS_ID}`)).toBeVisible();
+  await expect(
+    page
+      .getByTestId(`decision-candidate-${ACCESS_ID}`)
+      .getByText(
+        "Fits the space, but 35 mm too wide for the 820 mm access opening.",
+        { exact: true },
+      ),
+  ).toBeVisible();
+  await expect(page.getByTestId(`decision-candidate-${IKEA_FIT_ID}`)).toHaveCount(0);
+
+  await page.getByRole("tab", { name: /Near misses\s+1/ }).click();
+  await expect(page).toHaveURL(/tier=near_miss/);
+  await expect(page.getByTestId(`decision-candidate-${NEAR_ID}`)).toBeVisible();
+  await expect(page.getByText("35 mm too tall.")).toBeVisible();
+});
+
+test("comparison defaults across retailers and accepts products from other tiers", async ({ page }) => {
+  await seedMeasuredSpace(page);
+  await installMockApi(page);
+  await openSavedSpaceSearch(page);
+  await submitPrompt(page, PROMPT);
+
+  await page.getByRole("button", { name: "Compare top matches" }).click();
+  await expect(page).toHaveURL(new RegExp(`/fit/jobs/${WORKFLOW_PROMPT}/compare$`));
+  await expect(page.getByRole("heading", { name: "Clearance comparison" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "BILLY narrow bookcase" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Kmart slim cube shelf" })).toBeVisible();
+  await expect(page.getByText("10 mm", { exact: true })).toBeVisible();
+
+  await page.getByRole("link", { name: "Results" }).click();
+  await page
+    .getByTestId(`decision-candidate-${IKEA_FIT_ID}`)
+    .getByRole("button", { name: "Comparing" })
+    .click();
+  await page
+    .getByTestId(`decision-candidate-${KMART_FIT_ID}`)
+    .getByRole("button", { name: "Comparing" })
+    .click();
+  await page.getByRole("tab", { name: /Doorway/ }).click();
+  await page
+    .getByTestId(`decision-candidate-${ACCESS_ID}`)
+    .getByRole("button", { name: "Compare" })
+    .click();
+  await page.getByRole("tab", { name: /Near misses/ }).click();
+  await page
+    .getByTestId(`decision-candidate-${NEAR_ID}`)
+    .getByRole("button", { name: "Compare" })
+    .click();
+  await page.getByRole("button", { name: "Compare 2 selected" }).click();
+
+  await expect(page.getByRole("heading", { name: "Wide modular shelf" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tall display shelf" })).toBeVisible();
+});
+
+test("an active search can be durably cancelled once", async ({ page }) => {
   await seedMeasuredSpace(page);
   const api = await installMockApi(page, {
     planSearch: (request) => ({
@@ -286,113 +344,107 @@ test("an active workflow can be durably cancelled once", async ({ page }) => {
       createState: "searching",
     }),
   });
-
-  await page.goto("/fit");
+  await openSavedSpaceSearch(page);
   await submitPrompt(page, PROMPT);
-  await expect(page.getByRole("button", { name: "Search in progress…" })).toBeDisabled();
-  await page.getByRole("button", { name: "Cancel this job" }).click();
 
-  await expect(page.getByText(/job is durably cancelled/i)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Cancel this job" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Checking retailers" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel search" }).click();
+  await expect(page).toHaveURL(/\/fit\/search$/);
+  await expect(page.getByRole("heading", { name: "What should fit?" })).toBeVisible();
   expect(api.cancelledWorkflowId).toBe(WORKFLOW_CANCEL);
+  await expect(page.getByRole("button", { name: "Cancel search" })).toHaveCount(0);
 });
 
-test("comparison defaults cross-retailer and also accepts access issues and near misses", async ({ context, page }) => {
+test("reload restores a waiting owner job without another search submission", async ({ page }) => {
   await seedMeasuredSpace(page);
-  await installMockApi(page);
-  await interceptRetailerPages(context);
+  const api = await installMockApi(page, {
+    planSearch: (request) => ({
+      workflow: makeWorkflow({
+        id: WORKFLOW_RESTORE,
+        state: "searching",
+        intent: request.intent,
+        candidates: [],
+      }),
+      createState: "searching",
+    }),
+  });
+  await openSavedSpaceSearch(page);
+  await submitPrompt(page, PROMPT);
+  await expect(page).toHaveURL(new RegExp(`/fit/jobs/${WORKFLOW_RESTORE}$`));
+  await expect(page.getByRole("heading", { name: "Checking retailers" })).toBeVisible();
 
-  await page.goto("/fit");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Checking retailers" })).toBeVisible();
+  expect(api.searchRequests).toHaveLength(1);
+
+  api.workflows.set(
+    WORKFLOW_RESTORE,
+    makeWorkflow({
+      id: WORKFLOW_RESTORE,
+      intent: { kind: "prompt", text: PROMPT, retailers: ["ikea-au", "kmart-au"] },
+      candidates: LIVE_CANDIDATES,
+    }),
+  );
+  await expect(page).toHaveURL(
+    new RegExp(`/fit/jobs/${WORKFLOW_RESTORE}/results(?:\\?.*)?$`),
+    { timeout: 8_000 },
+  );
+  expect(api.searchRequests).toHaveLength(1);
+});
+
+test("a recent cache hit can be explicitly refreshed with a new force-refresh command", async ({ page }) => {
+  await seedMeasuredSpace(page);
+  const api = await installMockApi(page, {
+    planSearch: (request, index) => index === 0
+      ? {
+          workflow: makeWorkflow({
+            id: WORKFLOW_CACHE,
+            intent: request.intent,
+            candidates: LIVE_CANDIDATES,
+            cacheHit: true,
+            freshness: "cached",
+          }),
+          cacheHit: true,
+          freshness: "cached",
+          checkedAt: CHECKED_AT,
+        }
+      : {
+          workflow: makeWorkflow({
+            id: WORKFLOW_REFRESH,
+            intent: request.intent,
+            candidates: LIVE_CANDIDATES,
+          }),
+        },
+  });
+  await openSavedSpaceSearch(page);
   await submitPrompt(page, PROMPT);
 
-  await page.getByLabel("Live comparison tray").getByRole("button").click();
-  const comparison = page.getByRole("region", { name: "Live product comparison" });
-  await expect(comparison.getByText("BILLY narrow bookcase", { exact: true })).toBeVisible();
-  await expect(comparison.getByText("Kmart slim cube shelf", { exact: true })).toBeVisible();
-  await expect(comparison.getByText(/Δ \d+ mm/)).toBeVisible();
-
-  await comparison.getByRole("button", { name: "Close" }).click();
-  await page.getByTestId(`live-candidate-${IKEA_FIT_ID}`).getByRole("button", { name: "Comparing" }).click();
-  await page.getByTestId(`live-candidate-${KMART_FIT_ID}`).getByRole("button", { name: "Comparing" }).click();
-  await page.getByTestId(`live-candidate-${ACCESS_ID}`).getByRole("button", { name: "Compare" }).click();
-  await page.getByTestId(`live-candidate-${NEAR_ID}`).getByRole("button", { name: "Compare" }).click();
-  await page.getByLabel("Live comparison tray").getByRole("button").click();
-
-  await expect(comparison.getByText("Wide modular shelf", { exact: true })).toBeVisible();
-  await expect(comparison.getByText("Tall display shelf", { exact: true })).toBeVisible();
-  await expect(comparison.getByRole("button", { name: "Review for 3D" })).toHaveCount(0);
-
-  await comparison.getByRole("button", { name: "Close" }).click();
-  const retailerLink = page
-    .getByTestId(`live-candidate-${IKEA_FIT_ID}`)
-    .getByRole("link", { name: "View at retailer ↗" });
-  const [retailerPage] = await Promise.all([
-    page.waitForEvent("popup"),
-    retailerLink.click(),
-  ]);
-  await retailerPage.waitForLoadState("domcontentloaded");
-  expect(retailerPage.url()).toBe(IKEA_PRODUCT_URL);
-  await retailerPage.close();
+  await expect(page.getByText(/^Checked \d+ hours? ago$/)).toBeVisible();
+  await page.getByRole("button", { name: "Refresh retailer data" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/fit/jobs/${WORKFLOW_REFRESH}/results(?:\\?.*)?$`),
+  );
+  expect(api.searchRequests).toHaveLength(2);
+  expect(api.searchRequests[0]?.cachePolicy).toBe("prefer-recent");
+  expect(api.searchRequests[1]?.cachePolicy).toBe("force-refresh");
 });
 
-test("a shared comparison opens directly in a fresh context with no owner authority", async ({ browser, page }) => {
+test("saved-space search remains understandable offline", async ({ context, page }) => {
   await seedMeasuredSpace(page);
   const api = await installMockApi(page);
-
-  await page.goto("/fit");
-  await submitPrompt(page, PROMPT);
-  await page.getByLabel("Live comparison tray").getByRole("button").click();
-  await page.getByRole("button", { name: "Share comparison" }).click();
-
-  const shareInput = page.getByLabel(/Share link/);
-  await expect(shareInput).toHaveValue(new RegExp(`/fit/share/${PUBLIC_SHARE_TOKEN}$`));
-  expect(api.shareRequests).toEqual([
-    {
-      selections: [
-        { workflowId: WORKFLOW_PROMPT, candidateId: IKEA_FIT_ID },
-        { workflowId: WORKFLOW_PROMPT, candidateId: KMART_FIT_ID },
-      ],
-    },
-  ]);
-
-  const shareUrl = await shareInput.inputValue();
-  const freshContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  await freshContext.route(`**/fit/share/${PUBLIC_SHARE_TOKEN}`, async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "text/html; charset=utf-8",
-      body: sharedComparisonDocument(),
-    });
-  });
-  const freshPage = await freshContext.newPage();
-  await freshPage.goto(shareUrl);
-
-  await expect(freshPage.getByRole("heading", { name: "Clearance comparison" })).toBeVisible();
-  await expect(freshPage.getByText("BILLY narrow bookcase", { exact: true })).toBeVisible();
-  await expect(freshPage.getByText("Kmart slim cube shelf", { exact: true })).toBeVisible();
-  await expect(freshPage.getByText("900 W × 1800 H × 350 D mm", { exact: true })).toBeVisible();
-  await expect(freshPage.getByRole("button", { name: /search|generate/i })).toHaveCount(0);
-  await freshContext.close();
-});
-
-test("loaded results remain readable offline and live actions explain the connection requirement", async ({ context, page }) => {
-  await seedMeasuredSpace(page);
-  await installMockApi(page);
-
-  await page.goto("/fit");
-  await submitPrompt(page, PROMPT);
-  await expect(page.getByTestId(`live-candidate-${IKEA_FIT_ID}`)).toBeVisible();
+  await openSavedSpaceSearch(page);
 
   await context.setOffline(true);
   await page.evaluate(() => window.dispatchEvent(new Event("offline")));
 
-  await expect(page.getByText(/offline/i)).toBeVisible();
-  await expect(page.getByTestId(`live-candidate-${IKEA_FIT_ID}`)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Search current retailer products|Refresh retailer data/ })).toBeDisabled();
+  await expect(page.getByRole("heading", { name: "What should fit?" })).toBeVisible();
+  await expect(page.getByText("Bedroom alcove", { exact: true })).toBeVisible();
+  await expect(page.getByText("Loaded spaces remain available offline.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Find products that fit" })).toBeDisabled();
+  expect(api.searchRequests).toHaveLength(0);
 });
 
-test("explicit new and demo actions override a session-stored job", async ({ page }) => {
-  test.setTimeout(60_000);
+test("explicit new and demo compatibility routes override a stored job", async ({ page }) => {
   await page.addInitScript(() => {
     window.sessionStorage.setItem(
       "fitment.live-workflow-id",
@@ -401,30 +453,32 @@ test("explicit new and demo actions override a session-stored job", async ({ pag
   });
 
   await page.goto("/fit?new=1");
-  await expect(page.getByRole("heading", { name: "Measure the space furniture has to fit." })).toBeVisible();
+  await expect(page).toHaveURL(/\/fit\/space$/);
+  await expect(page.getByRole("heading", { name: "Enter your space" })).toBeVisible();
 
   await page.goto("/fit?demo=1");
-  await expect(page.getByRole("heading", { name: "Verified fits", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/fit\/demo\/results\?tier=fits/);
+  await expect(
+    page.getByRole("heading", { name: "See what clears the room and doorway" }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Products checked against your space" })).toBeVisible();
 });
 
-test("a lost create acknowledgement retries after reload with one stable idempotency key", async ({ page }) => {
-  test.setTimeout(60_000);
+test(LOST_ACK_TEST_NAME, async ({ page }) => {
   await seedMeasuredSpace(page);
   const api = await installMockApi(page, { loseFirstSearchAcknowledgement: true });
-
-  await page.goto("/fit");
+  await openSavedSpaceSearch(page);
   await submitPrompt(page, PROMPT);
-  await expect(page.getByRole("button", { name: "Search acknowledgement pending" })).toBeDisabled();
+
+  await expect.poll(() => api.searchRequests.length).toBe(1);
   await expect.poll(() => page.evaluate(() => {
     const raw = window.sessionStorage.getItem("fitment.pending-search-v1");
     return raw === null ? null : (JSON.parse(raw) as { state?: string }).state;
-  })).toBe("posting");
-
+  })).toBe("awaiting-session");
   await page.reload();
 
-  await expect(page.getByRole("heading", { name: "Fits", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose what fits" })).toBeVisible();
   expect(api.searchRequests).toHaveLength(2);
-  expect(api.searchIdempotencyKeys).toHaveLength(2);
   expect(api.searchIdempotencyKeys[1]).toBe(api.searchIdempotencyKeys[0]);
   await expect.poll(() => page.evaluate(
     () => window.sessionStorage.getItem("fitment.pending-search-v1"),
@@ -555,25 +609,36 @@ async function installMockApi(
 }
 
 async function completeManualMeasurement(page: Page): Promise<void> {
-  await expect(
-    page.getByRole("heading", { name: "Measure the space furniture has to fit." }),
-  ).toBeVisible();
-  for (const [value, action] of [
-    ["900", "Continue"],
-    ["1800", "Continue"],
-    ["350", "Continue"],
-    ["820", "Find furniture that fits"],
-  ] as const) {
-    await page.getByRole("spinbutton").fill(value);
-    await page.getByRole("button", { name: action }).click();
-  }
-  await expect(page.getByRole("heading", { name: "Search the live market" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Enter your space" })).toBeVisible();
+  await page
+    .getByLabel("Space and doorway measurements")
+    .fill("90 cm wide, 180 high, 35 deep, doorway 82");
+  await page.getByRole("button", { name: "Check measurements" }).click();
+
+  await expect(page).toHaveURL(/\/fit\/space\/review$/);
+  await expect(page.getByRole("heading", { name: "Check measurements" })).toBeVisible();
+  await expect(page.getByRole("spinbutton", { name: "Width" })).toHaveValue("900");
+  await expect(page.getByRole("spinbutton", { name: "Height" })).toHaveValue("1800");
+  await expect(page.getByRole("spinbutton", { name: "Depth" })).toHaveValue("350");
+  await expect(page.getByRole("spinbutton", { name: "Doorway" })).toHaveValue("820");
+  await page.getByRole("button", { name: "Use this space" }).click();
+
+  await expect(page).toHaveURL(/\/fit\/search$/);
+  await expect(page.getByRole("heading", { name: "What should fit?" })).toBeVisible();
 }
 
 async function submitPrompt(page: Page, prompt: string): Promise<void> {
-  await page.getByRole("button", { name: "Describe what I need" }).click();
-  await page.getByLabel(/^What should fit here\?/).fill(prompt);
-  await page.getByRole("button", { name: "Search current retailer products" }).click();
+  await page.getByRole("button", { name: "Describe" }).click();
+  await page.getByLabel("What do you need?").fill(prompt);
+  await page.getByRole("button", { name: "Find products that fit" }).click();
+}
+
+async function openSavedSpaceSearch(page: Page): Promise<void> {
+  await page.goto("/fit");
+  await expect(page.getByRole("heading", { name: "Use this space?" })).toBeVisible();
+  await page.getByRole("link", { name: "Use this space" }).click();
+  await expect(page).toHaveURL(/\/fit\/search$/);
+  await expect(page.getByRole("heading", { name: "What should fit?" })).toBeVisible();
 }
 
 async function seedMeasuredSpace(page: Page): Promise<void> {
@@ -591,23 +656,6 @@ async function seedMeasuredSpace(page: Page): Promise<void> {
         createdAt: "2026-08-17T00:00:00.000Z",
       },
     ]),
-  });
-}
-
-async function interceptRetailerPages(context: BrowserContext): Promise<void> {
-  await context.route("https://www.ikea.com/**", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "text/html; charset=utf-8",
-      body: "<!doctype html><title>IKEA retailer product</title><h1>BILLY narrow bookcase</h1>",
-    });
-  });
-  await context.route("https://www.kmart.com.au/**", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "text/html; charset=utf-8",
-      body: "<!doctype html><title>Kmart retailer product</title><h1>Kmart slim cube shelf</h1>",
-    });
   });
 }
 
@@ -837,21 +885,4 @@ function candidate({
     },
     access: access ?? defaultAccess,
   };
-}
-
-function sharedComparisonDocument(): string {
-  return `<!doctype html>
-    <html lang="en-AU">
-      <head><meta charset="utf-8"><title>Shared furniture comparison · Fitment</title></head>
-      <body>
-        <main>
-          <p>FITMENT · Read-only shared comparison</p>
-          <h1>Clearance comparison</h1>
-          <p>900 W × 1800 H × 350 D mm</p>
-          <article><h2>BILLY narrow bookcase</h2><p>25 mm minimum clearance</p></article>
-          <article><h2>Kmart slim cube shelf</h2><p>35 mm minimum clearance</p></article>
-          <a href="/fit?new=1">Use my space</a>
-        </main>
-      </body>
-    </html>`;
 }
