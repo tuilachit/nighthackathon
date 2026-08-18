@@ -23,6 +23,7 @@ const RETAILER_START_PAGES: Readonly<Record<LiveRetailer, string>> = {
 export interface BrowserUseSession {
   readonly id: string;
   readonly status: "created" | "idle" | "running" | "stopped" | "timed_out" | "error";
+  readonly model?: string;
   readonly output?: unknown;
   readonly isTaskSuccessful?: boolean;
   readonly maxCostUsd?: number;
@@ -45,7 +46,7 @@ export async function createBrowserSearchSession(
     },
     body: JSON.stringify({
       task: buildSearchTask(intent, measurement, environment.maxResults),
-      model: "claude-sonnet-4.6",
+      model: environment.browserUseModel,
       keepAlive: false,
       maxCostUsd: environment.browserUseMaxCostUsd,
       proxyCountryCode: "au",
@@ -275,6 +276,7 @@ async function parseSessionResponse(response: Response, operation: string): Prom
   return {
     id: payload.id,
     status: payload.status,
+    ...(typeof payload.model === "string" ? { model: payload.model } : {}),
     ...(payload.output === undefined || payload.output === null ? {} : { output: payload.output }),
     ...(typeof payload.isTaskSuccessful === "boolean" ? { isTaskSuccessful: payload.isTaskSuccessful } : {}),
     ...(finiteNumber(payload.maxCostUsd) === undefined ? {} : { maxCostUsd: finiteNumber(payload.maxCostUsd) }),

@@ -462,6 +462,7 @@ describe("live-search service orchestration", () => {
       mocks.getBrowserSearchSession.mockResolvedValue({
         id: BROWSER_SESSION_ID,
         status: "stopped",
+        model: "bu-mini",
         isTaskSuccessful: false,
         maxCostUsd: 0.35,
         totalCostUsd: 0.35,
@@ -481,6 +482,9 @@ describe("live-search service orchestration", () => {
         errorMessage: "The retailer check reached its browsing limit before validated products were ready. Try a shorter, more specific search.",
         retryable: false,
       });
+      expect(vi.mocked(console.warn).mock.calls.flat().join(" ")).toContain(
+        '\"model\":\"bu-mini\"',
+      );
     });
 
     it("re-evaluates an exact cached observation against the current workflow measurement", async () => {

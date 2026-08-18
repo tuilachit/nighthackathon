@@ -7,6 +7,7 @@ vi.mock("@/lib/live-search/env", () => ({
   getLiveSearchServerEnvironment: () => ({
     browserUseApiKey: "browser-key",
     browserUseMaxCostUsd: 0.35,
+    browserUseModel: "bu-mini",
     maxResults: 6,
   }),
 }));
@@ -52,7 +53,7 @@ describe("createBrowserSearchSession", () => {
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(init.body)) as Record<string, unknown>;
     expect(body).toMatchObject({
-      model: "claude-sonnet-4.6",
+      model: "bu-mini",
       proxyCountryCode: "au",
       maxCostUsd: 0.35,
     });
@@ -103,6 +104,7 @@ describe("createBrowserSearchSession", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
       id: "session-cost",
       status: "stopped",
+      model: "bu-mini",
       isTaskSuccessful: false,
       maxCostUsd: "0.35",
       totalCostUsd: "0.35",
@@ -113,6 +115,7 @@ describe("createBrowserSearchSession", () => {
     await expect(getBrowserSearchSession("session-cost")).resolves.toMatchObject({
       id: "session-cost",
       status: "stopped",
+      model: "bu-mini",
       maxCostUsd: 0.35,
       totalCostUsd: 0.35,
       stepCount: 9,

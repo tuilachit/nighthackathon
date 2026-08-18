@@ -5,10 +5,19 @@ export interface PublicSupabaseEnvironment {
   readonly publishableKey: string;
 }
 
+export type BrowserUseModel =
+  | "bu-mini"
+  | "bu-max"
+  | "bu-ultra"
+  | "gemini-3-flash"
+  | "claude-sonnet-4.6"
+  | "claude-opus-4.6";
+
 export interface LiveSearchServerEnvironment extends PublicSupabaseEnvironment {
   readonly secretKey: string;
   readonly browserUseApiKey: string;
   readonly browserUseWebhookSecret: string;
+  readonly browserUseModel: BrowserUseModel;
   readonly meshyApiKey: string;
   readonly meshyWebhookSecret: string;
   readonly cronSecret: string;
@@ -30,6 +39,7 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
     secretKey: requiredEnvironment("SUPABASE_SECRET_KEY"),
     browserUseApiKey: requiredEnvironment("BROWSER_USE_API_KEY"),
     browserUseWebhookSecret: requiredSecret("BROWSER_USE_WEBHOOK_SECRET"),
+    browserUseModel: browserUseModel(),
     meshyApiKey: requiredEnvironment("MESHY_API_KEY"),
     meshyWebhookSecret: requiredSecret("MESHY_WEBHOOK_SECRET"),
     cronSecret: requiredSecret("CRON_SECRET"),
@@ -37,6 +47,21 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
     browserUseMaxCostUsd: boundedNumber("BROWSER_USE_MAX_COST_USD", 0.35, 0.05, 2),
     maxResults: Math.round(boundedNumber("LIVE_SEARCH_MAX_RESULTS", 6, 3, 20)),
   };
+}
+
+function browserUseModel(): BrowserUseModel {
+  const value = process.env.BROWSER_USE_MODEL?.trim() || "bu-mini";
+  if (
+    value === "bu-mini" ||
+    value === "bu-max" ||
+    value === "bu-ultra" ||
+    value === "gemini-3-flash" ||
+    value === "claude-sonnet-4.6" ||
+    value === "claude-opus-4.6"
+  ) {
+    return value;
+  }
+  throw new Error("BROWSER_USE_MODEL is not a supported Browser Use v3 model.");
 }
 
 export function isLiveSearchConfigured(): boolean {

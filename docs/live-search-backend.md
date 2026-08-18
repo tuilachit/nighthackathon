@@ -174,6 +174,7 @@ Never commit their values.
 | `SUPABASE_SECRET_KEY` | Server-only database and Storage worker key |
 | `BROWSER_USE_API_KEY` | Server-only Browser Use API key |
 | `BROWSER_USE_WEBHOOK_SECRET` | Browser Use HMAC secret, at least 32 characters |
+| `BROWSER_USE_MODEL` | Bounded discovery model; defaults to low-cost `bu-mini` |
 | `MESHY_API_KEY` | Server-only Meshy API key |
 | `MESHY_WEBHOOK_SECRET` | Opaque Meshy webhook URL token, at least 32 characters |
 | `CRON_SECRET` | Reconciler bearer secret, at least 32 characters |

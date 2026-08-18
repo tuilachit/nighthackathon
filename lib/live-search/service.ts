@@ -148,6 +148,7 @@ export async function reconcileBrowserUseTask(
       workflowId: context.workflowId,
       sessionId: externalTaskId,
       providerStatus: session.status,
+      model: session.model ?? null,
       isTaskSuccessful: session.isTaskSuccessful ?? null,
       maxCostUsd: session.maxCostUsd ?? null,
       totalCostUsd: session.totalCostUsd ?? null,

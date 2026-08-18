@@ -210,6 +210,7 @@ Relevant environment variables:
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Browser-visible deferred anti-abuse challenge; configure the matching secret in Supabase Auth, not Vercel |
 | `BROWSER_USE_API_KEY` | Bounded live retailer browsing |
 | `BROWSER_USE_WEBHOOK_SECRET` | Signed Browser Use notifications |
+| `BROWSER_USE_MODEL` | Live browsing model; `bu-mini` by default |
 | `MESHY_API_KEY` | Explicitly approved live model generation |
 | `MESHY_WEBHOOK_SECRET` | Opaque Meshy webhook capability |
 | `CRON_SECRET` / `ABUSE_HASH_SECRET` | Recovery and privacy-bounded abuse controls |
