@@ -15,8 +15,10 @@ import {
   createWorkflow,
   getWorkflowForOwner,
   listDueProviderTasks,
+  recordSynchronousSearchResults,
   resolveComparisonShare,
 } from "./repository";
+import type { VerifiedLiveCandidateRecord } from "./types";
 
 const WORKFLOW_ID = "11111111-1111-4111-8111-111111111111";
 const TASK_ID = "22222222-2222-4222-8222-222222222222";
@@ -192,6 +194,32 @@ describe("unified workflow repository contract", () => {
 describe("provider reconciliation repository contract", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+  });
+
+  it("records synchronous retailer results without an external provider id", async () => {
+    const candidates: readonly VerifiedLiveCandidateRecord[] = [];
+    mocks.rpc.mockResolvedValue({ data: 1, error: null });
+
+    await expect(recordSynchronousSearchResults(
+      WORKFLOW_ID,
+      TASK_ID,
+      candidates,
+      true,
+      ["Kmart coverage was unavailable."],
+      { provider: "firecrawl", attemptedPages: 4 },
+    )).resolves.toBe(1);
+
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "internal_record_synchronous_search_results",
+      {
+        p_workflow_id: WORKFLOW_ID,
+        p_provider_task_id: TASK_ID,
+        p_candidates: candidates,
+        p_is_partial: true,
+        p_coverage_notes: ["Kmart coverage was unavailable."],
+        p_provider_metadata: { provider: "firecrawl", attemptedPages: 4 },
+      },
+    );
   });
 
   it("parses a mixed atomic lease batch containing poll, retry, and terminal dispositions", async () => {

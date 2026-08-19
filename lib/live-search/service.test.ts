@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   claimSearchDispatch: vi.fn(),
   completeModelAsset: vi.fn(),
   createBrowserSearchSession: vi.fn(),
-  discoverProductPagesWithFirecrawl: vi.fn(),
+  searchProductsWithFirecrawl: vi.fn(),
   createMeshyImageTask: vi.fn(),
   createSupabaseAdminClient: vi.fn(),
   download: vi.fn(),
@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   recordDiscoveryCache: vi.fn(),
   recordMeshySubmission: vi.fn(),
   recordSearchResults: vi.fn(),
+  recordSynchronousSearchResults: vi.fn(),
   rescaleGlbToDimensions: vi.fn(),
   storageFrom: vi.fn(),
   upload: vi.fn(),
@@ -59,6 +60,7 @@ vi.mock("./repository", () => ({
   recordDiscoveryCache: mocks.recordDiscoveryCache,
   recordMeshySubmission: mocks.recordMeshySubmission,
   recordSearchResults: mocks.recordSearchResults,
+  recordSynchronousSearchResults: mocks.recordSynchronousSearchResults,
 }));
 
 vi.mock("./providers/browser-use", async (importOriginal) => {
@@ -80,7 +82,7 @@ vi.mock("./providers/meshy", async (importOriginal) => {
 });
 
 vi.mock("./providers/firecrawl", () => ({
-  discoverProductPagesWithFirecrawl: mocks.discoverProductPagesWithFirecrawl,
+  searchProductsWithFirecrawl: mocks.searchProductsWithFirecrawl,
 }));
 
 import { ProviderRequestError } from "./providers/browser-use";
@@ -238,18 +240,24 @@ describe("live-search service orchestration", () => {
     mocks.recordDiscoveryCache.mockResolvedValue(undefined);
     mocks.recordMeshySubmission.mockResolvedValue(undefined);
     mocks.recordSearchResults.mockResolvedValue(1);
+    mocks.recordSynchronousSearchResults.mockResolvedValue(1);
     mocks.completeModelAsset.mockResolvedValue("44444444-4444-4444-8444-444444444444");
     mocks.markWebhookProcessed.mockResolvedValue(undefined);
     mocks.findProviderTask.mockImplementation(async (provider: string) =>
       provider === "browser_use" ? browserContext() : modelContext()
     );
     mocks.getWorkflowCommand.mockResolvedValue(browserCommand());
-    mocks.discoverProductPagesWithFirecrawl.mockResolvedValue([{
-      retailer: { key: "ikea-au", label: "IKEA Australia", host: "ikea.com" },
-      url: "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/",
-      title: "BILLY bookcase",
-      description: "Narrow bookcase",
-    }]);
+    mocks.searchProductsWithFirecrawl.mockResolvedValue({
+      output: { products: [], partial: true, notes: ["No validated Firecrawl result returned."] },
+      discoveryHits: [{
+        retailer: { key: "ikea-au", label: "IKEA Australia", host: "ikea.com" },
+        url: "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/",
+        title: "BILLY bookcase",
+        description: "Narrow bookcase",
+      }],
+      attemptedPages: 1,
+      rejectedPages: 1,
+    });
     mocks.evaluateLiveProducts.mockReturnValue(EVALUATED_CANDIDATES);
     mocks.cacheRetailerImage.mockImplementation(async (url: string) => ({
       publicUrl: `https://test-project.supabase.co/storage/v1/object/public/product-images-public/${"d".repeat(64)}.jpg`,
@@ -764,6 +772,72 @@ describe("live-search service orchestration", () => {
       expect(mocks.failWorkflowStage).not.toHaveBeenCalled();
     });
 
+    it("completes from validated Firecrawl products without starting Browser Use", async () => {
+      const observation = rawObservation("ikea-au", {
+        observedAt: new Date().toISOString(),
+      });
+      mocks.claimSearchDispatch.mockResolvedValue({
+        providerTaskId: PROVIDER_TASK_ID,
+        shouldSubmit: true,
+      });
+      mocks.searchProductsWithFirecrawl.mockResolvedValue({
+        output: { products: [observation], partial: false, notes: [] },
+        discoveryHits: [{
+          retailer: observation.retailer,
+          url: observation.productUrl,
+          title: observation.name,
+          description: "Narrow bookcase",
+        }],
+        attemptedPages: 1,
+        rejectedPages: 0,
+      });
+
+      await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
+
+      expect(mocks.recordSynchronousSearchResults).toHaveBeenCalledWith(
+        WORKFLOW_ID,
+        PROVIDER_TASK_ID,
+        EVALUATED_CANDIDATES,
+        false,
+        [],
+        expect.objectContaining({
+          provider: "firecrawl",
+          attemptedPages: 1,
+          rejectedPages: 0,
+        }),
+      );
+      expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
+      expect(mocks.recordBrowserSubmission).not.toHaveBeenCalled();
+      expect(mocks.recordDiscoveryCache).toHaveBeenCalledOnce();
+    });
+
+    it("never starts a paid fallback after an ambiguous synchronous result write", async () => {
+      const observation = rawObservation("ikea-au", {
+        observedAt: new Date().toISOString(),
+      });
+      mocks.claimSearchDispatch.mockResolvedValue({
+        providerTaskId: PROVIDER_TASK_ID,
+        shouldSubmit: true,
+      });
+      mocks.searchProductsWithFirecrawl.mockResolvedValue({
+        output: { products: [observation], partial: false, notes: [] },
+        discoveryHits: [],
+        attemptedPages: 1,
+        rejectedPages: 0,
+      });
+      mocks.recordSynchronousSearchResults.mockRejectedValue(
+        new Error("database response lost after commit"),
+      );
+
+      await expect(dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH)).rejects.toThrow(
+        "database response lost after commit",
+      );
+
+      expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
+      expect(mocks.recordBrowserSubmission).not.toHaveBeenCalled();
+      expect(mocks.failWorkflowStage).not.toHaveBeenCalled();
+    });
+
     it("preserves an exact product-link intent when submitting Browser Use", async () => {
       const intent = {
         kind: "product-link" as const,
@@ -801,7 +875,7 @@ describe("live-search service orchestration", () => {
         providerTaskId: PROVIDER_TASK_ID,
         shouldSubmit: true,
       });
-      mocks.discoverProductPagesWithFirecrawl.mockRejectedValue(
+      mocks.searchProductsWithFirecrawl.mockRejectedValue(
         new Error("Firecrawl temporarily unavailable"),
       );
       mocks.createBrowserSearchSession.mockResolvedValue({

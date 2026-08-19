@@ -16,7 +16,8 @@ flowchart LR
   DB["Supabase Postgres\nSydney + RLS"]
   Cache["Exact discovery cache\n24-hour TTL"]
   Q["Supabase Queues\nPGMQ"]
-  Browser["Browser Use\nAU residential proxy"]
+  Firecrawl["Firecrawl\nbounded search + extraction"]
+  Browser["Browser Use fallback\nAU residential proxy"]
   Meshy["Meshy\nimage to 3D"]
   Scheduler["Supabase Cron + Vault\nevery-minute recovery"]
   Store["Supabase Storage\ncontent-addressed images + GLB"]
@@ -28,7 +29,9 @@ flowchart LR
   DB --> Cache
   Scheduler -->|"Bearer-authenticated HTTPS"| BFF
   Q -->|"reconciler"| BFF
-  BFF -->|"bounded structured task"| Browser
+  BFF -->|"bounded search + product pages"| Firecrawl
+  Firecrawl -->|"strict structured facts"| BFF
+  BFF -->|"zero validated results only"| Browser
   Browser -->|"signed webhook"| BFF
   BFF -->|"canonical task re-fetch"| Browser
   BFF -->|"source-qualified observations"| DB
@@ -50,8 +53,8 @@ does at most one network-expensive operation and alternates queue work with
 provider polling so neither path can starve.
 
 An exact cache key includes normalized intent, sorted retailer scope, and the
-extraction-schema version. A hit no older than 24 hours creates no Browser Use
-task; stored dimensions are re-evaluated against the current measurement.
+extraction-schema version. A hit no older than 24 hours creates no Firecrawl or
+Browser Use request; stored dimensions are re-evaluated against the current measurement.
 `force-refresh` deliberately bypasses that reuse path.
 
 ## Workflow
@@ -80,13 +83,15 @@ stateDiagram-v2
 2. `POST /api/v1/search-jobs` accepts a prompt or exact product-link intent,
    validates the measurement and cache policy, requires an idempotency key, and
    either completes from an exact recent observation or commits a PGMQ message.
-3. Browser Use receives one stateless task, an Australian proxy, a strict JSON
-   output schema, a hard result limit, and a hard USD cost ceiling. It may read
-   only IKEA Australia and Kmart Australia product pages for prompts. A link
-   task may visit only the submitted product page and a same-site canonical
-   redirect; returned facts must remain on its registrable domain.
-4. A signed Browser Use webhook is stored idempotently. The BFF re-fetches the
-   canonical provider task; webhook data never becomes product data directly.
+3. Firecrawl searches each requested Australian retailer, extracts a bounded
+   set of exact product pages, and sends every record through the same strict
+   validation and controlled-image gate. One valid retailer may complete as an
+   honestly partial comparison; invalid rows never poison valid rows.
+4. Browser Use is started only when Firecrawl yields zero validated products.
+   It receives the discovered URLs first, an Australian proxy, a strict JSON
+   schema, a hard result limit, and a hard USD cost ceiling. A signed webhook is
+   stored idempotently, and the BFF re-fetches the canonical provider task;
+   webhook data never becomes product data directly.
 5. Records missing an exact assembled width, height, or depth, a safe retailer
    URL, an explicit axis-labelled evidence excerpt, a valid ISO-4217 listed
    currency, or high-confidence extraction are rejected. The server
@@ -172,9 +177,10 @@ Never commit their values.
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Auth/Data API key |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Browser-visible Cloudflare Turnstile site key |
 | `SUPABASE_SECRET_KEY` | Server-only database and Storage worker key |
+| `FIRECRAWL_API_KEY` | Server-only primary retailer discovery and extraction |
 | `BROWSER_USE_API_KEY` | Server-only Browser Use API key |
 | `BROWSER_USE_WEBHOOK_SECRET` | Browser Use HMAC secret, at least 32 characters |
-| `BROWSER_USE_MODEL` | Bounded discovery model; defaults to low-cost `bu-mini` |
+| `BROWSER_USE_MODEL` | Rendered-page fallback model; defaults to `claude-sonnet-4.6` |
 | `MESHY_API_KEY` | Server-only Meshy API key |
 | `MESHY_WEBHOOK_SECRET` | Opaque Meshy webhook URL token, at least 32 characters |
 | `CRON_SECRET` | Reconciler bearer secret, at least 32 characters |

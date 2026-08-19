@@ -21,6 +21,7 @@ import {
   recordDiscoveryCache,
   recordMeshySubmission,
   recordSearchResults,
+  recordSynchronousSearchResults,
 } from "./repository";
 import {
   ProviderRequestError,
@@ -30,8 +31,8 @@ import {
   parseCompletedBrowserOutput,
 } from "./providers/browser-use";
 import {
-  discoverProductPagesWithFirecrawl,
-  type FirecrawlDiscoveryHit,
+  searchProductsWithFirecrawl,
+  type FirecrawlPrimarySearchResult,
 } from "./providers/firecrawl";
 import { hasSameRegistrableDomain } from "./url-security";
 import { createMeshyImageTask, getMeshyTask } from "./providers/meshy";
@@ -52,30 +53,90 @@ export async function dispatchSearchWorkflow(
   workflowId: string,
   requestHash: string,
 ): Promise<void> {
+  const [claim, command] = await Promise.all([
+    claimSearchDispatch(workflowId, requestHash),
+    getWorkflowCommand(workflowId),
+  ]);
+  if (!claim.shouldSubmit) {
+    return;
+  }
+
+  let firecrawl: FirecrawlPrimarySearchResult | undefined;
+  let firecrawlOutput: BrowserSearchOutput | undefined;
+  let firecrawlCandidates: readonly VerifiedLiveCandidateRecord[] | undefined;
+  try {
+    firecrawl = await searchProductsWithFirecrawl(command.intent);
+    if (firecrawl.output.products.length > 0) {
+      firecrawlOutput = await cacheValidatedImages(firecrawl.output);
+      assertOutputMatchesIntent(firecrawlOutput, command.intent);
+      firecrawlCandidates = evaluateLiveProducts(firecrawlOutput, command.measurement);
+    }
+  } catch (error) {
+    console.warn(JSON.stringify({
+      level: "warn",
+      message: "firecrawl_primary_fallback",
+      workflowId,
+      error: errorMessage(error),
+    }));
+  }
+
+  if (
+    firecrawl !== undefined &&
+    firecrawlOutput !== undefined &&
+    firecrawlCandidates !== undefined
+  ) {
+    // Do not wrap this durable write in the Browser Use fallback catch. If the
+    // response is lost after commit, starting a paid fallback would duplicate
+    // work; the owner-scoped workflow poll will observe the committed result.
+    await recordSynchronousSearchResults(
+      workflowId,
+      claim.providerTaskId,
+      firecrawlCandidates,
+      firecrawlOutput.partial,
+      firecrawlOutput.partial ? firecrawlOutput.notes : [],
+      {
+        provider: "firecrawl",
+        attemptedPages: firecrawl.attemptedPages,
+        rejectedPages: firecrawl.rejectedPages,
+        notes: firecrawlOutput.notes,
+      },
+    );
+    try {
+      await recordDiscoveryCache(
+        command.cacheKey,
+        EXTRACTION_SCHEMA_VERSION,
+        createDiscoveryCachePayload(firecrawlOutput),
+      );
+    } catch (error) {
+      console.error("Could not update the discovery cache", error);
+    }
+    console.info(JSON.stringify({
+      level: "info",
+      message: "firecrawl_primary_completed",
+      workflowId,
+      attemptedPages: firecrawl.attemptedPages,
+      validatedProducts: firecrawlOutput.products.length,
+      partial: firecrawlOutput.partial,
+    }));
+    return;
+  }
+
+  if (firecrawl !== undefined) {
+    console.warn(JSON.stringify({
+      level: "warn",
+      message: "firecrawl_primary_fallback",
+      workflowId,
+      attemptedPages: firecrawl.attemptedPages,
+      rejectedPages: firecrawl.rejectedPages,
+    }));
+  }
+
   let externalTaskId: string | undefined;
   try {
-    const [claim, command] = await Promise.all([
-      claimSearchDispatch(workflowId, requestHash),
-      getWorkflowCommand(workflowId),
-    ]);
-    if (!claim.shouldSubmit) {
-      return;
-    }
-    let discoveryHits: readonly FirecrawlDiscoveryHit[] = [];
-    try {
-      discoveryHits = await discoverProductPagesWithFirecrawl(command.intent);
-    } catch (error) {
-      console.warn(JSON.stringify({
-        level: "warn",
-        message: "firecrawl_discovery_fallback",
-        workflowId,
-        error: errorMessage(error),
-      }));
-    }
     const session = await createBrowserSearchSession(
       command.intent,
       command.measurement,
-      discoveryHits,
+      firecrawl?.discoveryHits ?? [],
     );
     externalTaskId = session.id;
     await recordBrowserSubmission(workflowId, claim.providerTaskId, session.id, {

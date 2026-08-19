@@ -3,14 +3,19 @@ import "server-only";
 import { getLiveSearchServerEnvironment } from "@/lib/live-search/env";
 import {
   LIVE_RETAILER_IDENTITIES,
+  MAX_COVERAGE_NOTES,
+  type BrowserSearchOutput,
   type LiveRetailer,
+  type LiveProductObservation,
   type LiveSearchIntent,
   type RetailerIdentity,
 } from "@/lib/live-search/types";
+import { validateBrowserSearchOutput } from "@/lib/live-search/validation";
 import {
   canonicalizePublicProductUrl,
   hasSameRegistrableDomain,
   parsePublicHttpsUrl,
+  registrableDomain,
 } from "@/lib/live-search/url-security";
 
 const SEARCH_ENDPOINT = "https://api.firecrawl.dev/v2/search";
@@ -49,6 +54,92 @@ export interface FirecrawlProductExtraction {
   };
   readonly dimensionsEvidence?: string;
   readonly markdown: string;
+}
+
+export interface FirecrawlPrimarySearchResult {
+  readonly output: BrowserSearchOutput;
+  readonly discoveryHits: readonly FirecrawlDiscoveryHit[];
+  readonly attemptedPages: number;
+  readonly rejectedPages: number;
+}
+
+/**
+ * Runs the bounded Firecrawl-first path and admits only observations that pass
+ * the same strict validation gate as the Browser Use fallback.
+ */
+export async function searchProductsWithFirecrawl(
+  intent: LiveSearchIntent,
+  maxResults = getLiveSearchServerEnvironment().maxResults,
+  fetchImplementation: FetchImplementation = fetch,
+): Promise<FirecrawlPrimarySearchResult> {
+  const discoveryHits = await discoverProductPagesWithFirecrawl(
+    intent,
+    maxResults,
+    fetchImplementation,
+  );
+  const settled = await Promise.allSettled(
+    discoveryHits.map((hit) => extractProductWithFirecrawl(hit.url, fetchImplementation)),
+  );
+  const products: LiveProductObservation[] = [];
+  const notes: string[] = [];
+
+  for (const [index, result] of settled.entries()) {
+    const hit = discoveryHits[index];
+    if (hit === undefined) {
+      continue;
+    }
+    if (result.status === "rejected") {
+      notes.push(`Could not validate ${shortHost(hit.url)} from the retailer page.`);
+      continue;
+    }
+    const validation = validateBrowserSearchOutput({
+      products: [toUntrustedObservation(result.value, hit, intent)],
+      partial: false,
+      notes: [],
+    });
+    const product = validation.value?.products[0];
+    if (!validation.ok || product === undefined) {
+      notes.push(`Rejected ${shortHost(hit.url)} because required source facts were incomplete.`);
+      continue;
+    }
+    products.push(product);
+  }
+
+  if (intent.kind === "prompt") {
+    for (const retailer of intent.retailers) {
+      if (!products.some((product) => product.retailer.key === retailer)) {
+        notes.push(`No validated Firecrawl result returned for ${retailer}.`);
+      }
+    }
+  }
+  if (discoveryHits.length === 0) {
+    notes.push("Firecrawl found no candidate product pages.");
+  }
+
+  const boundedNotes = [...new Set(notes)].slice(0, MAX_COVERAGE_NOTES);
+  const combined = validateBrowserSearchOutput({
+    products,
+    partial: boundedNotes.length > 0,
+    notes: boundedNotes,
+  });
+  if (!combined.ok || combined.value === undefined) {
+    return {
+      output: {
+        products: [],
+        partial: true,
+        notes: ["Firecrawl results did not pass the combined validation gate."],
+      },
+      discoveryHits,
+      attemptedPages: discoveryHits.length,
+      rejectedPages: discoveryHits.length,
+    };
+  }
+  return {
+    output: combined.value,
+    discoveryHits,
+    attemptedPages: discoveryHits.length,
+    rejectedPages: discoveryHits.length - combined.value.products.length,
+  };
 }
 
 /** Discovers bounded product-page candidates without opening an interactive browser. */
@@ -233,6 +324,57 @@ function productExtractionSchema(): Readonly<Record<string, unknown>> {
     required: ["canonicalUrl", "name"],
     additionalProperties: false,
   };
+}
+
+function toUntrustedObservation(
+  extraction: FirecrawlProductExtraction,
+  hit: FirecrawlDiscoveryHit,
+  intent: LiveSearchIntent,
+): Readonly<Record<string, unknown>> {
+  const retailer = hit.retailer ?? retailerIdentityForExactLink(extraction.url, intent);
+  return {
+    retailer,
+    retailerProductId: extraction.retailerProductId,
+    name: extraction.name,
+    category: extraction.category,
+    productUrl: extraction.url,
+    imageUrl: extraction.imageUrl,
+    priceMinor: extraction.priceMinor,
+    currency: extraction.currency,
+    availability: extraction.availability ?? "unknown",
+    assembledDimensions: extraction.dimensions,
+    packages: [],
+    dimensionsSource: "retailer-page",
+    dimensionsEvidence: extraction.dimensionsEvidence,
+    observedAt: new Date().toISOString(),
+    confidence: "high",
+  };
+}
+
+function retailerIdentityForExactLink(
+  productUrl: string,
+  intent: LiveSearchIntent,
+): RetailerIdentity {
+  if (intent.kind !== "product-link") {
+    throw new FirecrawlResponseError("A discovered prompt result was missing its retailer identity.");
+  }
+  if (!hasSameRegistrableDomain(intent.url, productUrl)) {
+    throw new FirecrawlResponseError("Firecrawl exact-link extraction left the submitted domain.");
+  }
+  const host = registrableDomain(parsePublicHttpsUrl(productUrl).hostname);
+  return {
+    key: host.replace(/\./g, "-"),
+    label: host,
+    host,
+  };
+}
+
+function shortHost(value: string): string {
+  try {
+    return parsePublicHttpsUrl(value).hostname;
+  } catch {
+    return "a candidate page";
+  }
 }
 
 async function readFirecrawlResponse(

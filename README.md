@@ -20,7 +20,8 @@ flowchart LR
   Intent["Prompt or exact product URL"]
   Gate["Deferred Turnstile + guest session"]
   Cache{"Exact observation<br/>≤24 hours old?"}
-  Browse["Bounded Browser Use session<br/>AU region"]
+  Firecrawl["Firecrawl search +<br/>structured extraction"]
+  Browse["Browser Use fallback<br/>AU region"]
   Validate["Source, dimensions, URL,<br/>currency, image validation"]
   Image["Pinned-DNS image cache"]
   Fit["Pure destination + package-aware<br/>access predicates"]
@@ -35,7 +36,8 @@ flowchart LR
   Measure --> Gate
   Intent --> Gate --> Cache
   Cache -->|hit| Fit
-  Cache -->|miss / refresh| Browse --> Validate --> Image --> Fit
+  Cache -->|miss / refresh| Firecrawl --> Validate --> Image --> Fit
+  Firecrawl -->|zero validated products| Browse --> Validate
   Fit --> Compare --> Review --> Reuse
   Reuse -->|hit| View
   Reuse -->|miss + approved budget| Meshy --> Scale --> View
@@ -48,6 +50,7 @@ flowchart LR
     Snapshots["Hashed share tokens + product events"]
   end
 
+  Firecrawl -.-> Queue
   Browse -.-> Queue
   Cache -.-> Observations
   Image -.-> Assets
