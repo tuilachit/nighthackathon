@@ -18,8 +18,8 @@ vi.mock("next/server", async (importOriginal) => {
 });
 
 vi.mock("@/lib/live-search/env", () => ({
-  isLiveSearchConfigured: () => true,
-  getLiveSearchServerEnvironment: () => ({
+  isBrowserUseWebhookConfigured: () => true,
+  getBrowserUseWebhookEnvironment: () => ({
     browserUseWebhookSecret: "browser-use-webhook-secret-at-least-32-characters",
   }),
 }));

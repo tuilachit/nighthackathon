@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { getLiveSearchServerEnvironment, isLiveSearchConfigured } from "./env";
+import {
+  getBrowserUseWebhookEnvironment,
+  getLiveSearchServerEnvironment,
+  isBrowserUseWebhookConfigured,
+  isLiveSearchConfigured,
+} from "./env";
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
@@ -40,6 +45,15 @@ describe("getLiveSearchServerEnvironment", () => {
 
     expect(isLiveSearchConfigured()).toBe(true);
     expect(getLiveSearchServerEnvironment().meshyApiKey).toBeUndefined();
+  });
+
+  it("authenticates Browser Use test webhooks independently", () => {
+    vi.stubEnv("ABUSE_HASH_SECRET", "");
+    vi.stubEnv("CRON_SECRET", "");
+    vi.stubEnv("FIRECRAWL_API_KEY", "");
+
+    expect(isBrowserUseWebhookConfigured()).toBe(true);
+    expect(getBrowserUseWebhookEnvironment().browserUseWebhookSecret).toBe("b".repeat(32));
   });
 
   it("allows the rendered-page fallback enough budget to complete", () => {

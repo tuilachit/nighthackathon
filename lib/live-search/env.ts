@@ -5,6 +5,10 @@ export interface PublicSupabaseEnvironment {
   readonly publishableKey: string;
 }
 
+export interface BrowserUseWebhookEnvironment {
+  readonly browserUseWebhookSecret: string;
+}
+
 export type BrowserUseModel =
   | "bu-mini"
   | "bu-max"
@@ -32,6 +36,13 @@ export function getPublicSupabaseEnvironment(): PublicSupabaseEnvironment {
   return {
     url: requiredUrl("NEXT_PUBLIC_SUPABASE_URL"),
     publishableKey: requiredEnvironment("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+  };
+}
+
+/** Configuration needed to authenticate Browser Use callbacks, independent of other features. */
+export function getBrowserUseWebhookEnvironment(): BrowserUseWebhookEnvironment {
+  return {
+    browserUseWebhookSecret: requiredSecret("BROWSER_USE_WEBHOOK_SECRET"),
   };
 }
 
@@ -81,6 +92,10 @@ export function isLiveSearchConfigured(): boolean {
     "CRON_SECRET",
     "ABUSE_HASH_SECRET",
   ].every((name) => (process.env[name]?.trim().length ?? 0) > 0);
+}
+
+export function isBrowserUseWebhookConfigured(): boolean {
+  return (process.env.BROWSER_USE_WEBHOOK_SECRET?.trim().length ?? 0) > 0;
 }
 
 /** Meshy is deliberately optional for retailer search and required only after approval. */
