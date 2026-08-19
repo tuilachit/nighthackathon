@@ -44,6 +44,8 @@ export interface LiveSearchServerEnvironment extends PublicSupabaseEnvironment {
   readonly extractionPageTimeoutMs: number;
   /** Wall-clock ceiling for discovery plus extraction, inside the route's maxDuration. */
   readonly discoveryBudgetMs: number;
+  /** Minimum relevant catalog matches before a search is served from the catalog instead of scraped. */
+  readonly catalogServingFloor: number;
 }
 
 export function getPublicSupabaseEnvironment(): PublicSupabaseEnvironment {
@@ -93,6 +95,11 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
     // provider queueing.
     extractionPageTimeoutMs: Math.round(boundedNumber("LIVE_SEARCH_PAGE_TIMEOUT_MS", 15_000, 3_000, 25_000)),
     discoveryBudgetMs: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_BUDGET_MS", 40_000, 5_000, 50_000)),
+    // Serve from the prepared catalog when it has at least this many relevant,
+    // in-budget matches; below it, fall through to a live scrape. Kept low enough
+    // to reliably answer common queries yet above one, so a search never stops at
+    // a single result when the catalog can offer a useful spread.
+    catalogServingFloor: Math.round(boundedNumber("LIVE_SEARCH_CATALOG_FLOOR", 3, 1, 30)),
   };
 }
 

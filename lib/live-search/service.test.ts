@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   completeModelAsset: vi.fn(),
   createBrowserSearchSession: vi.fn(),
   searchProductsWithFirecrawl: vi.fn(),
+  searchCatalog: vi.fn(),
   createMeshyImageTask: vi.fn(),
   createSupabaseAdminClient: vi.fn(),
   download: vi.fn(),
@@ -84,6 +85,20 @@ vi.mock("./providers/meshy", async (importOriginal) => {
 vi.mock("./providers/firecrawl", () => ({
   searchProductsWithFirecrawl: mocks.searchProductsWithFirecrawl,
 }));
+
+vi.mock("./catalog/store", () => ({
+  searchCatalog: mocks.searchCatalog,
+}));
+
+vi.mock("./env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./env")>();
+  return {
+    ...actual,
+    // Only the catalog seam reads this; keep the real public-env reader so the
+    // image-cache host checks in other tests still resolve.
+    getLiveSearchServerEnvironment: () => ({ catalogServingFloor: 3, maxResults: 12 }),
+  };
+});
 
 import { ProviderRequestError } from "./providers/browser-use";
 import {
@@ -241,6 +256,7 @@ describe("live-search service orchestration", () => {
     mocks.recordMeshySubmission.mockResolvedValue(undefined);
     mocks.recordSearchResults.mockResolvedValue(1);
     mocks.recordSynchronousSearchResults.mockResolvedValue(1);
+    mocks.searchCatalog.mockResolvedValue({ output: { products: [], partial: false, notes: [] }, matchCount: 0 });
     mocks.completeModelAsset.mockResolvedValue("44444444-4444-4444-8444-444444444444");
     mocks.markWebhookProcessed.mockResolvedValue(undefined);
     mocks.findProviderTask.mockImplementation(async (provider: string) =>
@@ -770,6 +786,57 @@ describe("live-search service orchestration", () => {
       expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
       expect(mocks.recordBrowserSubmission).not.toHaveBeenCalled();
       expect(mocks.failWorkflowStage).not.toHaveBeenCalled();
+    });
+
+    it("serves from the catalog without scraping when it meets the floor", async () => {
+      const observation = rawObservation("ikea-au", { observedAt: new Date().toISOString() });
+      mocks.claimSearchDispatch.mockResolvedValue({ providerTaskId: PROVIDER_TASK_ID, shouldSubmit: true });
+      mocks.searchCatalog.mockResolvedValue({
+        output: { products: [observation, rawObservation("kmart-au", { observedAt: new Date().toISOString() })], partial: false, notes: [] },
+        matchCount: 5,
+      });
+
+      await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
+
+      expect(mocks.recordSynchronousSearchResults).toHaveBeenCalledWith(
+        WORKFLOW_ID,
+        PROVIDER_TASK_ID,
+        EVALUATED_CANDIDATES,
+        false,
+        [],
+        expect.objectContaining({ provider: "catalog", matchCount: 5 }),
+      );
+      // The catalog covered the query, so no paid provider ran.
+      expect(mocks.searchProductsWithFirecrawl).not.toHaveBeenCalled();
+      expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
+    });
+
+    it("falls through to live search when the catalog is below the floor", async () => {
+      const observation = rawObservation("ikea-au", { observedAt: new Date().toISOString() });
+      mocks.claimSearchDispatch.mockResolvedValue({ providerTaskId: PROVIDER_TASK_ID, shouldSubmit: true });
+      mocks.searchCatalog.mockResolvedValue({
+        output: { products: [observation], partial: true, notes: [] },
+        matchCount: 1,
+      });
+      mocks.searchProductsWithFirecrawl.mockResolvedValue({
+        output: { products: [observation], partial: false, notes: [] },
+        discoveryHits: [{ retailer: observation.retailer, url: observation.productUrl, title: observation.name, description: "Narrow bookcase" }],
+        attemptedPages: 1,
+        rejectedPages: 0,
+      });
+
+      await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
+
+      // One catalog match is below the serving floor, so the live path runs.
+      expect(mocks.searchProductsWithFirecrawl).toHaveBeenCalledOnce();
+      expect(mocks.recordSynchronousSearchResults).toHaveBeenCalledWith(
+        WORKFLOW_ID,
+        PROVIDER_TASK_ID,
+        EVALUATED_CANDIDATES,
+        false,
+        [],
+        expect.objectContaining({ provider: "firecrawl" }),
+      );
     });
 
     it("completes from validated Firecrawl products without starting Browser Use", async () => {

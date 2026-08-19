@@ -2,7 +2,8 @@ import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
 import { EXTRACTION_SCHEMA_VERSION } from "./discovery-cache";
-import { getPublicSupabaseEnvironment } from "./env";
+import { getLiveSearchServerEnvironment, getPublicSupabaseEnvironment } from "./env";
+import { searchCatalog } from "./catalog/store";
 import { evaluateLiveProducts } from "./evaluate";
 import { publicWorkflowErrorMessage } from "./public-errors";
 import { cacheRetailerImage } from "./image-cache";
@@ -58,6 +59,14 @@ export async function dispatchSearchWorkflow(
     getWorkflowCommand(workflowId),
   ]);
   if (!claim.shouldSubmit) {
+    return;
+  }
+
+  // Catalog-first: answer from the prepared, source-validated snapshot when it
+  // covers the query, so a common search returns a useful spread instantly with
+  // no runtime scrape. This is the deterministic path AGENTS.md calls for; the
+  // live scrape below remains the fallback when the catalog is thin.
+  if (await tryCompleteFromCatalog(workflowId, claim.providerTaskId, command)) {
     return;
   }
 
@@ -173,6 +182,76 @@ export async function dispatchSearchWorkflow(
     await recordDispatchFailure("browser_use", workflowId, externalTaskId, error);
     throw error;
   }
+}
+
+/**
+ * Serves the workflow from the prepared catalog when it covers the query, using
+ * the same downstream as the live path (image caching, intent-match assertion,
+ * fit evaluation, durable record) so catalog results carry identical
+ * classification and security. Returns true when it committed a result.
+ */
+async function tryCompleteFromCatalog(
+  workflowId: string,
+  providerTaskId: string,
+  command: Awaited<ReturnType<typeof getWorkflowCommand>>,
+): Promise<boolean> {
+  let result: Awaited<ReturnType<typeof searchCatalog>>;
+  let servingFloor: number;
+  try {
+    const environment = getLiveSearchServerEnvironment();
+    servingFloor = environment.catalogServingFloor;
+    result = await searchCatalog(command.intent, environment.maxResults);
+  } catch (error) {
+    // A catalog read failure or missing configuration must never break the
+    // search; fall through to the live scrape path instead.
+    console.warn(JSON.stringify({
+      level: "warn",
+      message: "catalog_read_failed",
+      workflowId,
+      error: errorMessage(error),
+    }));
+    return false;
+  }
+  if (result.matchCount < servingFloor) {
+    return false;
+  }
+
+  const output = await cacheValidatedImages(result.output);
+  assertOutputMatchesIntent(output, command.intent);
+  const candidates = evaluateLiveProducts(output, command.measurement);
+  await recordSynchronousSearchResults(
+    workflowId,
+    providerTaskId,
+    candidates,
+    output.partial,
+    output.partial ? output.notes : [],
+    {
+      provider: "catalog",
+      source: "catalog",
+      validatedProducts: output.products.length,
+      matchCount: result.matchCount,
+      productsPerRetailer: countObservationsPerRetailer(output.products),
+    },
+  );
+  console.info(JSON.stringify({
+    level: "info",
+    message: "catalog_served",
+    workflowId,
+    validatedProducts: output.products.length,
+    matchCount: result.matchCount,
+    partial: output.partial,
+  }));
+  return true;
+}
+
+function countObservationsPerRetailer(
+  products: readonly LiveProductObservation[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const product of products) {
+    counts[product.retailer.key] = (counts[product.retailer.key] ?? 0) + 1;
+  }
+  return counts;
 }
 
 /** Processes a signed Browser Use notification after canonical provider re-fetch. */

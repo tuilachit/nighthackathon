@@ -59,8 +59,21 @@ export function validateCreateLiveSearchRequest(
 }
 
 /** Validates Browser Use structured output before any product reaches fit evaluation. */
+export interface ValidateObservationOptions {
+  /**
+   * How old an observation's observedAt may be. Defaults to 24h for the live
+   * path, where a result must describe a current scrape. Catalog serving passes
+   * a longer window because a stored snapshot's dimensions are durable; its
+   * price and availability staleness are surfaced to the user separately.
+   */
+  readonly maxObservationAgeMs?: number;
+}
+
+const DEFAULT_MAX_OBSERVATION_AGE_MS = 24 * 60 * 60_000;
+
 export function validateBrowserSearchOutput(
   input: unknown,
+  options: ValidateObservationOptions = {},
 ): ValidationResult<BrowserSearchOutput> {
   const parsedInput = typeof input === "string" ? parseJson(input) : input;
   if (!isRecord(parsedInput)) {
@@ -79,7 +92,7 @@ export function validateBrowserSearchOutput(
   const seenProducts = new Set<string>();
   for (const [index, entry] of parsedInput.products.entries()) {
     const entryErrors: string[] = [];
-    const product = parseObservation(entry, `products[${index}]`, entryErrors);
+    const product = parseObservation(entry, `products[${index}]`, entryErrors, options);
     if (product === undefined || entryErrors.length > 0) {
       rejected.push(...entryErrors);
       continue;
@@ -275,6 +288,7 @@ function parseObservation(
   input: unknown,
   path: string,
   errors: string[],
+  options: ValidateObservationOptions = {},
 ): LiveProductObservation | undefined {
   if (!isRecord(input)) {
     errors.push(`${path} must be an object.`);
@@ -299,7 +313,7 @@ function parseObservation(
     errors,
   );
   const dimensionsEvidence = readTrimmedString(input.dimensionsEvidence, `${path}.dimensionsEvidence`, errors, MAX_EVIDENCE_LENGTH);
-  const observedAt = readIsoDate(input.observedAt, `${path}.observedAt`, errors);
+  const observedAt = readIsoDate(input.observedAt, `${path}.observedAt`, errors, options);
   const availability =
     input.availability === "in_stock" ||
     input.availability === "out_of_stock" ||
@@ -665,14 +679,20 @@ function readRetailerHost(
   return normalized;
 }
 
-function readIsoDate(input: unknown, path: string, errors: string[]): string | undefined {
+function readIsoDate(
+  input: unknown,
+  path: string,
+  errors: string[],
+  options: ValidateObservationOptions = {},
+): string | undefined {
   if (typeof input !== "string" || Number.isNaN(Date.parse(input))) {
     errors.push(`${path} must be an ISO timestamp.`);
     return undefined;
   }
   const observedAt = new Date(input);
   const now = Date.now();
-  if (observedAt.getTime() > now + 5 * 60_000 || observedAt.getTime() < now - 24 * 60 * 60_000) {
+  const maxAge = options.maxObservationAgeMs ?? DEFAULT_MAX_OBSERVATION_AGE_MS;
+  if (observedAt.getTime() > now + 5 * 60_000 || observedAt.getTime() < now - maxAge) {
     errors.push(`${path} must describe the current search observation.`);
     return undefined;
   }
