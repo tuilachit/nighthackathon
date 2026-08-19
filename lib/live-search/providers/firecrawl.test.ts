@@ -321,4 +321,45 @@ describe("searchProductsWithFirecrawl", () => {
     expect(result.output.notes.join(" ")).toContain("kmart-au");
     expect(result.rejectedPages).toBe(1);
   });
+
+  it("keeps one retailer's results when the other retailer times out", async () => {
+    const fetchImplementation = vi.fn(async (_input: string | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const domain = (body.includeDomains as string[])[0];
+      if (domain === "kmart.com.au") {
+        throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+      }
+      const productUrl = "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/";
+      return Response.json({
+        success: true,
+        data: { web: [{
+          url: productUrl,
+          title: "BILLY bookcase",
+          json: {
+            canonicalUrl: productUrl,
+            name: "BILLY bookcase",
+            retailerProductId: "ikea-001",
+            category: "bookcase",
+            imageUrl: "https://www.ikea.com/images/billy.jpg",
+            priceMinor: 14_900,
+            currency: "AUD",
+            availability: "in_stock",
+            assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
+            dimensionsEvidence: "Width 70 cm; Height 160 cm; Depth 28 cm",
+          },
+        }] },
+      });
+    });
+
+    const result = await searchProductsWithFirecrawl({
+      kind: "prompt",
+      text: "narrow bookcase",
+      retailers: ["ikea-au", "kmart-au"],
+    }, 6, fetchImplementation);
+
+    expect(result.output.products).toHaveLength(1);
+    expect(result.output.products[0]?.retailer.key).toBe("ikea-au");
+    expect(result.output.partial).toBe(true);
+    expect(result.output.notes.join(" ")).toContain("kmart-au");
+  });
 });

@@ -166,7 +166,7 @@ export async function discoverProductPagesWithFirecrawl(
   }
 
   const perRetailer = Math.max(1, Math.ceil(maxResults / intent.retailers.length));
-  const results = await Promise.all(
+  const results = await Promise.allSettled(
     intent.retailers.map((retailer) => searchRetailer(
       retailer,
       intent.text,
@@ -175,8 +175,13 @@ export async function discoverProductPagesWithFirecrawl(
     )),
   );
   const deduplicated = new Map<string, FirecrawlDiscoveryHit>();
-  for (const result of results.flat()) {
-    deduplicated.set(result.url, result);
+  for (const result of results) {
+    if (result.status !== "fulfilled") {
+      continue;
+    }
+    for (const hit of result.value) {
+      deduplicated.set(hit.url, hit);
+    }
   }
   return [...deduplicated.values()].slice(0, maxResults);
 }

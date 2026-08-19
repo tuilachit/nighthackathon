@@ -33,6 +33,10 @@ describe("getLiveSearchServerEnvironment", () => {
     expect(getLiveSearchServerEnvironment().firecrawlApiKey).toBe("fc-test-key");
   });
 
+  it("allows the rendered-page fallback enough budget to complete", () => {
+    expect(getLiveSearchServerEnvironment().browserUseMaxCostUsd).toBe(1);
+  });
+
   it("allows an explicit supported model override", () => {
     vi.stubEnv("BROWSER_USE_MODEL", "claude-sonnet-4.6");
     expect(getLiveSearchServerEnvironment().browserUseModel).toBe(
