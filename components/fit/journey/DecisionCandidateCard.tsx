@@ -48,11 +48,11 @@ export function DecisionCandidateCard({
             </span>
           </div>
 
-          <h3 className="mt-2 text-[15px] font-bold leading-[1.18] tracking-[-0.015em] text-[#17221f]">
+          <h3 className="mt-2 break-words text-[15px] font-bold leading-[1.18] tracking-[-0.015em] text-[#17221f]">
             {candidate.name}
           </h3>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <p className="fit-data text-xl font-bold leading-none text-[#17221f]">
+            <p className="fit-data whitespace-nowrap text-xl font-bold leading-none text-[#17221f]">
               {formatListedPrice(candidate)}
             </p>
             <span className="fit-data text-[8px] font-bold uppercase tracking-[0.08em] text-[#17221f]/65">
