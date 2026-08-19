@@ -56,16 +56,30 @@ async function fetchText(url: string): Promise<string> {
 async function enumerateCandidates(category: CatalogCategory, perRetailer: number): Promise<readonly CatalogUrlCandidate[]> {
   const selected: CatalogUrlCandidate[] = [];
   for (const source of SITEMAP_INDEXES) {
-    const kept: CatalogUrlCandidate[] = [];
     const indexXml = await fetchText(source.index);
     const sitemaps = parseSitemapUrls(indexXml).filter((u) => source.productSitemap.test(u));
+    // Gather every candidate for this category across all of the retailer's
+    // sitemaps, then sample evenly. Taking the first N in file order lets a
+    // single product family (e.g. IKEA SMASTAD) dominate the pool; an even
+    // stride spreads selection across series so slim, cheap bookcases appear
+    // alongside the large ones.
+    const all: CatalogUrlCandidate[] = [];
     for (const sitemap of sitemaps) {
-      if (kept.length >= perRetailer) break;
       const candidates = selectCatalogCandidates(parseSitemapUrls(await fetchText(sitemap)))
         .filter((c) => c.retailer === source.retailer && c.categoryHint === category);
-      kept.push(...candidates);
+      all.push(...candidates);
     }
-    selected.push(...kept.slice(0, perRetailer));
+    if (all.length <= perRetailer) {
+      selected.push(...all);
+      continue;
+    }
+    const stride = all.length / perRetailer;
+    for (let i = 0; i < perRetailer; i += 1) {
+      const candidate = all[Math.floor(i * stride)];
+      if (candidate !== undefined) {
+        selected.push(candidate);
+      }
+    }
   }
   return selected;
 }
