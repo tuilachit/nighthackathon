@@ -36,9 +36,11 @@ export interface LiveSearchServerEnvironment extends PublicSupabaseEnvironment {
   readonly completenessFloor: number;
   /** Validated products wanted from each requested retailer. */
   readonly minPerRetailer: number;
-  /** Candidate pages extracted concurrently; bounds provider burst and latency. */
-  readonly extractionBatchSize: number;
-  /** Wall-clock ceiling for discovery plus extraction, under the 30s function limit. */
+  /** Candidate pages kept in flight at once; bounds provider burst. */
+  readonly extractionConcurrency: number;
+  /** Per-page scrape ceiling. Slow retailer pages fail fast instead of holding the budget. */
+  readonly extractionPageTimeoutMs: number;
+  /** Wall-clock ceiling for discovery plus extraction, inside the route's maxDuration. */
   readonly discoveryBudgetMs: number;
 }
 
@@ -75,8 +77,9 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
     discoveryPoolSize: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_POOL", 30, 8, 60)),
     completenessFloor: Math.round(boundedNumber("LIVE_SEARCH_MIN_PRODUCTS", 8, 1, 30)),
     minPerRetailer: Math.round(boundedNumber("LIVE_SEARCH_MIN_PER_RETAILER", 3, 1, 15)),
-    extractionBatchSize: Math.round(boundedNumber("LIVE_SEARCH_EXTRACTION_BATCH", 6, 1, 12)),
-    discoveryBudgetMs: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_BUDGET_MS", 20_000, 5_000, 25_000)),
+    extractionConcurrency: Math.round(boundedNumber("LIVE_SEARCH_EXTRACTION_CONCURRENCY", 8, 1, 16)),
+    extractionPageTimeoutMs: Math.round(boundedNumber("LIVE_SEARCH_PAGE_TIMEOUT_MS", 9_000, 3_000, 20_000)),
+    discoveryBudgetMs: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_BUDGET_MS", 40_000, 5_000, 50_000)),
   };
 }
 

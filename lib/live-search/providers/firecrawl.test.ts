@@ -399,6 +399,96 @@ describe("extractProductWithFirecrawl", () => {
     expect(result.markdown).toContain("80 x 28 x 202 cm");
   });
 
+  it("keeps the scraped product URL when the model names a category page as canonical", async () => {
+    // Production stored kmart.com.au/shop/officeworks as a product link. The
+    // scraped target already passed the product-page check; a model-supplied
+    // canonical may only replace it with another known product page.
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "Stockholm 8 Cube Bookcase $143.00",
+          images: ["https://kmartau.mo.cloudinary.net/bookcase.jpg"],
+          metadata: { sourceURL: "https://www.kmart.com.au/product/stockholm-8-cube-bookcase-43500001" },
+          json: {
+            canonicalUrl: "https://www.kmart.com.au/shop/officeworks",
+            name: "Stockholm 8 Cube Bookcase",
+            priceText: "$143.00",
+            currency: "AUD",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.kmart.com.au/product/stockholm-8-cube-bookcase-43500001?srsltid=abc",
+      fetchImplementation,
+    );
+    expect(extraction.url).toBe(
+      "https://www.kmart.com.au/product/stockholm-8-cube-bookcase-43500001",
+    );
+  });
+
+  it("accepts a model canonical that is itself a known product page on the retailer", async () => {
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "BILLY",
+          images: ["https://www.ikea.com/image.jpg"],
+          json: {
+            canonicalUrl: "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/",
+            name: "BILLY bookcase",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/?utm_source=x",
+      fetchImplementation,
+    );
+    expect(extraction.url).toBe("https://www.ikea.com/au/en/p/billy-bookcase-white-30616558");
+  });
+
+  it("sends the fail-fast page timeout to the provider instead of the old 20s ceiling", async () => {
+    // Nine of twelve production scrapes hit Firecrawl's 20s SCRAPE_TIMEOUT and
+    // each held its batch for the full budget. The provider must be told to give
+    // up on a slow page on our schedule.
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: { markdown: "BILLY", json: { name: "BILLY" } },
+      });
+    });
+
+    await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/billy-123/",
+      fetchImplementation,
+      7_000,
+    );
+
+    const body = JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body)) as {
+      timeout: number;
+    };
+    expect(body.timeout).toBe(7_000);
+  });
+
   it("rejects a canonical redirect to another registrable domain", async () => {
     const fetchImplementation = vi.fn(async (
       _input: string | URL,
@@ -795,7 +885,7 @@ describe("searchProductsWithFirecrawl completeness", () => {
     vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
     vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
     vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
-    vi.stubEnv("LIVE_SEARCH_EXTRACTION_BATCH", "4");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "4");
     const fetchImplementation = firecrawlPool({ pagesPerRetailer: 4 });
 
     const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
@@ -813,7 +903,7 @@ describe("searchProductsWithFirecrawl completeness", () => {
     vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
     vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
     vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
-    vi.stubEnv("LIVE_SEARCH_EXTRACTION_BATCH", "4");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "4");
     const scraped: string[] = [];
     const fetchImplementation = firecrawlPool({
       pagesPerRetailer: 10,
@@ -823,9 +913,14 @@ describe("searchProductsWithFirecrawl completeness", () => {
     const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
 
     expect(result.discoveryHits).toHaveLength(20);
-    expect(result.output.products).toHaveLength(8);
-    expect(result.attemptedPages).toBe(8);
-    expect(scraped).toHaveLength(8);
+    expect(result.output.products.length).toBeGreaterThanOrEqual(8);
+    // A streaming pool may have up to (concurrency - 1) pages already in flight
+    // when the floor is met; that overshoot is the bounded cost of never
+    // letting one slow page stall the rest. The remaining pages stay unspent.
+    expect(result.attemptedPages).toBeGreaterThanOrEqual(8);
+    expect(result.attemptedPages).toBeLessThanOrEqual(8 + 3);
+    expect(scraped.length).toBe(result.attemptedPages);
+    expect(scraped.length).toBeLessThan(20);
     expect(result.stoppedReason).toBe("completeness-floor");
   });
 
@@ -835,7 +930,7 @@ describe("searchProductsWithFirecrawl completeness", () => {
     vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
     vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
     vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
-    vi.stubEnv("LIVE_SEARCH_EXTRACTION_BATCH", "4");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "4");
     const incompleteUrls = [
       "https://www.ikea.com/au/en/p/bookcase-ikea-000/",
       "https://www.kmart.com.au/product/bookcase-kmart-000/",
@@ -846,7 +941,7 @@ describe("searchProductsWithFirecrawl completeness", () => {
 
     const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
 
-    expect(result.output.products).toHaveLength(8);
+    expect(result.output.products.length).toBeGreaterThanOrEqual(8);
     expect(result.reachedCompletenessFloor).toBe(true);
     expect(result.rejections).toHaveLength(4);
     const canonical = incompleteUrls.map((value) => value.replace(/\/$/, ""));
@@ -958,7 +1053,7 @@ describe("searchProductsWithFirecrawl completeness", () => {
   it("stops at the time budget and reports it", async () => {
     vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
     vi.stubEnv("LIVE_SEARCH_DISCOVERY_BUDGET_MS", "5000");
-    vi.stubEnv("LIVE_SEARCH_EXTRACTION_BATCH", "2");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "2");
     // A private clock keeps observedAt real, so validation freshness still
     // holds while the discovery deadline is driven deterministically.
     let now = 0;

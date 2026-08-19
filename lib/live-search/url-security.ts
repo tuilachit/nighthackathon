@@ -13,6 +13,9 @@ const TRACKING_PARAMETERS = new Set([
   "_ga",
   "_gl",
   "ref_src",
+  // Google Shopping click id; Kmart search results carry it on every product URL
+  // and it made the same product look like a different one per visit.
+  "srsltid",
 ]);
 
 const NON_PUBLIC_IPS = createNonPublicIpBlockList();

@@ -20,7 +20,9 @@ import {
 
 const SEARCH_ENDPOINT = "https://api.firecrawl.dev/v2/search";
 const SCRAPE_ENDPOINT = "https://api.firecrawl.dev/v2/scrape";
-const FIRECRAWL_TIMEOUT_MS = 25_000;
+const DEFAULT_PAGE_TIMEOUT_MS = 9_000;
+/** Client abort trails the provider timeout so the provider's own error wins when it arrives. */
+const PAGE_TIMEOUT_GRACE_MS = 2_000;
 const FIRECRAWL_SEARCH_TIMEOUT_MS = 10_000;
 const AU_LOCATION = {
   country: "AU",
@@ -95,8 +97,8 @@ export async function searchProductsWithFirecrawl(
   const deadline = startedAt + environment.discoveryBudgetMs;
 
   // Discovery gathers a wide candidate pool; extraction spends the expensive
-  // per-page budget on it in bounded batches and stops as soon as the
-  // completeness floor is met. Previously the pool was capped at the display
+  // per-page budget on it through a bounded concurrent pool and stops as soon
+  // as the completeness floor is met. Previously the pool was capped at the display
   // limit, so a single surviving product was both the first and the last result.
   const discoveryHits = await discoverProductPagesWithFirecrawl(
     intent,
@@ -111,49 +113,29 @@ export async function searchProductsWithFirecrawl(
   let attemptedPages = 0;
   let stoppedReason: FirecrawlPrimarySearchResult["stoppedReason"] = "candidates-exhausted";
 
-  for (const batch of batched(discoveryHits, environment.extractionBatchSize)) {
-    if (meetsCompletenessFloor(products, intent, environment, limit)) {
-      stoppedReason = "completeness-floor";
-      break;
-    }
-    if (clock() >= deadline) {
-      stoppedReason = "budget-exhausted";
-      notes.push("Stopped searching at the time limit before every retailer was complete.");
-      break;
-    }
-    attemptedPages += batch.length;
-    const settled = await Promise.allSettled(batch.map((hit) => {
-      if (hit.extraction !== undefined) {
-        return Promise.resolve(hit.extraction);
-      }
+  // A fixed number of scrapes stay in flight and a new one starts the moment any
+  // settles. Lock-step batches made every batch as slow as its slowest page, so
+  // one 20s timeout stalled five finished pages and a single batch spent the
+  // whole budget; production attempted 6 of 28 discovered URLs.
+  const queue = [...discoveryHits];
+  const inFlight = new Set<Promise<void>>();
+  let stopped = false;
+
+  const settle = async (hit: FirecrawlDiscoveryHit): Promise<void> => {
+    attemptedPages += 1;
+    try {
       // Firecrawl search reliably discovers retailer URLs, but JSON extraction is
       // not guaranteed on each search result. Finish the bounded product-page
       // extraction here rather than discarding a valid discovery and falling
       // through to the slower interactive-browser provider.
-      return extractProductWithFirecrawl(hit.url, fetchImplementation);
-    }));
-
-    for (const [index, result] of settled.entries()) {
-      const hit = batch[index];
-      if (hit === undefined) {
-        continue;
-      }
-      if (result.status === "rejected") {
-        const reason = result.reason instanceof Error
-          ? result.reason.message
-          : String(result.reason);
-        console.warn(JSON.stringify({
-          level: "warn",
-          message: "firecrawl_extraction_failed",
-          url: hit.url,
-          error: reason,
-        }));
-        rejections.push({ url: hit.url, missingFields: [], reasons: [reason] });
-        notes.push(`Could not validate ${shortHost(hit.url)} from the retailer page.`);
-        continue;
-      }
+      const extraction = hit.extraction ??
+        await extractProductWithFirecrawl(
+          hit.url,
+          fetchImplementation,
+          environment.extractionPageTimeoutMs,
+        );
       const validation = validateBrowserSearchOutput({
-        products: [toUntrustedObservation(result.value, hit, intent)],
+        products: [toUntrustedObservation(extraction, hit, intent)],
         partial: false,
         notes: [],
       });
@@ -172,17 +154,62 @@ export async function searchProductsWithFirecrawl(
         }));
         rejections.push({ url: hit.url, missingFields, reasons: validation.errors });
         notes.push(rejectionNote(shortHost(hit.url), validation.errors));
-        continue;
+        return;
       }
       if (products.some((existing) => existing.productUrl === product.productUrl)) {
-        continue;
+        return;
       }
       products.push(product);
-      if (result.value.imageCandidates !== undefined) {
-        imageCandidates[product.productUrl] = result.value.imageCandidates;
+      if (extraction.imageCandidates !== undefined) {
+        imageCandidates[product.productUrl] = extraction.imageCandidates;
       }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      console.warn(JSON.stringify({
+        level: "warn",
+        message: "firecrawl_extraction_failed",
+        url: hit.url,
+        error: reason,
+      }));
+      rejections.push({ url: hit.url, missingFields: [], reasons: [reason] });
+      notes.push(`Could not validate ${shortHost(hit.url)} from the retailer page.`);
     }
+  };
+
+  while (!stopped && (queue.length > 0 || inFlight.size > 0)) {
+    if (meetsCompletenessFloor(products, intent, environment, limit)) {
+      stoppedReason = "completeness-floor";
+      stopped = true;
+      break;
+    }
+    if (clock() >= deadline) {
+      stoppedReason = "budget-exhausted";
+      notes.push("Stopped searching at the time limit before every retailer was complete.");
+      stopped = true;
+      break;
+    }
+    while (queue.length > 0 && inFlight.size < environment.extractionConcurrency) {
+      const hit = queue.shift();
+      if (hit === undefined) {
+        break;
+      }
+      const task: Promise<void> = settle(hit).finally(() => {
+        inFlight.delete(task);
+      });
+      inFlight.add(task);
+    }
+    if (inFlight.size === 0) {
+      break;
+    }
+    // Wake on the first settled page or the deadline, whichever comes first, so
+    // a slow page never delays the decision to start the next one.
+    await Promise.race([
+      ...inFlight,
+      sleep(Math.max(0, deadline - clock())),
+    ]);
   }
+  // Pages still in flight at the deadline are abandoned for this response; their
+  // per-page timeout bounds the provider spend.
 
   if (meetsCompletenessFloor(products, intent, environment, limit)) {
     stoppedReason = "completeness-floor";
@@ -259,13 +286,8 @@ export async function searchProductsWithFirecrawl(
   };
 }
 
-/** Splits candidates into bounded concurrent batches to cap provider burst. */
-function batched<T>(values: readonly T[], size: number): readonly (readonly T[])[] {
-  const batches: T[][] = [];
-  for (let index = 0; index < values.length; index += size) {
-    batches.push(values.slice(index, index + size));
-  }
-  return batches;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function countPerRetailer(
@@ -356,6 +378,7 @@ export async function discoverProductPagesWithFirecrawl(
 export async function extractProductWithFirecrawl(
   targetUrl: string,
   fetchImplementation: FetchImplementation = fetch,
+  pageTimeoutMs: number = DEFAULT_PAGE_TIMEOUT_MS,
 ): Promise<FirecrawlProductExtraction> {
   const canonicalTarget = canonicalizePublicProductUrl(targetUrl);
   const environment = getLiveSearchServerEnvironment();
@@ -379,9 +402,12 @@ export async function extractProductWithFirecrawl(
       removeBase64Images: true,
       blockAds: true,
       proxy: "auto",
-      timeout: 20_000,
+      // Ask Firecrawl to give up on a slow page before we do. Two production runs
+      // showed 9 of 12 scrapes hitting the old 20s ceiling; one slow page then
+      // held its whole batch and a single batch consumed the entire budget.
+      timeout: pageTimeoutMs,
     }),
-    signal: AbortSignal.timeout(FIRECRAWL_TIMEOUT_MS),
+    signal: AbortSignal.timeout(pageTimeoutMs + PAGE_TIMEOUT_GRACE_MS),
   });
   const payload = await readFirecrawlResponse(response, "scrape");
   if (!isRecord(payload.data)) {
@@ -520,16 +546,58 @@ function productExtractionPrompt(): string {
   ].join(" ");
 }
 
+/**
+ * The scraped target already passed the product-page check at discovery. A
+ * model-supplied canonical URL may only replace it when it is itself a known
+ * product page on the same retailer; otherwise a category or shop landing page
+ * (kmart.com.au/shop/officeworks in production) becomes the product link.
+ */
+function resolveProductUrl(
+  canonicalTarget: string,
+  candidates: readonly (string | undefined)[],
+): string {
+  const retailer = retailerForUrl(canonicalTarget);
+  for (const candidate of candidates) {
+    if (candidate === undefined) {
+      continue;
+    }
+    let canonical: string;
+    try {
+      canonical = canonicalizePublicProductUrl(candidate);
+    } catch {
+      continue;
+    }
+    // Any claim that the page lives on another registrable domain is treated as
+    // a redirect off the retailer and rejects the whole extraction; the content
+    // cannot be trusted as retailer-sourced. This is the existing security
+    // boundary and is intentionally stricter than ignoring the claim.
+    if (!hasSameRegistrableDomain(canonicalTarget, canonical)) {
+      throw new FirecrawlResponseError("Firecrawl scrape left the submitted retailer domain.");
+    }
+    if (retailer === undefined || isKnownRetailerProductPage(retailer, canonical)) {
+      return canonical;
+    }
+  }
+  return canonicalTarget;
+}
+
+function retailerForUrl(value: string): LiveRetailer | undefined {
+  const host = parsePublicHttpsUrl(value).hostname.toLowerCase();
+  const match = (Object.entries(LIVE_RETAILER_IDENTITIES) as [LiveRetailer, RetailerIdentity][])
+    .find(([, identity]) => host === identity.host || host.endsWith(`.${identity.host}`));
+  return match?.[0];
+}
+
 function productExtractionFromData(
   data: Record<string, unknown>,
   canonicalTarget: string,
 ): FirecrawlProductExtraction {
   const extracted = isRecord(data.json) ? data.json : {};
   const markdown = optionalString(data.markdown) ?? "";
-  const returnedUrl = optionalString(extracted.canonicalUrl) ?? metadataUrl(data) ?? canonicalTarget;
-  if (!hasSameRegistrableDomain(canonicalTarget, returnedUrl)) {
-    throw new FirecrawlResponseError("Firecrawl scrape left the submitted retailer domain.");
-  }
+  const returnedUrl = resolveProductUrl(canonicalTarget, [
+    optionalString(extracted.canonicalUrl),
+    metadataUrl(data),
+  ]);
   const name = optionalString(extracted.name) ?? metadataTitle(data);
   if (name === undefined) {
     throw new FirecrawlResponseError("Firecrawl scrape omitted the product name.");
