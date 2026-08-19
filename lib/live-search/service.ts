@@ -378,6 +378,14 @@ async function cacheValidatedImages(output: BrowserSearchOutput): Promise<Browse
     if (result.status === "fulfilled") {
       products.push(result.value);
     } else {
+      const source = output.products[index];
+      console.warn(JSON.stringify({
+        level: "warn",
+        message: "retailer_image_cache_rejected",
+        retailer: source?.retailer.key ?? "unknown",
+        imageHost: safeUrlHost(source?.imageUrl),
+        error: errorMessage(result.reason),
+      }));
       failures.push(`Rejected product ${index + 1}: source image could not be safely cached.`);
     }
   }
@@ -389,6 +397,17 @@ async function cacheValidatedImages(output: BrowserSearchOutput): Promise<Browse
     partial: output.partial || failures.length > 0,
     notes: [...output.notes, ...failures].slice(0, MAX_COVERAGE_NOTES),
   };
+}
+
+function safeUrlHost(value: string | undefined): string {
+  if (value === undefined) {
+    return "unknown";
+  }
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return "invalid";
+  }
 }
 
 interface ControlledImageFacts {
