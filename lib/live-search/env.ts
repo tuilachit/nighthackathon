@@ -79,14 +79,19 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
     discoveryPoolSize: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_POOL", 30, 8, 60)),
     completenessFloor: Math.round(boundedNumber("LIVE_SEARCH_MIN_PRODUCTS", 8, 1, 30)),
     minPerRetailer: Math.round(boundedNumber("LIVE_SEARCH_MIN_PER_RETAILER", 3, 1, 15)),
-    // The Firecrawl plan observed in production allows roughly ten requests per
-    // minute across search and scrape. Two discovery searches leave about eight
-    // scrapes; a wider pool only converts attempts into immediate 429s.
-    extractionConcurrency: Math.round(boundedNumber("LIVE_SEARCH_EXTRACTION_CONCURRENCY", 4, 1, 16)),
+    // Firecrawl enforces a per-plan maxConcurrency (2 on the plan in use, readable
+    // from /v2/team/queue-status). Exceeding it does not fail fast: the surplus is
+    // queued server-side and the queue wait is charged against our own request
+    // timeout, which is what produced SCRAPE_TIMEOUT on pages that answer in about
+    // two seconds when the limit is respected. Measured on the same four retailer
+    // URLs: concurrency 4 gave 7.2-14.9s and one timeout; concurrency 2 gave
+    // 0.64-2.1s and four successes.
+    extractionConcurrency: Math.round(boundedNumber("LIVE_SEARCH_EXTRACTION_CONCURRENCY", 2, 1, 16)),
     maxScrapesPerSearch: Math.round(boundedNumber("LIVE_SEARCH_MAX_SCRAPES", 8, 1, 60)),
-    // IKEA and Kmart product pages that succeed take 9-20s to render and extract;
-    // a 9s ceiling converted every one of them into a SCRAPE_TIMEOUT.
-    extractionPageTimeoutMs: Math.round(boundedNumber("LIVE_SEARCH_PAGE_TIMEOUT_MS", 18_000, 3_000, 25_000)),
+    // Within the concurrency limit these pages answer in about two seconds, so the
+    // ceiling exists only to bound a genuinely stuck page rather than to absorb
+    // provider queueing.
+    extractionPageTimeoutMs: Math.round(boundedNumber("LIVE_SEARCH_PAGE_TIMEOUT_MS", 15_000, 3_000, 25_000)),
     discoveryBudgetMs: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_BUDGET_MS", 40_000, 5_000, 50_000)),
   };
 }
