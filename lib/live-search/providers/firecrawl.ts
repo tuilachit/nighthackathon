@@ -46,6 +46,7 @@ export interface FirecrawlProductExtraction {
   readonly retailerProductId?: string;
   readonly category?: string;
   readonly imageUrl?: string;
+  readonly imageCandidates?: readonly string[];
   readonly priceMinor?: number;
   readonly currency?: string;
   readonly availability?: "in_stock" | "out_of_stock" | "unknown";
@@ -63,6 +64,7 @@ export interface FirecrawlPrimarySearchResult {
   readonly discoveryHits: readonly FirecrawlDiscoveryHit[];
   readonly attemptedPages: number;
   readonly rejectedPages: number;
+  readonly imageCandidates?: Readonly<Record<string, readonly string[]>>;
 }
 
 /**
@@ -90,6 +92,7 @@ export async function searchProductsWithFirecrawl(
     return extractProductWithFirecrawl(hit.url, fetchImplementation);
   }));
   const products: LiveProductObservation[] = [];
+  const imageCandidates: Record<string, readonly string[]> = {};
   const notes: string[] = [];
 
   for (const [index, result] of settled.entries()) {
@@ -112,6 +115,9 @@ export async function searchProductsWithFirecrawl(
       continue;
     }
     products.push(product);
+    if (result.value.imageCandidates !== undefined) {
+      imageCandidates[product.productUrl] = result.value.imageCandidates;
+    }
   }
 
   if (intent.kind === "prompt") {
@@ -141,6 +147,7 @@ export async function searchProductsWithFirecrawl(
       discoveryHits,
       attemptedPages: discoveryHits.length,
       rejectedPages: discoveryHits.length,
+      imageCandidates,
     };
   }
   return {
@@ -148,6 +155,7 @@ export async function searchProductsWithFirecrawl(
     discoveryHits,
     attemptedPages: discoveryHits.length,
     rejectedPages: discoveryHits.length - combined.value.products.length,
+    imageCandidates,
   };
 }
 
@@ -357,15 +365,24 @@ function productExtractionFromData(
   if (name === undefined) {
     throw new FirecrawlResponseError("Firecrawl scrape omitted the product name.");
   }
-  const imageUrl = safeOptionalPublicUrl(
-    optionalString(extracted.imageUrl) ?? stringArray(data.images)[0],
-  );
+  const imageCandidates = [...new Set([
+    optionalString(extracted.imageUrl),
+    ...stringArray(data.images),
+  ].flatMap((value) => {
+    const url = safeOptionalPublicUrl(value);
+    return url === undefined || isObviouslyNonProductImage(url) ? [] : [url];
+  }))].slice(0, 6);
+  const imageUrl = imageCandidates[0];
   return {
     url: canonicalizePublicProductUrl(returnedUrl),
     name,
     ...optionalProperty("retailerProductId", optionalString(extracted.retailerProductId)),
     ...optionalProperty("category", optionalString(extracted.category)),
     ...optionalProperty("imageUrl", imageUrl),
+    ...optionalProperty(
+      "imageCandidates",
+      imageCandidates.length === 0 ? undefined : imageCandidates,
+    ),
     ...optionalProperty("priceMinor", positiveInteger(extracted.priceMinor)),
     ...optionalProperty("currency", currencyCode(extracted.currency)),
     ...optionalProperty("availability", availability(extracted.availability)),
@@ -373,6 +390,14 @@ function productExtractionFromData(
     ...optionalProperty("dimensionsEvidence", optionalString(extracted.dimensionsEvidence)),
     markdown: optionalString(data.markdown) ?? "",
   };
+}
+
+function isObviouslyNonProductImage(value: string): boolean {
+  const url = parsePublicHttpsUrl(value);
+  return (
+    /\.(?:svg|gif)(?:$|\?)/i.test(url.pathname) ||
+    /(?:^|[\/_-])(?:logo|icon|sprite|avatar)(?:[\/_-]|$)/i.test(url.pathname)
+  );
 }
 
 function toUntrustedObservation(

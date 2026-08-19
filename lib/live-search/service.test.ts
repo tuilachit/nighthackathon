@@ -811,6 +811,44 @@ describe("live-search service orchestration", () => {
       expect(mocks.recordDiscoveryCache).toHaveBeenCalledOnce();
     });
 
+    it("uses the first safely cached retailer image candidate", async () => {
+      const observation = rawObservation("ikea-au", {
+        observedAt: new Date().toISOString(),
+        imageUrl: "https://www.ikea.com/images/page-asset.jpg",
+      });
+      const productUrl = String(observation.productUrl);
+      const productPhoto = "https://www.ikea.com/images/billy-product.webp";
+      mocks.claimSearchDispatch.mockResolvedValue({
+        providerTaskId: PROVIDER_TASK_ID,
+        shouldSubmit: true,
+      });
+      mocks.searchProductsWithFirecrawl.mockResolvedValue({
+        output: { products: [observation], partial: false, notes: [] },
+        discoveryHits: [],
+        attemptedPages: 1,
+        rejectedPages: 0,
+        imageCandidates: {
+          [productUrl]: [String(observation.imageUrl), productPhoto],
+        },
+      });
+      mocks.cacheRetailerImage.mockImplementation(async (url: string) => {
+        if (url !== productPhoto) {
+          throw new Error("Retailer image did not contain a supported raster format.");
+        }
+        return {
+          publicUrl: `https://test-project.supabase.co/storage/v1/object/public/product-images-public/${"e".repeat(64)}.png`,
+          sha256: "e".repeat(64),
+          sourceUrl: productPhoto,
+        };
+      });
+
+      await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
+
+      expect(mocks.cacheRetailerImage.mock.calls.map(([url]) => url)).toContain(productPhoto);
+      expect(mocks.recordSynchronousSearchResults).toHaveBeenCalledOnce();
+      expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
+    });
+
     it("never starts a paid fallback after an ambiguous synchronous result write", async () => {
       const observation = rawObservation("ikea-au", {
         observedAt: new Date().toISOString(),

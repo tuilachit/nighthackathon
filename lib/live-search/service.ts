@@ -67,7 +67,10 @@ export async function dispatchSearchWorkflow(
   try {
     firecrawl = await searchProductsWithFirecrawl(command.intent);
     if (firecrawl.output.products.length > 0) {
-      firecrawlOutput = await cacheValidatedImages(firecrawl.output);
+      firecrawlOutput = await cacheValidatedImages(
+        firecrawl.output,
+        firecrawl.imageCandidates,
+      );
       assertOutputMatchesIntent(firecrawlOutput, command.intent);
       firecrawlCandidates = evaluateLiveProducts(firecrawlOutput, command.measurement);
     }
@@ -360,14 +363,31 @@ function assertOutputMatchesIntent(
   }
 }
 
-async function cacheValidatedImages(output: BrowserSearchOutput): Promise<BrowserSearchOutput> {
+async function cacheValidatedImages(
+  output: BrowserSearchOutput,
+  alternatives: Readonly<Record<string, readonly string[]>> = {},
+): Promise<BrowserSearchOutput> {
   const results = await Promise.allSettled(
     output.products.map(async (product) => {
-      const cached = await cacheRetailerImage(product.imageUrl);
+      const imageUrls = [...new Set([
+        product.imageUrl,
+        ...(alternatives[product.productUrl] ?? []),
+      ])].filter((url) => isAllowedRetailerImageCandidate(product, url)).slice(0, 4);
+      const attempts = await Promise.allSettled(imageUrls.map(cacheRetailerImage));
+      const cached = attempts.find(
+        (attempt): attempt is PromiseFulfilledResult<Awaited<ReturnType<typeof cacheRetailerImage>>> =>
+          attempt.status === "fulfilled",
+      )?.value;
+      if (cached === undefined) {
+        const firstFailure = attempts.find(
+          (attempt): attempt is PromiseRejectedResult => attempt.status === "rejected",
+        );
+        throw firstFailure?.reason ?? new Error("No safe retailer image candidate was available.");
+      }
       return {
         ...product,
         imageUrl: cached.publicUrl,
-        sourceImageUrl: product.imageUrl,
+        sourceImageUrl: cached.sourceUrl,
         sourceImageHash: cached.sha256,
       } as LiveProductObservation & ControlledImageFacts;
     }),
@@ -397,6 +417,27 @@ async function cacheValidatedImages(output: BrowserSearchOutput): Promise<Browse
     partial: output.partial || failures.length > 0,
     notes: [...output.notes, ...failures].slice(0, MAX_COVERAGE_NOTES),
   };
+}
+
+function isAllowedRetailerImageCandidate(
+  product: LiveProductObservation,
+  value: string,
+): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") {
+      return false;
+    }
+    if (product.retailer.key === "kmart-au") {
+      return (
+        hasSameRegistrableDomain("https://kmart.com.au", value) ||
+        url.hostname.toLowerCase() === "kmartau.mo.cloudinary.net"
+      );
+    }
+    return hasSameRegistrableDomain(`https://${product.retailer.host}`, value);
+  } catch {
+    return false;
+  }
 }
 
 function safeUrlHost(value: string | undefined): string {

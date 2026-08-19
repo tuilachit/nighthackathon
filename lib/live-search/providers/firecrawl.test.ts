@@ -129,6 +129,7 @@ describe("extractProductWithFirecrawl", () => {
       priceMinor: 14900,
       currency: "AUD",
       dimensions: { widthMm: 800, heightMm: 2020, depthMm: 280 },
+      imageCandidates: ["https://www.ikea.com/image.jpg"],
     });
 
     const requestBody = JSON.parse(
@@ -139,6 +140,35 @@ describe("extractProductWithFirecrawl", () => {
       onlyCleanContent: true,
       location: { country: "AU", languages: ["en-AU"] },
     });
+  });
+
+  it("keeps bounded raster photo alternatives and drops obvious icons", async () => {
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        images: [
+          "https://www.ikea.com/icon.svg",
+          "https://www.ikea.com/images/products/billy-front.jpg",
+          "https://www.ikea.com/images/products/billy-side.webp",
+        ],
+        json: {
+          canonicalUrl: "https://www.ikea.com/au/en/p/billy-123/",
+          name: "BILLY bookcase",
+          imageUrl: "https://www.ikea.com/logo.svg",
+        },
+      },
+    }));
+
+    const result = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/billy-123/",
+      fetchImplementation,
+    );
+
+    expect(result.imageUrl).toBe("https://www.ikea.com/images/products/billy-front.jpg");
+    expect(result.imageCandidates).toEqual([
+      "https://www.ikea.com/images/products/billy-front.jpg",
+      "https://www.ikea.com/images/products/billy-side.webp",
+    ]);
   });
 
   it("keeps a recommendation when dimensions are not explicit", async () => {
