@@ -188,6 +188,37 @@ describe("validateBrowserSearchOutput", () => {
     });
   });
 
+  it.each([
+    ["www.ikea.com", "IKEA Australia"],
+    ["ikea.com", "IKEA"],
+    ["au.ikea.com", "IKEA AU"],
+  ])("normalizes an imprecise registered identity (host %s, label %s)", (host, label) => {
+    // Production dropped whole batches with "products[0].retailer does not match
+    // the registered ikea-au identity" because the provider was asked to reproduce
+    // the canonical strings exactly. The server owns that identity; productUrl and
+    // imageUrl remain the real host boundary.
+    const result = validateBrowserSearchOutput(browserOutput(validObservation({
+      retailer: { key: "ikea-au", label, host },
+    })));
+
+    expect(result.ok).toBe(true);
+    expect(result.value?.products[0]?.retailer).toEqual({
+      key: "ikea-au",
+      label: "IKEA Australia",
+      host: "ikea.com",
+    });
+  });
+
+  it("still rejects a product URL off the registered retailer domain", () => {
+    const result = validateBrowserSearchOutput(browserOutput(validObservation({
+      retailer: { key: "ikea-au", label: "IKEA Australia", host: "ikea.com" },
+      productUrl: "https://www.not-ikea.example/au/en/p/billy-ikea-001/",
+    })));
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(" ")).toContain("not on the declared ikea-au domain");
+  });
+
   it("accepts a generalized retailer identity for product-link observations", () => {
     const result = validateBrowserSearchOutput(browserOutput(validObservation({
       retailer: {

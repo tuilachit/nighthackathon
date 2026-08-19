@@ -101,6 +101,12 @@ export async function searchProductsWithFirecrawl(
       continue;
     }
     if (result.status === "rejected") {
+      console.warn(JSON.stringify({
+        level: "warn",
+        message: "firecrawl_extraction_failed",
+        url: hit.url,
+        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
+      }));
       notes.push(`Could not validate ${shortHost(hit.url)} from the retailer page.`);
       continue;
     }
@@ -111,7 +117,17 @@ export async function searchProductsWithFirecrawl(
     });
     const product = validation.value?.products[0];
     if (!validation.ok || product === undefined) {
-      notes.push(`Rejected ${shortHost(hit.url)} because required source facts were incomplete.`);
+      // validation.errors names the exact field that failed. Discarding it left
+      // every rejection reading as a generic "incomplete", which made the drop
+      // rate impossible to attribute to any one field in production.
+      console.warn(JSON.stringify({
+        level: "warn",
+        message: "firecrawl_candidate_rejected",
+        url: hit.url,
+        missingFields: missingFieldNames(validation.errors),
+        reasons: validation.errors,
+      }));
+      notes.push(rejectionNote(shortHost(hit.url), validation.errors));
       continue;
     }
     products.push(product);
@@ -296,10 +312,18 @@ async function searchRetailer(
 }
 
 function retailerSearchQuery(retailer: LiveRetailer, query: string): string {
+  // The user's own words carry the intent; appending a fixed noun only dilutes
+  // them, so "black bookshelf" is no longer searched as "black bookshelf furniture".
+  //
+  // The path scope stays. includeDomains cannot express a path prefix, and
+  // ikea.com serves every market from one registrable domain, so without it an
+  // Australian search returns US and EU product pages that
+  // isKnownRetailerProductPage then discards - spending the result budget on rows
+  // that can never survive.
   const productPath = retailer === "ikea-au"
     ? "site:ikea.com/au/en/p/"
     : "site:kmart.com.au/product/";
-  return `${query} furniture ${productPath}`;
+  return `${query} ${productPath}`;
 }
 
 function isKnownRetailerProductPage(retailer: LiveRetailer, value: string): boolean {
@@ -318,7 +342,7 @@ function productExtractionSchema(): Readonly<Record<string, unknown>> {
       retailerProductId: { type: "string", minLength: 1, maxLength: 120 },
       category: { type: "string", minLength: 1, maxLength: 100 },
       imageUrl: { type: "string", format: "uri" },
-      priceMinor: { type: "integer", minimum: 1 },
+      priceText: { type: "string", minLength: 1, maxLength: 40 },
       currency: { type: "string", pattern: "^[A-Z]{3}$" },
       availability: {
         type: "string",
@@ -345,7 +369,9 @@ function productExtractionPrompt(): string {
   return [
     "Extract only facts explicitly stated for this exact furniture product and variant.",
     "Copy the canonical URL, product name, retailer product ID, category, primary image,",
-    "listed price in integer minor units, ISO-4217 currency, availability, and assembled dimensions.",
+    "the listed price exactly as displayed including its symbol (priceText, e.g. \"$129.00\"),",
+    "ISO-4217 currency, availability, and assembled dimensions.",
+    "Never convert the price to cents or any other unit; copy the characters shown on the page.",
     "Only return widthMm, heightMm, and depthMm when all three axes are explicit.",
     "Never infer dimension order, estimate a value, or substitute package dimensions.",
     "Preserve a short verbatim dimensionsEvidence string. Omit any unavailable field.",
@@ -374,6 +400,7 @@ function productExtractionFromData(
     return url === undefined || isObviouslyNonProductImage(url) ? [] : [url];
   }))].slice(0, 6);
   const imageUrl = imageCandidates[0];
+  const price = readPrice(extracted.priceText, extracted.currency, markdown);
   const extractedDimensions = dimensions(extracted.assembledDimensions);
   const markdownDimensions = readExplicitDimensions(markdown);
   const explicitDimensions = extractedDimensions ?? markdownDimensions?.dimensions;
@@ -391,8 +418,8 @@ function productExtractionFromData(
       "imageCandidates",
       imageCandidates.length === 0 ? undefined : imageCandidates,
     ),
-    ...optionalProperty("priceMinor", positiveInteger(extracted.priceMinor)),
-    ...optionalProperty("currency", currencyCode(extracted.currency)),
+      ...optionalProperty("priceMinor", price?.minorUnits),
+    ...optionalProperty("currency", price?.currency),
     ...optionalProperty("availability", availability(extracted.availability)),
     ...optionalProperty("dimensions", explicitDimensions),
     ...optionalProperty("dimensionsEvidence", dimensionsEvidence),
@@ -512,6 +539,69 @@ function dimensionsFromEntries(
     : { widthMm, heightMm, depthMm };
 }
 
+interface ExtractedPrice {
+  readonly minorUnits: number;
+  readonly currency: string;
+}
+
+const DISPLAYED_PRICE_PATTERN =
+  /(?:A\$|AU\$|AUD\s*|\$)\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/;
+const AMOUNT_PATTERN = /(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?/;
+const AUSTRALIAN_PRICE_MARKER = /A\$|AU\$|\bAUD\b/i;
+
+/**
+ * Derives a price in minor units from the price as displayed on the retailer page.
+ *
+ * The provider is deliberately never asked to perform this conversion. A model
+ * reading "$129.00" reliably answers 129 for a field documented as integer minor
+ * units, which understates the price by a factor of one hundred and is
+ * indistinguishable from a genuine $1.29 product once the page is out of scope.
+ * Parsing the displayed characters keeps the conversion deterministic and testable.
+ */
+function readPrice(
+  priceText: unknown,
+  currencyInput: unknown,
+  markdown: string,
+): ExtractedPrice | undefined {
+  const displayed = optionalString(priceText) ?? readDisplayedPrice(markdown);
+  if (displayed === undefined) {
+    return undefined;
+  }
+  const currency = currencyCode(currencyInput) ??
+    (AUSTRALIAN_PRICE_MARKER.test(displayed) ? "AUD" : undefined);
+  if (currency === undefined) {
+    return undefined;
+  }
+  const minorUnits = toMinorUnits(displayed, currency);
+  return minorUnits === undefined ? undefined : { minorUnits, currency };
+}
+
+function readDisplayedPrice(markdown: string): string | undefined {
+  return markdown.match(DISPLAYED_PRICE_PATTERN)?.[0];
+}
+
+function toMinorUnits(displayed: string, currency: string): number | undefined {
+  const match = displayed.match(AMOUNT_PATTERN);
+  const whole = match?.[1];
+  if (match === null || whole === undefined) {
+    return undefined;
+  }
+  const exponent = minorUnitExponent(currency);
+  const fraction = (match[2] ?? "").padEnd(exponent, "0").slice(0, exponent);
+  const minorUnits = Number(whole.replace(/,/g, "")) * 10 ** exponent +
+    (fraction.length === 0 ? 0 : Number(fraction));
+  return Number.isSafeInteger(minorUnits) && minorUnits > 0 ? minorUnits : undefined;
+}
+
+function minorUnitExponent(currency: string): number {
+  try {
+    return new Intl.NumberFormat("en-AU", { style: "currency", currency })
+      .resolvedOptions().maximumFractionDigits ?? 2;
+  } catch {
+    return 2;
+  }
+}
+
 function isObviouslyNonProductImage(value: string): boolean {
   const url = parsePublicHttpsUrl(value);
   return (
@@ -561,6 +651,21 @@ function retailerIdentityForExactLink(
     label: host,
     host,
   };
+}
+
+/** Extracts the bare field names from validation paths like `products[0].category`. */
+function missingFieldNames(errors: readonly string[]): readonly string[] {
+  return [...new Set(errors.flatMap((error) => {
+    const match = error.match(/^products\[\d+\]\.([A-Za-z]+)/);
+    return match?.[1] === undefined ? [] : [match[1]];
+  }))];
+}
+
+function rejectionNote(host: string, errors: readonly string[]): string {
+  const fields = missingFieldNames(errors);
+  return fields.length === 0
+    ? `Rejected ${host} because required source facts were incomplete.`
+    : `Rejected ${host}: missing ${fields.join(", ")}.`;
 }
 
 function shortHost(value: string): string {

@@ -260,12 +260,13 @@ function parseRetailerIdentity(
     return undefined;
   }
   if (LIVE_RETAILERS.includes(key as LiveRetailer)) {
-    const canonical = LIVE_RETAILER_IDENTITIES[key as LiveRetailer];
-    if (label !== canonical.label || host !== canonical.host) {
-      errors.push(`${path} does not match the registered ${key} identity.`);
-      return undefined;
-    }
-    return canonical;
+    // The server owns the canonical identity for a registered retailer. A provider
+    // that answers "www.ikea.com" or "IKEA" instead of the exact registered strings
+    // is naming the right retailer imprecisely, not a different one, so normalize
+    // instead of discarding the observation. This is not the security boundary:
+    // productUrl and imageUrl are independently constrained to that retailer's
+    // allowed hosts by readRetailerUrl and readRetailerImageUrl.
+    return LIVE_RETAILER_IDENTITIES[key as LiveRetailer];
   }
   return { key, label, host };
 }

@@ -73,6 +73,34 @@ describe("discoverProductPagesWithFirecrawl", () => {
     }
   });
 
+  it("sends the user's own words without an injected category noun", async () => {
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({ success: true, data: { web: [] } });
+    });
+
+    await discoverProductPagesWithFirecrawl({
+      kind: "prompt",
+      text: "black bookshelf",
+      retailers: ["ikea-au", "kmart-au"],
+    }, 6, fetchImplementation);
+
+    const queries = fetchImplementation.mock.calls.map(
+      (call) => (JSON.parse(String(call[1]?.body)) as { query: string }).query,
+    );
+    expect(queries).toEqual([
+      "black bookshelf site:ikea.com/au/en/p/",
+      "black bookshelf site:kmart.com.au/product/",
+    ]);
+    for (const query of queries) {
+      expect(query).not.toContain("furniture");
+    }
+  });
+
   it("preserves one canonical exact product link without a provider call", async () => {
     const fetchImplementation = vi.fn();
     const result = await discoverProductPagesWithFirecrawl({
@@ -106,7 +134,7 @@ describe("extractProductWithFirecrawl", () => {
           name: "BILLY bookcase",
           retailerProductId: "123",
           category: "bookcase",
-          priceMinor: 14900,
+          priceText: "$149.00",
           currency: "AUD",
           availability: "in_stock",
           assembledDimensions: {
@@ -143,6 +171,79 @@ describe("extractProductWithFirecrawl", () => {
     expect(requestBody.formats).toEqual(expect.arrayContaining(["markdown", "images"]));
   });
 
+  it.each([
+    ["$129.00", 12_900],
+    ["$129", 12_900],
+    ["$1,299.99", 129_999],
+    ["A$89.50", 8_950],
+  ])("converts the displayed price %s to %i minor units", async (priceText, expected) => {
+    // Production returned priceMinor 129 for a $129 bookcase because the provider
+    // was asked to convert to minor units itself. The conversion is now ours.
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        markdown: "# SKRUVBY",
+        images: ["https://www.ikea.com/image.jpg"],
+        metadata: { sourceURL: "https://www.ikea.com/au/en/p/skruvby-1/" },
+        json: {
+          canonicalUrl: "https://www.ikea.com/au/en/p/skruvby-1/",
+          name: "SKRUVBY bookcase",
+          priceText,
+          currency: "AUD",
+        },
+      },
+    }));
+
+    await expect(extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/skruvby-1/",
+      fetchImplementation,
+    )).resolves.toMatchObject({ priceMinor: expected, currency: "AUD" });
+  });
+
+  it("recovers the price from page text when the provider omits priceText", async () => {
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        markdown: "SKRUVBY Bookcase, black-blue\n$129.00\nIn stock",
+        images: ["https://www.ikea.com/image.jpg"],
+        metadata: { sourceURL: "https://www.ikea.com/au/en/p/skruvby-1/" },
+        json: {
+          canonicalUrl: "https://www.ikea.com/au/en/p/skruvby-1/",
+          name: "SKRUVBY bookcase",
+          currency: "AUD",
+        },
+      },
+    }));
+
+    await expect(extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/skruvby-1/",
+      fetchImplementation,
+    )).resolves.toMatchObject({ priceMinor: 12_900, currency: "AUD" });
+  });
+
+  it("omits the price rather than trusting a provider-supplied minor-unit integer", async () => {
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        markdown: "SKRUVBY Bookcase",
+        images: ["https://www.ikea.com/image.jpg"],
+        metadata: { sourceURL: "https://www.ikea.com/au/en/p/skruvby-1/" },
+        json: {
+          canonicalUrl: "https://www.ikea.com/au/en/p/skruvby-1/",
+          name: "SKRUVBY bookcase",
+          priceMinor: 129,
+          currency: "AUD",
+        },
+      },
+    }));
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/skruvby-1/",
+      fetchImplementation,
+    );
+    expect(extraction.priceMinor).toBeUndefined();
+  });
+
   it("recovers dimensions only from explicit labelled retailer text", async () => {
     const fetchImplementation = vi.fn(async () => Response.json({
       success: true,
@@ -162,7 +263,7 @@ describe("extractProductWithFirecrawl", () => {
           canonicalUrl: "https://www.ikea.com/au/en/p/billy-123/",
           retailerProductId: "123",
           category: "bookcase",
-          priceMinor: 14900,
+          priceText: "$149.00",
           currency: "AUD",
           availability: "in_stock",
         },
@@ -369,7 +470,7 @@ describe("searchProductsWithFirecrawl", () => {
                 imageUrl: ikea
                   ? "https://www.ikea.com/images/billy.jpg"
                   : "https://kmartau.mo.cloudinary.net/bookcase.jpg",
-                priceMinor: ikea ? 14_900 : 8_900,
+                priceText: ikea ? "$149.00" : "$89.00",
                 currency: "AUD",
                 availability: "in_stock",
                 assembledDimensions: {
@@ -424,7 +525,7 @@ describe("searchProductsWithFirecrawl", () => {
               retailerProductId: "ikea-001",
               category: "bookcase",
               imageUrl: "https://www.ikea.com/images/billy.jpg",
-              priceMinor: 14_900,
+              priceText: "$149.00",
               currency: "AUD",
               availability: "in_stock",
               assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
@@ -486,7 +587,7 @@ describe("searchProductsWithFirecrawl", () => {
               name: ikea ? "BILLY bookcase" : "Oak-look bookcase",
               retailerProductId: ikea ? "ikea-001" : "kmart-001",
               category: "bookcase",
-              priceMinor: ikea ? 14_900 : 8_900,
+              priceText: ikea ? "$149.00" : "$89.00",
               currency: "AUD",
               availability: "in_stock",
               assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
@@ -539,7 +640,7 @@ describe("searchProductsWithFirecrawl", () => {
               name: ikea ? "BILLY bookcase" : "Oak-look bookcase",
               retailerProductId: ikea ? "ikea-001" : "kmart-001",
               category: "bookcase",
-              priceMinor: ikea ? 14_900 : 8_900,
+              priceText: ikea ? "$149.00" : "$89.00",
               currency: "AUD",
               availability: "in_stock",
             },
@@ -584,7 +685,7 @@ describe("searchProductsWithFirecrawl", () => {
             retailerProductId: "ikea-001",
             category: "bookcase",
             imageUrl: "https://www.ikea.com/images/billy.jpg",
-            priceMinor: 14_900,
+              priceText: "$149.00",
             currency: "AUD",
             availability: "in_stock",
             assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
