@@ -169,15 +169,12 @@ async function requestPinnedImage(
   target: { readonly address: string; readonly family: 4 | 6 },
 ): Promise<PinnedImageResponse> {
   return new Promise((resolve, reject) => {
-    const lookup: LookupFunction = (_hostname, _options, callback) => {
-      callback(null, target.address, target.family);
-    };
     const request = httpsRequest(
       url,
       {
         method: "GET",
         headers: { Accept: "image/avif,image/webp,image/png,image/jpeg;q=0.9" },
-        lookup,
+        lookup: createPinnedLookup(target),
         servername: url.hostname,
         timeout: REQUEST_TIMEOUT_MS,
       },
@@ -214,6 +211,19 @@ async function requestPinnedImage(
     request.on("error", reject);
     request.end();
   });
+}
+
+/** Preserves DNS pinning for both single-address and `all` Node lookup calls. */
+export function createPinnedLookup(
+  target: { readonly address: string; readonly family: 4 | 6 },
+): LookupFunction {
+  return (_hostname, options, callback) => {
+    if (options.all === true) {
+      callback(null, [{ address: target.address, family: target.family }]);
+      return;
+    }
+    callback(null, target.address, target.family);
+  };
 }
 
 function detectImageType(body: Buffer): SupportedImage | undefined {

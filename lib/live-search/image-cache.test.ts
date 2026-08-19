@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import sharp from "sharp";
 import {
+  createPinnedLookup,
   fetchBoundedPublicImage,
   normalizeImageForModel,
   validateImageBytes,
@@ -94,5 +95,37 @@ describe("fetchBoundedPublicImage", () => {
     const resolve = vi.fn().mockResolvedValue({ address: "1.1.1.1", family: 4 });
     const request = vi.fn().mockResolvedValue({ status: 302, headers: { location: "https://example.com/again" }, body: Buffer.alloc(0) });
     await expect(fetchBoundedPublicImage("https://example.com/image", { resolve, request })).rejects.toThrow("redirect limit");
+  });
+});
+
+describe("createPinnedLookup", () => {
+  it("returns the pinned address in Node's all-address callback shape", async () => {
+    const lookup = createPinnedLookup({ address: "1.1.1.1", family: 4 });
+    const result = await new Promise<unknown>((resolve, reject) => {
+      lookup("cdn.example.com", { all: true }, (error, address) => {
+        if (error !== null) {
+          reject(error);
+          return;
+        }
+        resolve(address);
+      });
+    });
+
+    expect(result).toEqual([{ address: "1.1.1.1", family: 4 }]);
+  });
+
+  it("returns the pinned address in Node's single-address callback shape", async () => {
+    const lookup = createPinnedLookup({ address: "2606:4700:4700::1111", family: 6 });
+    const result = await new Promise<unknown>((resolve, reject) => {
+      lookup("cdn.example.com", {}, (error, address, family) => {
+        if (error !== null) {
+          reject(error);
+          return;
+        }
+        resolve({ address, family });
+      });
+    });
+
+    expect(result).toEqual({ address: "2606:4700:4700::1111", family: 6 });
   });
 });
