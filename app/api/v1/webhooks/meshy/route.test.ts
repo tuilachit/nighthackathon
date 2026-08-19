@@ -17,7 +17,7 @@ vi.mock("next/server", async (importOriginal) => {
 });
 
 vi.mock("@/lib/live-search/env", () => ({
-  isLiveSearchConfigured: mocks.configured,
+  isModelGenerationConfigured: mocks.configured,
   getLiveSearchServerEnvironment: mocks.environment,
 }));
 

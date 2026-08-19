@@ -21,11 +21,12 @@ export interface MeshyTask {
 /** Starts image-to-3D only after a workflow approval has been durably recorded. */
 export async function createMeshyImageTask(imageUrl: string): Promise<string> {
   const environment = getLiveSearchServerEnvironment();
+  const apiKey = requiredMeshyApiKey(environment.meshyApiKey);
   assertControlledProductImageUrl(imageUrl, environment.url);
   const response = await fetch(IMAGE_TO_3D_ENDPOINT, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${environment.meshyApiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -53,8 +54,9 @@ export async function createMeshyImageTask(imageUrl: string): Promise<string> {
 /** Retrieves the canonical Meshy task; webhook bodies are never trusted as asset authority. */
 export async function getMeshyTask(taskId: string): Promise<MeshyTask> {
   const environment = getLiveSearchServerEnvironment();
+  const apiKey = requiredMeshyApiKey(environment.meshyApiKey);
   const response = await fetch(`${IMAGE_TO_3D_ENDPOINT}/${encodeURIComponent(taskId)}`, {
-    headers: { Authorization: `Bearer ${environment.meshyApiKey}` },
+    headers: { Authorization: `Bearer ${apiKey}` },
     cache: "no-store",
     signal: AbortSignal.timeout(10_000),
   });
@@ -82,6 +84,13 @@ export async function getMeshyTask(taskId: string): Promise<MeshyTask> {
       ? { errorMessage: payload.task_error.message }
       : {}),
   };
+}
+
+function requiredMeshyApiKey(value: string | undefined): string {
+  if (value === undefined) {
+    throw new ProviderResponseError("Meshy is not configured for model generation.");
+  }
+  return value;
 }
 
 /** Meshy does not sign webhooks; protect the endpoint with an opaque URL token. */
