@@ -22,9 +22,15 @@ describe("validateImageBytes", () => {
     expect(validateImageBytes(contentType, body)).toBe(contentType);
   });
 
-  it("rejects SVG and MIME/signature disagreement", () => {
+  it("rejects SVG while accepting supported CDN content negotiation", () => {
     expect(() => validateImageBytes("image/svg+xml", Buffer.from("<svg/>"))).toThrow();
-    expect(() => validateImageBytes("image/png", jpeg)).toThrow();
+    expect(validateImageBytes("image/jpeg", avif)).toBe("image/avif");
+    expect(validateImageBytes("image/png", jpeg)).toBe("image/jpeg");
+  });
+
+  it("rejects unsupported declarations and unknown bytes", () => {
+    expect(() => validateImageBytes("text/html", jpeg)).toThrow();
+    expect(() => validateImageBytes("image/jpeg", Buffer.from("not an image"))).toThrow();
   });
 });
 

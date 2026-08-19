@@ -136,11 +136,20 @@ export async function fetchBoundedPublicImage(
 }
 
 export function validateImageBytes(contentTypeHeader: string | undefined, body: Buffer): SupportedImage {
-  const contentType = contentTypeHeader?.split(";", 1)[0]?.trim().toLowerCase();
+  const declaredContentType = contentTypeHeader?.split(";", 1)[0]?.trim().toLowerCase();
   const detected = detectImageType(body);
-  if (detected === undefined || contentType !== detected) {
-    throw new Error("Retailer image MIME type and file signature must be JPEG, PNG, or WebP.");
+  if (
+    detected === undefined ||
+    (declaredContentType !== "image/jpeg" &&
+      declaredContentType !== "image/png" &&
+      declaredContentType !== "image/webp" &&
+      declaredContentType !== "image/avif")
+  ) {
+    throw new Error("Retailer image must declare and contain a supported raster format.");
   }
+  // Retailer CDNs may content-negotiate AVIF/WebP bytes while retaining the
+  // source asset's JPEG header. The decoded magic bytes are authoritative;
+  // every accepted format is still bounded and decoded by sharp below.
   return detected;
 }
 
