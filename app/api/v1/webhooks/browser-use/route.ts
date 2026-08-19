@@ -1,6 +1,9 @@
 import { after } from "next/server";
 import { NextResponse } from "next/server";
-import { getLiveSearchServerEnvironment, isLiveSearchConfigured } from "@/lib/live-search/env";
+import {
+  getBrowserUseWebhookEnvironment,
+  isBrowserUseWebhookConfigured,
+} from "@/lib/live-search/env";
 import { apiError, handleRouteError } from "@/lib/live-search/http";
 import { sha256Hex, stableJson } from "@/lib/live-search/hashing";
 import { verifyBrowserUseWebhook } from "@/lib/live-search/providers/browser-use";
@@ -15,12 +18,12 @@ export const maxDuration = 60;
 const MAX_WEBHOOK_BYTES = 1024 * 1024;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!isLiveSearchConfigured()) {
-    return apiError(503, "not_configured", "Live search is not configured in this environment.");
+  if (!isBrowserUseWebhookConfigured()) {
+    return apiError(503, "not_configured", "Browser Use webhooks are not configured in this environment.");
   }
   try {
     const rawBody = await readBoundedText(request, MAX_WEBHOOK_BYTES);
-    const environment = getLiveSearchServerEnvironment();
+    const environment = getBrowserUseWebhookEnvironment();
     if (!verifyBrowserUseWebhook(
       rawBody,
       request.headers.get("x-browser-use-signature"),

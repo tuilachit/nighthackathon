@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { NextResponse } from "next/server";
-import { getLiveSearchServerEnvironment, isLiveSearchConfigured } from "@/lib/live-search/env";
+import { getLiveSearchServerEnvironment, isModelGenerationConfigured } from "@/lib/live-search/env";
 import { apiError, handleRouteError } from "@/lib/live-search/http";
 import { sha256Hex, stableJson } from "@/lib/live-search/hashing";
 import { readMeshyWebhookTaskId, verifyMeshyWebhookToken } from "@/lib/live-search/providers/meshy";
@@ -15,12 +15,12 @@ export const maxDuration = 60;
 const MAX_WEBHOOK_BYTES = 1024 * 1024;
 
 export async function POST(request: Request): Promise<NextResponse> {
-  if (!isLiveSearchConfigured()) {
-    return apiError(503, "not_configured", "Live search is not configured in this environment.");
+  if (!isModelGenerationConfigured()) {
+    return apiError(503, "not_configured", "Model generation is not configured in this environment.");
   }
   const environment = getLiveSearchServerEnvironment();
   const token = new URL(request.url).searchParams.get("token");
-  if (!verifyMeshyWebhookToken(token, environment.meshyWebhookSecret)) {
+  if (!verifyMeshyWebhookToken(token, environment.meshyWebhookSecret!)) {
     return apiError(401, "invalid_token", "Webhook token is invalid.");
   }
   try {

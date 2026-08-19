@@ -5,6 +5,10 @@ export interface PublicSupabaseEnvironment {
   readonly publishableKey: string;
 }
 
+export interface BrowserUseWebhookEnvironment {
+  readonly browserUseWebhookSecret: string;
+}
+
 export type BrowserUseModel =
   | "bu-mini"
   | "bu-max"
@@ -19,8 +23,9 @@ export interface LiveSearchServerEnvironment extends PublicSupabaseEnvironment {
   readonly browserUseApiKey: string;
   readonly browserUseWebhookSecret: string;
   readonly browserUseModel: BrowserUseModel;
-  readonly meshyApiKey: string;
-  readonly meshyWebhookSecret: string;
+  /** Present only when the separately approval-gated 3D pipeline is enabled. */
+  readonly meshyApiKey?: string;
+  readonly meshyWebhookSecret?: string;
   readonly cronSecret: string;
   readonly abuseHashSecret: string;
   readonly browserUseMaxCostUsd: number;
@@ -34,7 +39,16 @@ export function getPublicSupabaseEnvironment(): PublicSupabaseEnvironment {
   };
 }
 
+/** Configuration needed to authenticate Browser Use callbacks, independent of other features. */
+export function getBrowserUseWebhookEnvironment(): BrowserUseWebhookEnvironment {
+  return {
+    browserUseWebhookSecret: requiredSecret("BROWSER_USE_WEBHOOK_SECRET"),
+  };
+}
+
 export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
+  const meshyApiKey = optionalEnvironment("MESHY_API_KEY");
+  const meshyWebhookSecret = optionalSecret("MESHY_WEBHOOK_SECRET");
   return {
     ...getPublicSupabaseEnvironment(),
     secretKey: requiredEnvironment("SUPABASE_SECRET_KEY"),
@@ -42,8 +56,8 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
     browserUseApiKey: requiredEnvironment("BROWSER_USE_API_KEY"),
     browserUseWebhookSecret: requiredSecret("BROWSER_USE_WEBHOOK_SECRET"),
     browserUseModel: browserUseModel(),
-    meshyApiKey: requiredEnvironment("MESHY_API_KEY"),
-    meshyWebhookSecret: requiredSecret("MESHY_WEBHOOK_SECRET"),
+    ...(meshyApiKey === undefined ? {} : { meshyApiKey }),
+    ...(meshyWebhookSecret === undefined ? {} : { meshyWebhookSecret }),
     cronSecret: requiredSecret("CRON_SECRET"),
     abuseHashSecret: requiredSecret("ABUSE_HASH_SECRET"),
     browserUseMaxCostUsd: boundedNumber("BROWSER_USE_MAX_COST_USD", 1, 0.05, 2),
@@ -75,11 +89,20 @@ export function isLiveSearchConfigured(): boolean {
     "FIRECRAWL_API_KEY",
     "BROWSER_USE_API_KEY",
     "BROWSER_USE_WEBHOOK_SECRET",
-    "MESHY_API_KEY",
-    "MESHY_WEBHOOK_SECRET",
     "CRON_SECRET",
     "ABUSE_HASH_SECRET",
   ].every((name) => (process.env[name]?.trim().length ?? 0) > 0);
+}
+
+export function isBrowserUseWebhookConfigured(): boolean {
+  return (process.env.BROWSER_USE_WEBHOOK_SECRET?.trim().length ?? 0) > 0;
+}
+
+/** Meshy is deliberately optional for retailer search and required only after approval. */
+export function isModelGenerationConfigured(): boolean {
+  return ["MESHY_API_KEY", "MESHY_WEBHOOK_SECRET"].every(
+    (name) => (process.env[name]?.trim().length ?? 0) > 0,
+  );
 }
 
 /** Returns the server-only HMAC secret used for privacy-bounded product events. */
@@ -97,6 +120,22 @@ function requiredEnvironment(name: string): string {
 
 function requiredSecret(name: string): string {
   const value = requiredEnvironment(name);
+  if (value.length < 32 || /^replace_|^your_|placeholder/i.test(value)) {
+    throw new Error(`${name} must be a random secret of at least 32 characters.`);
+  }
+  return value;
+}
+
+function optionalEnvironment(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value === undefined || value.length === 0 ? undefined : value;
+}
+
+function optionalSecret(name: string): string | undefined {
+  const value = optionalEnvironment(name);
+  if (value === undefined) {
+    return undefined;
+  }
   if (value.length < 32 || /^replace_|^your_|placeholder/i.test(value)) {
     throw new Error(`${name} must be a random secret of at least 32 characters.`);
   }
