@@ -874,7 +874,13 @@ function isObviouslyNonProductImage(value: string): boolean {
   const url = parsePublicHttpsUrl(value);
   return (
     /\.(?:svg|gif)(?:$|\?)/i.test(url.pathname) ||
-    /(?:^|[\/_-])(?:logo|icon|sprite|avatar)(?:[\/_-]|$)/i.test(url.pathname)
+    /(?:^|[\/_-])(?:logo|icon|sprite|avatar)(?:[\/_-]|$)/i.test(url.pathname) ||
+    // A product-page path is not an image. Scrapes sometimes emit the page URL
+    // with a trailing segment (".../p/<slug>/false"); it passes the retailer
+    // host check but is not a real asset, and being first in the image list it
+    // would otherwise shadow the genuine CDN image. Real product images live on
+    // the retailers' image CDNs, never under /p/ or /product/.
+    /\/(?:p|product)\//i.test(url.pathname)
   );
 }
 

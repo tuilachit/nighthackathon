@@ -244,6 +244,42 @@ describe("extractProductWithFirecrawl", () => {
     expect(extraction.priceMinor).toBeUndefined();
   });
 
+  it("skips a product-page image path in favour of the real CDN image", async () => {
+    // Firecrawl sometimes lists the page URL with a trailing segment
+    // (".../p/<slug>/false") first in the images array; it passes the retailer
+    // host check but is not an asset. The genuine CDN image must win.
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "BILLY Bookcase. Width 40 cm, Height 106 cm, Depth 28 cm.",
+          images: [
+            "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/false",
+            "https://asset.inter.ikea.com/images/PE917983_preview?v=cb0ed6e4",
+          ],
+          metadata: { sourceURL: "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/" },
+          json: {
+            canonicalUrl: "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/",
+            name: "BILLY Bookcase, white",
+            priceText: "$59.00",
+            currency: "AUD",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/",
+      fetchImplementation,
+    );
+    expect(extraction.imageUrl).toBe("https://asset.inter.ikea.com/images/PE917983_preview?v=cb0ed6e4");
+  });
+
   it("recovers dimensions only from explicit labelled retailer text", async () => {
     const fetchImplementation = vi.fn(async () => Response.json({
       success: true,
