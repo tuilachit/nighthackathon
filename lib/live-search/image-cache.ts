@@ -14,7 +14,7 @@ const MAX_REDIRECTS = 3;
 const REQUEST_TIMEOUT_MS = 12_000;
 const MAX_IMAGE_PIXELS = 40_000_000;
 
-type SupportedImage = "image/jpeg" | "image/png" | "image/webp";
+type SupportedImage = "image/jpeg" | "image/png" | "image/webp" | "image/avif";
 
 interface PinnedImageResponse {
   readonly status: number;
@@ -73,7 +73,7 @@ export async function cacheRetailerImage(sourceUrl: string): Promise<CachedRetai
   };
 }
 
-/** Decodes every input under a pixel cap and converts WebP to Meshy-compatible PNG. */
+/** Decodes every input under a pixel cap and converts modern web formats to PNG. */
 export async function normalizeImageForModel(
   body: Buffer,
   contentType: SupportedImage,
@@ -92,7 +92,7 @@ export async function normalizeImageForModel(
   ) {
     throw new Error("Retailer image dimensions exceed the safe pixel limit.");
   }
-  if (contentType === "image/webp") {
+  if (contentType === "image/webp" || contentType === "image/avif") {
     const png = await decoder.png({ compressionLevel: 9 }).toBuffer();
     if (png.length === 0 || png.length > MAX_IMAGE_BYTES) {
       throw new Error("Normalized retailer image exceeds the 8 MB limit.");
@@ -226,11 +226,18 @@ function detectImageType(body: Buffer): SupportedImage | undefined {
   if (body.length >= 12 && body.subarray(0, 4).toString("ascii") === "RIFF" && body.subarray(8, 12).toString("ascii") === "WEBP") {
     return "image/webp";
   }
+  if (
+    body.length >= 12 &&
+    body.subarray(4, 8).toString("ascii") === "ftyp" &&
+    ["avif", "avis"].includes(body.subarray(8, 12).toString("ascii"))
+  ) {
+    return "image/avif";
+  }
   return undefined;
 }
 
-function imageExtension(contentType: SupportedImage): "jpg" | "png" | "webp" {
-  return contentType === "image/jpeg" ? "jpg" : contentType === "image/png" ? "png" : "webp";
+function imageExtension(contentType: SupportedImage): "jpg" | "png" {
+  return contentType === "image/jpeg" ? "jpg" : "png";
 }
 
 function isRedirect(status: number): boolean {

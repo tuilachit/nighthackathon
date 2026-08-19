@@ -9,12 +9,14 @@ import {
 const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00]);
 const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
 const webp = Buffer.from("RIFF0000WEBPpayload", "ascii");
+const avif = Buffer.from("0000ftypavifpayload", "ascii");
 
 describe("validateImageBytes", () => {
   it.each([
     ["image/jpeg", jpeg],
     ["image/png", png],
     ["image/webp", webp],
+    ["image/avif", avif],
   ])("accepts matching %s bytes", (contentType, body) => {
     expect(validateImageBytes(contentType, body)).toBe(contentType);
   });
@@ -37,6 +39,22 @@ describe("normalizeImageForModel", () => {
     }).webp().toBuffer();
 
     const normalized = await normalizeImageForModel(source, "image/webp");
+
+    expect(normalized.contentType).toBe("image/png");
+    expect(validateImageBytes("image/png", normalized.body)).toBe("image/png");
+  });
+
+  it("converts validated AVIF bytes to a Meshy-compatible bounded PNG", async () => {
+    const source = await sharp({
+      create: {
+        width: 2,
+        height: 2,
+        channels: 4,
+        background: { r: 90, g: 60, b: 30, alpha: 1 },
+      },
+    }).avif().toBuffer();
+
+    const normalized = await normalizeImageForModel(source, "image/avif");
 
     expect(normalized.contentType).toBe("image/png");
     expect(validateImageBytes("image/png", normalized.body)).toBe("image/png");
