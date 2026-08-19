@@ -140,6 +140,105 @@ describe("extractProductWithFirecrawl", () => {
       onlyCleanContent: true,
       location: { country: "AU", languages: ["en-AU"] },
     });
+    expect(requestBody.formats).toEqual(expect.arrayContaining(["markdown", "images"]));
+  });
+
+  it("recovers dimensions only from explicit labelled retailer text", async () => {
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        markdown: [
+          "# BILLY bookcase",
+          "Width: 80 cm",
+          "Depth: 28 cm",
+          "Height: 202 cm",
+        ].join("\n"),
+        images: ["https://www.ikea.com/images/billy.jpg"],
+        metadata: {
+          sourceURL: "https://www.ikea.com/au/en/p/billy-123/",
+          title: "BILLY bookcase",
+        },
+        json: {
+          canonicalUrl: "https://www.ikea.com/au/en/p/billy-123/",
+          retailerProductId: "123",
+          category: "bookcase",
+          priceMinor: 14900,
+          currency: "AUD",
+          availability: "in_stock",
+        },
+      },
+    }));
+
+    await expect(extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/billy-123/",
+      fetchImplementation,
+    )).resolves.toMatchObject({
+      name: "BILLY bookcase",
+      dimensions: { widthMm: 800, heightMm: 2020, depthMm: 280 },
+      dimensionsEvidence: "Width: 80 cm; Height: 202 cm; Depth: 28 cm",
+    });
+  });
+
+  it("rejects conflicting labelled dimensions instead of guessing", async () => {
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        markdown: [
+          "Width: 80 cm",
+          "Width: 40 cm",
+          "Height: 202 cm",
+          "Depth: 28 cm",
+        ].join("\n"),
+        metadata: {
+          sourceURL: "https://www.ikea.com/au/en/p/billy-123/",
+          title: "BILLY bookcase",
+        },
+        json: {
+          canonicalUrl: "https://www.ikea.com/au/en/p/billy-123/",
+        },
+      },
+    }));
+
+    const result = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/billy-123/",
+      fetchImplementation,
+    );
+
+    expect(result.dimensions).toBeUndefined();
+    expect(result.dimensionsEvidence).toBeUndefined();
+  });
+
+  it.each([
+    [
+      "Dimensions: 61cm x 15cm x 3.8cm (W x D x H)",
+      { widthMm: 610, heightMm: 38, depthMm: 150 },
+    ],
+    [
+      "Dimensions: 1220 W x 610 D x 1830 H mm",
+      { widthMm: 1220, heightMm: 1830, depthMm: 610 },
+    ],
+  ])("recovers explicit retailer axis legend: %s", async (markdown, expected) => {
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        markdown,
+        metadata: {
+          sourceURL: "https://www.kmart.com.au/product/bookcase-123/",
+          title: "Bookcase",
+        },
+        json: {
+          canonicalUrl: "https://www.kmart.com.au/product/bookcase-123/",
+        },
+      },
+    }));
+
+    const result = await extractProductWithFirecrawl(
+      "https://www.kmart.com.au/product/bookcase-123/",
+      fetchImplementation,
+    );
+
+    expect(result.dimensions).toEqual(expected);
+    expect(markdown).toContain(result.dimensionsEvidence);
   });
 
   it("keeps bounded raster photo alternatives and drops obvious icons", async () => {
@@ -408,6 +507,62 @@ describe("searchProductsWithFirecrawl", () => {
     expect(result.output.products).toHaveLength(2);
     expect(result.rejectedPages).toBe(0);
     expect(fetchImplementation).toHaveBeenCalledTimes(4);
+  });
+
+  it("accepts discovered pages whose dimensions are explicit only in markdown", async () => {
+    const fetchImplementation = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const endpoint = String(input);
+      if (endpoint.endsWith("/search")) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        const domain = (body.includeDomains as string[])[0];
+        const productUrl = domain === "ikea.com"
+          ? "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/"
+          : "https://www.kmart.com.au/product/oak-look-bookcase-kmart-001/";
+        return Response.json({
+          success: true,
+          data: { web: [{ url: productUrl, title: "Bookcase" }] },
+        });
+      }
+      if (endpoint.endsWith("/scrape")) {
+        const body = JSON.parse(String(init?.body)) as { url: string };
+        const ikea = body.url.includes("ikea.com");
+        return Response.json({
+          success: true,
+          data: {
+            markdown: "Width: 70 cm\nHeight: 160 cm\nDepth: 28 cm",
+            images: [ikea
+              ? "https://www.ikea.com/images/billy.jpg"
+              : "https://kmartau.mo.cloudinary.net/bookcase.jpg"],
+            metadata: { sourceURL: body.url },
+            json: {
+              canonicalUrl: body.url,
+              name: ikea ? "BILLY bookcase" : "Oak-look bookcase",
+              retailerProductId: ikea ? "ikea-001" : "kmart-001",
+              category: "bookcase",
+              priceMinor: ikea ? 14_900 : 8_900,
+              currency: "AUD",
+              availability: "in_stock",
+            },
+          },
+        });
+      }
+      throw new Error(`Unexpected Firecrawl endpoint: ${endpoint}`);
+    });
+
+    const result = await searchProductsWithFirecrawl({
+      kind: "prompt",
+      text: "black bookshelf",
+      retailers: ["ikea-au", "kmart-au"],
+    }, 6, fetchImplementation);
+
+    expect(result.output.products).toHaveLength(2);
+    expect(result.output.partial).toBe(false);
+    expect(result.output.products[0]?.assembledDimensions).toEqual({
+      widthMm: 700,
+      heightMm: 1600,
+      depthMm: 280,
+    });
+    expect(result.rejectedPages).toBe(0);
   });
 
   it("keeps one retailer's results when the other retailer times out", async () => {

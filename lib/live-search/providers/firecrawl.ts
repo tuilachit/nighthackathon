@@ -357,11 +357,12 @@ function productExtractionFromData(
   canonicalTarget: string,
 ): FirecrawlProductExtraction {
   const extracted = isRecord(data.json) ? data.json : {};
+  const markdown = optionalString(data.markdown) ?? "";
   const returnedUrl = optionalString(extracted.canonicalUrl) ?? metadataUrl(data) ?? canonicalTarget;
   if (!hasSameRegistrableDomain(canonicalTarget, returnedUrl)) {
     throw new FirecrawlResponseError("Firecrawl scrape left the submitted retailer domain.");
   }
-  const name = optionalString(extracted.name);
+  const name = optionalString(extracted.name) ?? metadataTitle(data);
   if (name === undefined) {
     throw new FirecrawlResponseError("Firecrawl scrape omitted the product name.");
   }
@@ -373,6 +374,13 @@ function productExtractionFromData(
     return url === undefined || isObviouslyNonProductImage(url) ? [] : [url];
   }))].slice(0, 6);
   const imageUrl = imageCandidates[0];
+  const extractedDimensions = dimensions(extracted.assembledDimensions);
+  const markdownDimensions = readExplicitDimensions(markdown);
+  const explicitDimensions = extractedDimensions ?? markdownDimensions?.dimensions;
+  const dimensionsEvidence = (explicitDimensions !== undefined && markdownDimensions !== undefined &&
+      sameDimensions(explicitDimensions, markdownDimensions.dimensions)
+      ? markdownDimensions.evidence
+      : undefined) ?? optionalString(extracted.dimensionsEvidence);
   return {
     url: canonicalizePublicProductUrl(returnedUrl),
     name,
@@ -386,10 +394,122 @@ function productExtractionFromData(
     ...optionalProperty("priceMinor", positiveInteger(extracted.priceMinor)),
     ...optionalProperty("currency", currencyCode(extracted.currency)),
     ...optionalProperty("availability", availability(extracted.availability)),
-    ...optionalProperty("dimensions", dimensions(extracted.assembledDimensions)),
-    ...optionalProperty("dimensionsEvidence", optionalString(extracted.dimensionsEvidence)),
-    markdown: optionalString(data.markdown) ?? "",
+    ...optionalProperty("dimensions", explicitDimensions),
+    ...optionalProperty("dimensionsEvidence", dimensionsEvidence),
+    markdown,
   };
+}
+
+function sameDimensions(
+  left: { readonly widthMm: number; readonly heightMm: number; readonly depthMm: number },
+  right: { readonly widthMm: number; readonly heightMm: number; readonly depthMm: number },
+): boolean {
+  return left.widthMm === right.widthMm &&
+    left.heightMm === right.heightMm &&
+    left.depthMm === right.depthMm;
+}
+
+function readExplicitDimensions(markdown: string): {
+  readonly dimensions: {
+    readonly widthMm: number;
+    readonly heightMm: number;
+    readonly depthMm: number;
+  };
+  readonly evidence: string;
+} | undefined {
+  const valueThenLegend = markdown.match(
+    /(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*[x×]\s*(\d+(?:\.\d+)?)\s*(mm|cm|m)\s*\(\s*w\s*[x×]\s*d\s*[x×]\s*h\s*\)/i,
+  );
+  if (valueThenLegend !== null) {
+    const dimensions = dimensionsFromEntries([
+      ["width", valueThenLegend[1], valueThenLegend[2]],
+      ["depth", valueThenLegend[3], valueThenLegend[4]],
+      ["height", valueThenLegend[5], valueThenLegend[6]],
+    ]);
+    if (dimensions !== undefined) {
+      return { dimensions, evidence: valueThenLegend[0] };
+    }
+  }
+
+  const sharedUnit = markdown.match(
+    /(\d+(?:\.\d+)?)\s*w\s*[x×]\s*(\d+(?:\.\d+)?)\s*d\s*[x×]\s*(\d+(?:\.\d+)?)\s*h\s*(mm|cm|m)\b/i,
+  );
+  if (sharedUnit !== null) {
+    const dimensions = dimensionsFromEntries([
+      ["width", sharedUnit[1], sharedUnit[4]],
+      ["depth", sharedUnit[2], sharedUnit[4]],
+      ["height", sharedUnit[3], sharedUnit[4]],
+    ]);
+    if (dimensions !== undefined) {
+      return { dimensions, evidence: sharedUnit[0] };
+    }
+  }
+
+  const axes = new Map<"width" | "height" | "depth", {
+    readonly millimetres: number;
+    readonly evidence: string;
+  }>();
+  const conflicts = new Set<string>();
+  const pattern = /\b(width|height|depth)\b\s*(?::|is|-)?\s*(\d+(?:\.\d+)?)\s*(mm|cm|m)\b/gi;
+  for (const match of markdown.matchAll(pattern)) {
+    const axis = match[1]?.toLowerCase() as "width" | "height" | "depth" | undefined;
+    const rawValue = match[2];
+    const unit = match[3]?.toLowerCase();
+    if (axis === undefined || rawValue === undefined || unit === undefined) {
+      continue;
+    }
+    const factor = unit === "mm" ? 1 : unit === "cm" ? 10 : 1_000;
+    const millimetres = Number(rawValue) * factor;
+    if (!Number.isInteger(millimetres) || millimetres < 1 || millimetres > 10_000) {
+      continue;
+    }
+    const previous = axes.get(axis);
+    if (previous !== undefined && previous.millimetres !== millimetres) {
+      conflicts.add(axis);
+      continue;
+    }
+    axes.set(axis, { millimetres, evidence: match[0] });
+  }
+  if (conflicts.size > 0) {
+    return undefined;
+  }
+  const width = axes.get("width");
+  const height = axes.get("height");
+  const depth = axes.get("depth");
+  if (width === undefined || height === undefined || depth === undefined) {
+    return undefined;
+  }
+  return {
+    dimensions: {
+      widthMm: width.millimetres,
+      heightMm: height.millimetres,
+      depthMm: depth.millimetres,
+    },
+    evidence: [width.evidence, height.evidence, depth.evidence].join("; "),
+  };
+}
+
+function dimensionsFromEntries(
+  entries: readonly (readonly ["width" | "height" | "depth", string | undefined, string | undefined])[],
+): FirecrawlProductExtraction["dimensions"] | undefined {
+  const values = new Map<"width" | "height" | "depth", number>();
+  for (const [axis, rawValue, unit] of entries) {
+    if (rawValue === undefined || unit === undefined) {
+      return undefined;
+    }
+    const factor = unit.toLowerCase() === "mm" ? 1 : unit.toLowerCase() === "cm" ? 10 : 1_000;
+    const millimetres = Number(rawValue) * factor;
+    if (!Number.isInteger(millimetres) || millimetres < 1 || millimetres > 10_000) {
+      return undefined;
+    }
+    values.set(axis, millimetres);
+  }
+  const widthMm = values.get("width");
+  const heightMm = values.get("height");
+  const depthMm = values.get("depth");
+  return widthMm === undefined || heightMm === undefined || depthMm === undefined
+    ? undefined
+    : { widthMm, heightMm, depthMm };
 }
 
 function isObviouslyNonProductImage(value: string): boolean {
@@ -477,6 +597,10 @@ function metadataUrl(data: Record<string, unknown>): string | undefined {
   return isRecord(data.metadata)
     ? optionalString(data.metadata.sourceURL) ?? optionalString(data.metadata.url)
     : undefined;
+}
+
+function metadataTitle(data: Record<string, unknown>): string | undefined {
+  return isRecord(data.metadata) ? optionalString(data.metadata.title) : undefined;
 }
 
 function safeOptionalPublicUrl(value: string | undefined): string | undefined {
