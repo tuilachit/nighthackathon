@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { getLiveSearchServerEnvironment } from "./env";
+import { getLiveSearchServerEnvironment, isLiveSearchConfigured } from "./env";
 
 beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://project.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+  vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "turnstile-site-key");
   vi.stubEnv("SUPABASE_SECRET_KEY", "secret-key");
   vi.stubEnv("FIRECRAWL_API_KEY", "fc-test-key");
   vi.stubEnv("BROWSER_USE_API_KEY", "browser-key");
@@ -31,6 +32,14 @@ describe("getLiveSearchServerEnvironment", () => {
 
   it("keeps the Firecrawl key server-only in the live environment", () => {
     expect(getLiveSearchServerEnvironment().firecrawlApiKey).toBe("fc-test-key");
+  });
+
+  it("does not require Meshy before a user approves 3D generation", () => {
+    vi.stubEnv("MESHY_API_KEY", "");
+    vi.stubEnv("MESHY_WEBHOOK_SECRET", "");
+
+    expect(isLiveSearchConfigured()).toBe(true);
+    expect(getLiveSearchServerEnvironment().meshyApiKey).toBeUndefined();
   });
 
   it("allows the rendered-page fallback enough budget to complete", () => {
