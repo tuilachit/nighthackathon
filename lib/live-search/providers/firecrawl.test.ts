@@ -322,6 +322,64 @@ describe("searchProductsWithFirecrawl", () => {
     expect(result.rejectedPages).toBe(1);
   });
 
+  it("opens discovered product pages when search omits structured extraction", async () => {
+    const fetchImplementation = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      const endpoint = String(input);
+      if (endpoint.endsWith("/search")) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        const domain = (body.includeDomains as string[])[0];
+        const ikea = domain === "ikea.com";
+        return Response.json({
+          success: true,
+          data: {
+            web: [{
+              url: ikea
+                ? "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/"
+                : "https://www.kmart.com.au/product/oak-look-bookcase-kmart-001/",
+              title: ikea ? "BILLY bookcase" : "Oak-look bookcase",
+              description: "A product result without embedded JSON",
+            }],
+          },
+        });
+      }
+      if (endpoint.endsWith("/scrape")) {
+        const body = JSON.parse(String(init?.body)) as { url: string };
+        const ikea = body.url.includes("ikea.com");
+        return Response.json({
+          success: true,
+          data: {
+            images: [ikea
+              ? "https://www.ikea.com/images/billy.jpg"
+              : "https://kmartau.mo.cloudinary.net/bookcase.jpg"],
+            metadata: { sourceURL: body.url },
+            json: {
+              canonicalUrl: body.url,
+              name: ikea ? "BILLY bookcase" : "Oak-look bookcase",
+              retailerProductId: ikea ? "ikea-001" : "kmart-001",
+              category: "bookcase",
+              priceMinor: ikea ? 14_900 : 8_900,
+              currency: "AUD",
+              availability: "in_stock",
+              assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
+              dimensionsEvidence: "Width 70 cm; Height 160 cm; Depth 28 cm",
+            },
+          },
+        });
+      }
+      throw new Error(`Unexpected Firecrawl endpoint: ${endpoint}`);
+    });
+
+    const result = await searchProductsWithFirecrawl({
+      kind: "prompt",
+      text: "black bookshelf",
+      retailers: ["ikea-au", "kmart-au"],
+    }, 6, fetchImplementation);
+
+    expect(result.output.products).toHaveLength(2);
+    expect(result.rejectedPages).toBe(0);
+    expect(fetchImplementation).toHaveBeenCalledTimes(4);
+  });
+
   it("keeps one retailer's results when the other retailer times out", async () => {
     const fetchImplementation = vi.fn(async (_input: string | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body)) as Record<string, unknown>;

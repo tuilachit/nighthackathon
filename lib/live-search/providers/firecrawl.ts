@@ -21,6 +21,7 @@ import {
 const SEARCH_ENDPOINT = "https://api.firecrawl.dev/v2/search";
 const SCRAPE_ENDPOINT = "https://api.firecrawl.dev/v2/scrape";
 const FIRECRAWL_TIMEOUT_MS = 25_000;
+const FIRECRAWL_SEARCH_TIMEOUT_MS = 10_000;
 const AU_LOCATION = {
   country: "AU",
   languages: ["en-AU"],
@@ -82,12 +83,11 @@ export async function searchProductsWithFirecrawl(
     if (hit.extraction !== undefined) {
       return Promise.resolve(hit.extraction);
     }
-    if (intent.kind === "product-link") {
-      return extractProductWithFirecrawl(hit.url, fetchImplementation);
-    }
-    return Promise.reject(
-      new FirecrawlResponseError("Firecrawl search result omitted structured product facts."),
-    );
+    // Firecrawl search reliably discovers retailer URLs, but JSON extraction is
+    // not guaranteed on each search result. Finish the bounded product-page
+    // extraction here rather than discarding a valid discovery and falling
+    // through to the slower interactive-browser provider.
+    return extractProductWithFirecrawl(hit.url, fetchImplementation);
   }));
   const products: LiveProductObservation[] = [];
   const notes: string[] = [];
@@ -236,33 +236,16 @@ async function searchRetailer(
     method: "POST",
     headers: firecrawlHeaders(environment.firecrawlApiKey),
     body: JSON.stringify({
-      query: `${query} furniture`,
+      query: retailerSearchQuery(retailer, query),
       limit,
       includeDomains: [identity.host],
+      sources: ["web"],
       country: "AU",
       location: "Sydney,New South Wales,Australia",
-      timeout: 20_000,
+      timeout: 8_000,
       ignoreInvalidURLs: true,
-      scrapeOptions: {
-        formats: [
-          "markdown",
-          "images",
-          {
-            type: "json",
-            prompt: productExtractionPrompt(),
-            schema: productExtractionSchema(),
-          },
-        ],
-        onlyMainContent: true,
-        onlyCleanContent: true,
-        location: AU_LOCATION,
-        removeBase64Images: true,
-        blockAds: true,
-        proxy: "auto",
-        timeout: 20_000,
-      },
     }),
-    signal: AbortSignal.timeout(FIRECRAWL_TIMEOUT_MS),
+    signal: AbortSignal.timeout(FIRECRAWL_SEARCH_TIMEOUT_MS),
   });
   const payload = await readFirecrawlResponse(response, "search");
   const data = isRecord(payload.data) && Array.isArray(payload.data.web)
@@ -282,6 +265,9 @@ async function searchRetailer(
       if (!hasSameRegistrableDomain(`https://${identity.host}`, url)) {
         return [];
       }
+      if (!isKnownRetailerProductPage(retailer, url)) {
+        return [];
+      }
       let extraction: FirecrawlProductExtraction | undefined;
       try {
         extraction = productExtractionFromData(entry, url);
@@ -299,6 +285,20 @@ async function searchRetailer(
       return [];
     }
   });
+}
+
+function retailerSearchQuery(retailer: LiveRetailer, query: string): string {
+  const productPath = retailer === "ikea-au"
+    ? "site:ikea.com/au/en/p/"
+    : "site:kmart.com.au/product/";
+  return `${query} furniture ${productPath}`;
+}
+
+function isKnownRetailerProductPage(retailer: LiveRetailer, value: string): boolean {
+  const pathname = parsePublicHttpsUrl(value).pathname.toLowerCase();
+  return retailer === "ikea-au"
+    ? pathname.includes("/au/en/p/")
+    : pathname.startsWith("/product/");
 }
 
 function productExtractionSchema(): Readonly<Record<string, unknown>> {
