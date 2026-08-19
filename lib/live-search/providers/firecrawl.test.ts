@@ -221,45 +221,40 @@ describe("searchProductsWithFirecrawl", () => {
       if (endpoint.endsWith("/search")) {
         const domain = (body.includeDomains as string[])[0];
         const ikea = domain === "ikea.com";
+        const productUrl = ikea
+          ? "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/"
+          : "https://www.kmart.com.au/product/oak-look-bookcase-kmart-001/";
         return Response.json({
           success: true,
           data: {
             web: [{
-              url: ikea
-                ? "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/"
-                : "https://www.kmart.com.au/product/oak-look-bookcase-kmart-001/",
+              url: productUrl,
               title: ikea ? "BILLY bookcase" : "Oak-look bookcase",
               description: "Black narrow bookcase",
+              markdown: "Source product facts",
+              json: {
+                canonicalUrl: productUrl,
+                name: ikea ? "BILLY bookcase" : "Oak-look bookcase",
+                retailerProductId: ikea ? "ikea-001" : "kmart-001",
+                category: "bookcase",
+                imageUrl: ikea
+                  ? "https://www.ikea.com/images/billy.jpg"
+                  : "https://kmartau.mo.cloudinary.net/bookcase.jpg",
+                priceMinor: ikea ? 14_900 : 8_900,
+                currency: "AUD",
+                availability: "in_stock",
+                assembledDimensions: {
+                  widthMm: 700,
+                  heightMm: 1_600,
+                  depthMm: 280,
+                },
+                dimensionsEvidence: "Width 70 cm; Height 160 cm; Depth 28 cm",
+              },
             }],
           },
         });
       }
-      const productUrl = String(body.url);
-      const ikea = productUrl.includes("ikea.com");
-      return Response.json({
-        success: true,
-        data: {
-          markdown: "Source product facts",
-          json: {
-            canonicalUrl: productUrl,
-            name: ikea ? "BILLY bookcase" : "Oak-look bookcase",
-            retailerProductId: ikea ? "ikea-001" : "kmart-001",
-            category: "bookcase",
-            imageUrl: ikea
-              ? "https://www.ikea.com/images/billy.jpg"
-              : "https://kmartau.mo.cloudinary.net/bookcase.jpg",
-            priceMinor: ikea ? 14_900 : 8_900,
-            currency: "AUD",
-            availability: "in_stock",
-            assembledDimensions: {
-              widthMm: 700,
-              heightMm: 1_600,
-              depthMm: 280,
-            },
-            dimensionsEvidence: "Width 70 cm; Height 160 cm; Depth 28 cm",
-          },
-        },
-      });
+      throw new Error(`Unexpected Firecrawl endpoint: ${endpoint}`);
     });
 
     const result = await searchProductsWithFirecrawl({
@@ -276,7 +271,7 @@ describe("searchProductsWithFirecrawl", () => {
     ]);
     expect(result.attemptedPages).toBe(2);
     expect(result.rejectedPages).toBe(0);
-    expect(fetchImplementation).toHaveBeenCalledTimes(4);
+    expect(fetchImplementation).toHaveBeenCalledTimes(2);
   });
 
   it("returns useful partial coverage instead of rejecting the whole batch", async () => {
@@ -286,38 +281,33 @@ describe("searchProductsWithFirecrawl", () => {
       if (endpoint.endsWith("/search")) {
         const domain = (body.includeDomains as string[])[0];
         const ikea = domain === "ikea.com";
+        const productUrl = ikea
+          ? "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/"
+          : "https://www.kmart.com.au/product/incomplete-bookcase/";
         return Response.json({
           success: true,
           data: { web: [{
-            url: ikea
-              ? "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/"
-              : "https://www.kmart.com.au/product/incomplete-bookcase/",
+            url: productUrl,
             title: "Bookcase",
+            json: ikea ? {
+              canonicalUrl: productUrl,
+              name: "BILLY bookcase",
+              retailerProductId: "ikea-001",
+              category: "bookcase",
+              imageUrl: "https://www.ikea.com/images/billy.jpg",
+              priceMinor: 14_900,
+              currency: "AUD",
+              availability: "in_stock",
+              assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
+              dimensionsEvidence: "Width 70 cm; Height 160 cm; Depth 28 cm",
+            } : {
+              canonicalUrl: productUrl,
+              name: "Incomplete bookcase",
+            },
           }] },
         });
       }
-      const productUrl = String(body.url);
-      const ikea = productUrl.includes("ikea.com");
-      return Response.json({
-        success: true,
-        data: {
-          json: ikea ? {
-            canonicalUrl: productUrl,
-            name: "BILLY bookcase",
-            retailerProductId: "ikea-001",
-            category: "bookcase",
-            imageUrl: "https://www.ikea.com/images/billy.jpg",
-            priceMinor: 14_900,
-            currency: "AUD",
-            availability: "in_stock",
-            assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
-            dimensionsEvidence: "Width 70 cm; Height 160 cm; Depth 28 cm",
-          } : {
-            canonicalUrl: productUrl,
-            name: "Incomplete bookcase",
-          },
-        },
-      });
+      throw new Error(`Unexpected Firecrawl endpoint: ${endpoint}`);
     });
 
     const result = await searchProductsWithFirecrawl({

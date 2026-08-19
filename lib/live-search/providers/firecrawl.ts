@@ -20,7 +20,7 @@ import {
 
 const SEARCH_ENDPOINT = "https://api.firecrawl.dev/v2/search";
 const SCRAPE_ENDPOINT = "https://api.firecrawl.dev/v2/scrape";
-const FIRECRAWL_TIMEOUT_MS = 35_000;
+const FIRECRAWL_TIMEOUT_MS = 25_000;
 const AU_LOCATION = {
   country: "AU",
   languages: ["en-AU"],
@@ -36,6 +36,7 @@ export interface FirecrawlDiscoveryHit {
   readonly url: string;
   readonly title: string;
   readonly description: string;
+  readonly extraction?: FirecrawlProductExtraction;
 }
 
 export interface FirecrawlProductExtraction {
@@ -77,9 +78,17 @@ export async function searchProductsWithFirecrawl(
     maxResults,
     fetchImplementation,
   );
-  const settled = await Promise.allSettled(
-    discoveryHits.map((hit) => extractProductWithFirecrawl(hit.url, fetchImplementation)),
-  );
+  const settled = await Promise.allSettled(discoveryHits.map((hit) => {
+    if (hit.extraction !== undefined) {
+      return Promise.resolve(hit.extraction);
+    }
+    if (intent.kind === "product-link") {
+      return extractProductWithFirecrawl(hit.url, fetchImplementation);
+    }
+    return Promise.reject(
+      new FirecrawlResponseError("Firecrawl search result omitted structured product facts."),
+    );
+  }));
   const products: LiveProductObservation[] = [];
   const notes: string[] = [];
 
@@ -189,14 +198,7 @@ export async function extractProductWithFirecrawl(
         "images",
         {
           type: "json",
-          prompt: [
-            "Extract only facts explicitly stated for this exact furniture product and variant.",
-            "Copy the canonical URL, product name, retailer product ID, category, primary image,",
-            "listed price in integer minor units, ISO-4217 currency, availability, and assembled dimensions.",
-            "Only return widthMm, heightMm, and depthMm when all three axes are explicit.",
-            "Never infer dimension order, estimate a value, or substitute package dimensions.",
-            "Preserve a short verbatim dimensionsEvidence string. Omit any unavailable field.",
-          ].join(" "),
+          prompt: productExtractionPrompt(),
           schema: productExtractionSchema(),
         },
       ],
@@ -206,7 +208,7 @@ export async function extractProductWithFirecrawl(
       removeBase64Images: true,
       blockAds: true,
       proxy: "auto",
-      timeout: 30_000,
+      timeout: 20_000,
     }),
     signal: AbortSignal.timeout(FIRECRAWL_TIMEOUT_MS),
   });
@@ -214,32 +216,7 @@ export async function extractProductWithFirecrawl(
   if (!isRecord(payload.data)) {
     throw new FirecrawlResponseError("Firecrawl scrape response omitted data.");
   }
-  const data = payload.data;
-  const extracted = isRecord(data.json) ? data.json : {};
-  const returnedUrl = optionalString(extracted.canonicalUrl) ?? metadataUrl(data) ?? canonicalTarget;
-  if (!hasSameRegistrableDomain(canonicalTarget, returnedUrl)) {
-    throw new FirecrawlResponseError("Firecrawl scrape left the submitted retailer domain.");
-  }
-  const name = optionalString(extracted.name);
-  if (name === undefined) {
-    throw new FirecrawlResponseError("Firecrawl scrape omitted the product name.");
-  }
-  const imageUrl = safeOptionalPublicUrl(
-    optionalString(extracted.imageUrl) ?? stringArray(data.images)[0],
-  );
-  return {
-    url: canonicalizePublicProductUrl(returnedUrl),
-    name,
-    ...optionalProperty("retailerProductId", optionalString(extracted.retailerProductId)),
-    ...optionalProperty("category", optionalString(extracted.category)),
-    ...optionalProperty("imageUrl", imageUrl),
-    ...optionalProperty("priceMinor", positiveInteger(extracted.priceMinor)),
-    ...optionalProperty("currency", currencyCode(extracted.currency)),
-    ...optionalProperty("availability", availability(extracted.availability)),
-    ...optionalProperty("dimensions", dimensions(extracted.assembledDimensions)),
-    ...optionalProperty("dimensionsEvidence", optionalString(extracted.dimensionsEvidence)),
-    markdown: optionalString(data.markdown) ?? "",
-  };
+  return productExtractionFromData(payload.data, canonicalTarget);
 }
 
 async function searchRetailer(
@@ -259,8 +236,26 @@ async function searchRetailer(
       includeDomains: [identity.host],
       country: "AU",
       location: "Sydney,New South Wales,Australia",
-      timeout: 30_000,
+      timeout: 20_000,
       ignoreInvalidURLs: true,
+      scrapeOptions: {
+        formats: [
+          "markdown",
+          "images",
+          {
+            type: "json",
+            prompt: productExtractionPrompt(),
+            schema: productExtractionSchema(),
+          },
+        ],
+        onlyMainContent: true,
+        onlyCleanContent: true,
+        location: AU_LOCATION,
+        removeBase64Images: true,
+        blockAds: true,
+        proxy: "auto",
+        timeout: 20_000,
+      },
     }),
     signal: AbortSignal.timeout(FIRECRAWL_TIMEOUT_MS),
   });
@@ -282,11 +277,18 @@ async function searchRetailer(
       if (!hasSameRegistrableDomain(`https://${identity.host}`, url)) {
         return [];
       }
+      let extraction: FirecrawlProductExtraction | undefined;
+      try {
+        extraction = productExtractionFromData(entry, url);
+      } catch {
+        extraction = undefined;
+      }
       return [{
         retailer: identity,
         url,
         title,
         description: optionalString(entry.description) ?? "",
+        ...optionalProperty("extraction", extraction),
       }];
     } catch {
       return [];
@@ -323,6 +325,48 @@ function productExtractionSchema(): Readonly<Record<string, unknown>> {
     },
     required: ["canonicalUrl", "name"],
     additionalProperties: false,
+  };
+}
+
+function productExtractionPrompt(): string {
+  return [
+    "Extract only facts explicitly stated for this exact furniture product and variant.",
+    "Copy the canonical URL, product name, retailer product ID, category, primary image,",
+    "listed price in integer minor units, ISO-4217 currency, availability, and assembled dimensions.",
+    "Only return widthMm, heightMm, and depthMm when all three axes are explicit.",
+    "Never infer dimension order, estimate a value, or substitute package dimensions.",
+    "Preserve a short verbatim dimensionsEvidence string. Omit any unavailable field.",
+  ].join(" ");
+}
+
+function productExtractionFromData(
+  data: Record<string, unknown>,
+  canonicalTarget: string,
+): FirecrawlProductExtraction {
+  const extracted = isRecord(data.json) ? data.json : {};
+  const returnedUrl = optionalString(extracted.canonicalUrl) ?? metadataUrl(data) ?? canonicalTarget;
+  if (!hasSameRegistrableDomain(canonicalTarget, returnedUrl)) {
+    throw new FirecrawlResponseError("Firecrawl scrape left the submitted retailer domain.");
+  }
+  const name = optionalString(extracted.name);
+  if (name === undefined) {
+    throw new FirecrawlResponseError("Firecrawl scrape omitted the product name.");
+  }
+  const imageUrl = safeOptionalPublicUrl(
+    optionalString(extracted.imageUrl) ?? stringArray(data.images)[0],
+  );
+  return {
+    url: canonicalizePublicProductUrl(returnedUrl),
+    name,
+    ...optionalProperty("retailerProductId", optionalString(extracted.retailerProductId)),
+    ...optionalProperty("category", optionalString(extracted.category)),
+    ...optionalProperty("imageUrl", imageUrl),
+    ...optionalProperty("priceMinor", positiveInteger(extracted.priceMinor)),
+    ...optionalProperty("currency", currencyCode(extracted.currency)),
+    ...optionalProperty("availability", availability(extracted.availability)),
+    ...optionalProperty("dimensions", dimensions(extracted.assembledDimensions)),
+    ...optionalProperty("dimensionsEvidence", optionalString(extracted.dimensionsEvidence)),
+    markdown: optionalString(data.markdown) ?? "",
   };
 }
 
