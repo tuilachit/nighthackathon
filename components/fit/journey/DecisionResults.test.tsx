@@ -110,6 +110,22 @@ describe("DecisionResults", () => {
       "href",
       fits[0].productUrl,
     );
+    expect(screen.getByText("One validated match")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Refine search" })).toHaveAttribute(
+      "href",
+      "/fit/search",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Compare top matches" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps result cards single-column inside the narrow journey shell", () => {
+    render(<DecisionResults {...defaultProps()} />);
+
+    const firstCard = screen.getByTestId("decision-candidate-ikea-1");
+    expect(firstCard.parentElement).toHaveClass("grid-cols-1");
+    expect(firstCard.parentElement).not.toHaveClass("sm:grid-cols-2");
   });
 
   it("defaults an empty comparison to top fits from different retailers", async () => {

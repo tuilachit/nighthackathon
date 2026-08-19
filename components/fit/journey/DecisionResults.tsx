@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import type {
   CandidateFitStatus,
   DecisionCandidate,
@@ -156,7 +157,7 @@ export function DecisionResults({
         {visibleCandidates.length === 0 ? (
           <EmptyTier tier={selectedTier} />
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3">
             {visibleCandidates.map((candidate) => {
               const isCompared = comparedKeys.includes(candidate.key);
               return (
@@ -201,32 +202,51 @@ export function DecisionResults({
         ) : null}
       </section>
 
-      <div className="fit-comparison-tray sticky bottom-3 z-20 mt-4 flex items-center justify-between gap-3 border border-[#17221f] bg-white p-2.5">
-        <div className="min-w-0">
-          <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
-            Compare in one envelope
-          </p>
-          <p className="mt-1 truncate text-xs font-bold text-[#17221f]">
-            {compareState.label}
-          </p>
+      {candidates.length < 2 ? (
+        <div className="mt-4 flex items-center justify-between gap-3 border border-[#17221f]/30 bg-[#f4f7f5] p-3">
+          <div className="min-w-0">
+            <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
+              One validated match
+            </p>
+            <p className="mt-1 text-xs font-bold text-[#17221f]">
+              Refine the search to compare products.
+            </p>
+          </div>
+          <Link
+            href="/fit/search"
+            className="flex min-h-11 shrink-0 items-center border border-[#17221f] bg-white px-3 text-xs font-bold text-[#17221f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17221f]"
+          >
+            Refine search
+          </Link>
         </div>
-        <button
-          type="button"
-          disabled={comparePair.length !== 2 || compareState.disabled}
-          onClick={() => {
-            if (comparePair.length === 2) {
-              onOpenComparison([comparePair[0].key, comparePair[1].key]);
-            }
-          }}
-          className="min-h-11 shrink-0 cursor-pointer bg-[#17221f] px-4 text-xs font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17221f] disabled:cursor-not-allowed disabled:bg-[#17221f]/35"
-        >
-          {comparedKeys.length === 0
-            ? "Compare top matches"
-            : comparedKeys.length === 2
-              ? "Compare 2 selected"
-              : "Select one more"}
-        </button>
-      </div>
+      ) : (
+        <div className="fit-comparison-tray sticky bottom-3 z-20 mt-4 flex items-center justify-between gap-3 border border-[#17221f] bg-white p-2.5">
+          <div className="min-w-0">
+            <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
+              Compare in one envelope
+            </p>
+            <p className="mt-1 truncate text-xs font-bold text-[#17221f]">
+              {compareState.label}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={comparePair.length !== 2 || compareState.disabled}
+            onClick={() => {
+              if (comparePair.length === 2) {
+                onOpenComparison([comparePair[0].key, comparePair[1].key]);
+              }
+            }}
+            className="min-h-11 shrink-0 cursor-pointer bg-[#17221f] px-4 text-xs font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17221f] disabled:cursor-not-allowed disabled:bg-[#17221f]/35"
+          >
+            {comparedKeys.length === 0
+              ? "Compare top matches"
+              : comparedKeys.length === 2
+                ? "Compare 2 selected"
+                : "Select one more"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
