@@ -77,7 +77,12 @@ export interface FirecrawlPrimarySearchResult {
   readonly rejections: readonly FirecrawlRejection[];
   readonly productsPerRetailer: Readonly<Record<string, number>>;
   readonly reachedCompletenessFloor: boolean;
-  readonly stoppedReason: "completeness-floor" | "budget-exhausted" | "candidates-exhausted";
+  readonly stoppedReason:
+    | "completeness-floor"
+    | "budget-exhausted"
+    | "candidates-exhausted"
+    | "scrape-cap"
+    | "rate-limited";
   readonly elapsedMs: number;
 }
 
@@ -117,9 +122,13 @@ export async function searchProductsWithFirecrawl(
   // settles. Lock-step batches made every batch as slow as its slowest page, so
   // one 20s timeout stalled five finished pages and a single batch spent the
   // whole budget; production attempted 6 of 28 discovered URLs.
+  // Only pages without an inline extraction cost a scrape request; cap those so
+  // one search cannot exhaust the provider's per-minute allowance.
   const queue = [...discoveryHits];
   const inFlight = new Set<Promise<void>>();
   let stopped = false;
+  let scrapesStarted = 0;
+  let rateLimited = false;
 
   const settle = async (hit: FirecrawlDiscoveryHit): Promise<void> => {
     attemptedPages += 1;
@@ -165,6 +174,11 @@ export async function searchProductsWithFirecrawl(
       }
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
+      if (error instanceof FirecrawlRequestError && error.status === 429) {
+        // The provider has refused further requests this minute. Starting more
+        // pages would only add rejections; stop admitting work and report it.
+        rateLimited = true;
+      }
       console.warn(JSON.stringify({
         level: "warn",
         message: "firecrawl_extraction_failed",
@@ -188,15 +202,53 @@ export async function searchProductsWithFirecrawl(
       stopped = true;
       break;
     }
-    while (queue.length > 0 && inFlight.size < environment.extractionConcurrency) {
-      const hit = queue.shift();
-      if (hit === undefined) {
+    if (rateLimited) {
+      stoppedReason = "rate-limited";
+      notes.push("The retailer page provider rate-limited this search before every page was checked.");
+      stopped = true;
+    }
+    while (!stopped && queue.length > 0 && inFlight.size < environment.extractionConcurrency) {
+      const next = queue[0];
+      if (next === undefined) {
         break;
       }
-      const task: Promise<void> = settle(hit).finally(() => {
+      const costsScrape = next.extraction === undefined;
+      if (costsScrape && scrapesStarted >= environment.maxScrapesPerSearch) {
+        // Pages with inline extraction are still free to validate; stop only
+        // admitting new scrapes.
+        const freeIndex = queue.findIndex((hit) => hit.extraction !== undefined);
+        if (freeIndex === -1) {
+          stoppedReason = "scrape-cap";
+          notes.push("Checked the maximum number of retailer pages allowed for one search.");
+          stopped = true;
+          break;
+        }
+        const [free] = queue.splice(freeIndex, 1);
+        if (free === undefined) {
+          break;
+        }
+        const freeTask: Promise<void> = settle(free).finally(() => {
+          inFlight.delete(freeTask);
+        });
+        inFlight.add(freeTask);
+        continue;
+      }
+      queue.shift();
+      if (costsScrape) {
+        scrapesStarted += 1;
+      }
+      const task: Promise<void> = settle(next).finally(() => {
         inFlight.delete(task);
       });
       inFlight.add(task);
+    }
+    if (stopped) {
+      // Pages already admitted may finish, but never past the deadline.
+      await Promise.race([
+        Promise.allSettled([...inFlight]),
+        sleep(Math.max(0, deadline - clock())),
+      ]);
+      break;
     }
     if (inFlight.size === 0) {
       break;
@@ -210,6 +262,10 @@ export async function searchProductsWithFirecrawl(
   }
   // Pages still in flight at the deadline are abandoned for this response; their
   // per-page timeout bounds the provider spend.
+  if (!stopped && rateLimited) {
+    stoppedReason = "rate-limited";
+    notes.push("The retailer page provider rate-limited this search before every page was checked.");
+  }
 
   if (meetsCompletenessFloor(products, intent, environment, limit)) {
     stoppedReason = "completeness-floor";
@@ -249,6 +305,8 @@ export async function searchProductsWithFirecrawl(
     validated: products.length,
     productsPerRetailer,
     rejected: rejections.length,
+    scrapesStarted,
+    rateLimited,
     reachedCompletenessFloor,
     stoppedReason,
     elapsedMs,

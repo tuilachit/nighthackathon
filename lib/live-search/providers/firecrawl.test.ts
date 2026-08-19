@@ -931,6 +931,7 @@ describe("searchProductsWithFirecrawl completeness", () => {
     vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
     vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
     vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "4");
+    vi.stubEnv("LIVE_SEARCH_MAX_SCRAPES", "30");
     const incompleteUrls = [
       "https://www.ikea.com/au/en/p/bookcase-ikea-000/",
       "https://www.kmart.com.au/product/bookcase-kmart-000/",
@@ -949,6 +950,65 @@ describe("searchProductsWithFirecrawl completeness", () => {
       expect(canonical).toContain(rejection.url);
       expect(rejection.missingFields).toContain("assembledDimensions");
     }
+  });
+
+  it("never starts more scrapes per search than the plan allowance", async () => {
+    // Production: 8 concurrent scrapes against a ~10 req/min plan turned 16 of
+    // 27 attempts into immediate 429s. The cap bounds paid requests per search
+    // regardless of how many pages discovery found.
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "20");
+    vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
+    vi.stubEnv("LIVE_SEARCH_MAX_SCRAPES", "5");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "4");
+    const scraped: string[] = [];
+    const fetchImplementation = firecrawlPool({
+      pagesPerRetailer: 10,
+      onScrape: (url) => scraped.push(url),
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.discoveryHits).toHaveLength(20);
+    expect(scraped).toHaveLength(5);
+    expect(result.attemptedPages).toBe(5);
+    expect(result.output.products).toHaveLength(5);
+    expect(result.stoppedReason).toBe("scrape-cap");
+    expect(result.output.partial).toBe(true);
+    expect(result.output.notes.join(" ")).toContain("maximum number of retailer pages");
+  });
+
+  it("stops admitting pages once the provider rate-limits and says so", async () => {
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "20");
+    vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
+    vi.stubEnv("LIVE_SEARCH_MAX_SCRAPES", "30");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "2");
+    let scrapes = 0;
+    const base = firecrawlPool({ pagesPerRetailer: 10 });
+    const fetchImplementation = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/scrape")) {
+        scrapes += 1;
+        if (scrapes >= 3) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Rate limit exceeded. Consumed (req/min): 11" }),
+            { status: 429 },
+          );
+        }
+      }
+      return base(input, init);
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.stoppedReason).toBe("rate-limited");
+    expect(result.output.products.length).toBeGreaterThanOrEqual(2);
+    // Two pages in flight when the first 429 landed may also have been refused,
+    // but no fresh page is admitted after the provider says stop.
+    expect(scrapes).toBeLessThanOrEqual(2 + 2);
+    expect(result.output.partial).toBe(true);
+    expect(result.output.notes.join(" ")).toContain("rate-limited");
+    expect(result.rejections.some((rejection) =>
+      rejection.reasons.join(" ").includes("HTTP 429"),
+    )).toBe(true);
   });
 
   it("records the exact rejection reason for every rejected URL", async () => {
