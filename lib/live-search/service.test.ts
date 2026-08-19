@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   claimSearchDispatch: vi.fn(),
   completeModelAsset: vi.fn(),
   createBrowserSearchSession: vi.fn(),
+  searchProductsWithFirecrawl: vi.fn(),
   createMeshyImageTask: vi.fn(),
   createSupabaseAdminClient: vi.fn(),
   download: vi.fn(),
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   recordDiscoveryCache: vi.fn(),
   recordMeshySubmission: vi.fn(),
   recordSearchResults: vi.fn(),
+  recordSynchronousSearchResults: vi.fn(),
   rescaleGlbToDimensions: vi.fn(),
   storageFrom: vi.fn(),
   upload: vi.fn(),
@@ -58,6 +60,7 @@ vi.mock("./repository", () => ({
   recordDiscoveryCache: mocks.recordDiscoveryCache,
   recordMeshySubmission: mocks.recordMeshySubmission,
   recordSearchResults: mocks.recordSearchResults,
+  recordSynchronousSearchResults: mocks.recordSynchronousSearchResults,
 }));
 
 vi.mock("./providers/browser-use", async (importOriginal) => {
@@ -77,6 +80,10 @@ vi.mock("./providers/meshy", async (importOriginal) => {
     getMeshyTask: mocks.getMeshyTask,
   };
 });
+
+vi.mock("./providers/firecrawl", () => ({
+  searchProductsWithFirecrawl: mocks.searchProductsWithFirecrawl,
+}));
 
 import { ProviderRequestError } from "./providers/browser-use";
 import {
@@ -233,12 +240,24 @@ describe("live-search service orchestration", () => {
     mocks.recordDiscoveryCache.mockResolvedValue(undefined);
     mocks.recordMeshySubmission.mockResolvedValue(undefined);
     mocks.recordSearchResults.mockResolvedValue(1);
+    mocks.recordSynchronousSearchResults.mockResolvedValue(1);
     mocks.completeModelAsset.mockResolvedValue("44444444-4444-4444-8444-444444444444");
     mocks.markWebhookProcessed.mockResolvedValue(undefined);
     mocks.findProviderTask.mockImplementation(async (provider: string) =>
       provider === "browser_use" ? browserContext() : modelContext()
     );
     mocks.getWorkflowCommand.mockResolvedValue(browserCommand());
+    mocks.searchProductsWithFirecrawl.mockResolvedValue({
+      output: { products: [], partial: true, notes: ["No validated Firecrawl result returned."] },
+      discoveryHits: [{
+        retailer: { key: "ikea-au", label: "IKEA Australia", host: "ikea.com" },
+        url: "https://www.ikea.com/au/en/p/billy-bookcase-ikea-001/",
+        title: "BILLY bookcase",
+        description: "Narrow bookcase",
+      }],
+      attemptedPages: 1,
+      rejectedPages: 1,
+    });
     mocks.evaluateLiveProducts.mockReturnValue(EVALUATED_CANDIDATES);
     mocks.cacheRetailerImage.mockImplementation(async (url: string) => ({
       publicUrl: `https://test-project.supabase.co/storage/v1/object/public/product-images-public/${"d".repeat(64)}.jpg`,
@@ -462,6 +481,7 @@ describe("live-search service orchestration", () => {
       mocks.getBrowserSearchSession.mockResolvedValue({
         id: BROWSER_SESSION_ID,
         status: "stopped",
+        model: "bu-mini",
         isTaskSuccessful: false,
         maxCostUsd: 0.35,
         totalCostUsd: 0.35,
@@ -481,6 +501,9 @@ describe("live-search service orchestration", () => {
         errorMessage: "The retailer check reached its browsing limit before validated products were ready. Try a shorter, more specific search.",
         retryable: false,
       });
+      expect(vi.mocked(console.warn).mock.calls.flat().join(" ")).toContain(
+        '\"model\":\"bu-mini\"',
+      );
     });
 
     it("re-evaluates an exact cached observation against the current workflow measurement", async () => {
@@ -749,6 +772,110 @@ describe("live-search service orchestration", () => {
       expect(mocks.failWorkflowStage).not.toHaveBeenCalled();
     });
 
+    it("completes from validated Firecrawl products without starting Browser Use", async () => {
+      const observation = rawObservation("ikea-au", {
+        observedAt: new Date().toISOString(),
+      });
+      mocks.claimSearchDispatch.mockResolvedValue({
+        providerTaskId: PROVIDER_TASK_ID,
+        shouldSubmit: true,
+      });
+      mocks.searchProductsWithFirecrawl.mockResolvedValue({
+        output: { products: [observation], partial: false, notes: [] },
+        discoveryHits: [{
+          retailer: observation.retailer,
+          url: observation.productUrl,
+          title: observation.name,
+          description: "Narrow bookcase",
+        }],
+        attemptedPages: 1,
+        rejectedPages: 0,
+      });
+
+      await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
+
+      expect(mocks.recordSynchronousSearchResults).toHaveBeenCalledWith(
+        WORKFLOW_ID,
+        PROVIDER_TASK_ID,
+        EVALUATED_CANDIDATES,
+        false,
+        [],
+        expect.objectContaining({
+          provider: "firecrawl",
+          attemptedPages: 1,
+          rejectedPages: 0,
+        }),
+      );
+      expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
+      expect(mocks.recordBrowserSubmission).not.toHaveBeenCalled();
+      expect(mocks.recordDiscoveryCache).toHaveBeenCalledOnce();
+    });
+
+    it("uses the first safely cached retailer image candidate", async () => {
+      const observation = rawObservation("ikea-au", {
+        observedAt: new Date().toISOString(),
+        imageUrl: "https://www.ikea.com/images/page-asset.jpg",
+      });
+      const productUrl = String(observation.productUrl);
+      const productPhoto = "https://www.ikea.com/images/billy-product.webp";
+      mocks.claimSearchDispatch.mockResolvedValue({
+        providerTaskId: PROVIDER_TASK_ID,
+        shouldSubmit: true,
+      });
+      mocks.searchProductsWithFirecrawl.mockResolvedValue({
+        output: { products: [observation], partial: false, notes: [] },
+        discoveryHits: [],
+        attemptedPages: 1,
+        rejectedPages: 0,
+        imageCandidates: {
+          [productUrl]: [String(observation.imageUrl), productPhoto],
+        },
+      });
+      mocks.cacheRetailerImage.mockImplementation(async (url: string) => {
+        if (url !== productPhoto) {
+          throw new Error("Retailer image did not contain a supported raster format.");
+        }
+        return {
+          publicUrl: `https://test-project.supabase.co/storage/v1/object/public/product-images-public/${"e".repeat(64)}.png`,
+          sha256: "e".repeat(64),
+          sourceUrl: productPhoto,
+        };
+      });
+
+      await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
+
+      expect(mocks.cacheRetailerImage.mock.calls.map(([url]) => url)).toContain(productPhoto);
+      expect(mocks.recordSynchronousSearchResults).toHaveBeenCalledOnce();
+      expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
+    });
+
+    it("never starts a paid fallback after an ambiguous synchronous result write", async () => {
+      const observation = rawObservation("ikea-au", {
+        observedAt: new Date().toISOString(),
+      });
+      mocks.claimSearchDispatch.mockResolvedValue({
+        providerTaskId: PROVIDER_TASK_ID,
+        shouldSubmit: true,
+      });
+      mocks.searchProductsWithFirecrawl.mockResolvedValue({
+        output: { products: [observation], partial: false, notes: [] },
+        discoveryHits: [],
+        attemptedPages: 1,
+        rejectedPages: 0,
+      });
+      mocks.recordSynchronousSearchResults.mockRejectedValue(
+        new Error("database response lost after commit"),
+      );
+
+      await expect(dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH)).rejects.toThrow(
+        "database response lost after commit",
+      );
+
+      expect(mocks.createBrowserSearchSession).not.toHaveBeenCalled();
+      expect(mocks.recordBrowserSubmission).not.toHaveBeenCalled();
+      expect(mocks.failWorkflowStage).not.toHaveBeenCalled();
+    });
+
     it("preserves an exact product-link intent when submitting Browser Use", async () => {
       const intent = {
         kind: "product-link" as const,
@@ -771,7 +898,36 @@ describe("live-search service orchestration", () => {
 
       await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
 
-      expect(mocks.createBrowserSearchSession).toHaveBeenCalledWith(intent, MEASUREMENT);
+      expect(mocks.createBrowserSearchSession).toHaveBeenCalledWith(
+        intent,
+        MEASUREMENT,
+        expect.arrayContaining([
+          expect.objectContaining({ retailer: expect.objectContaining({ key: "ikea-au" }) }),
+        ]),
+      );
+      expect(mocks.recordBrowserSubmission).toHaveBeenCalledOnce();
+    });
+
+    it("falls back to bounded Browser Use when Firecrawl discovery is unavailable", async () => {
+      mocks.claimSearchDispatch.mockResolvedValue({
+        providerTaskId: PROVIDER_TASK_ID,
+        shouldSubmit: true,
+      });
+      mocks.searchProductsWithFirecrawl.mockRejectedValue(
+        new Error("Firecrawl temporarily unavailable"),
+      );
+      mocks.createBrowserSearchSession.mockResolvedValue({
+        id: BROWSER_SESSION_ID,
+        status: "created",
+      });
+
+      await dispatchSearchWorkflow(WORKFLOW_ID, REQUEST_HASH);
+
+      expect(mocks.createBrowserSearchSession).toHaveBeenCalledWith(
+        browserCommand().intent,
+        MEASUREMENT,
+        [],
+      );
       expect(mocks.recordBrowserSubmission).toHaveBeenCalledOnce();
     });
 

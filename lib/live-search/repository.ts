@@ -330,6 +330,33 @@ export async function recordSearchResults(
   return data;
 }
 
+/** Atomically completes the synchronous Firecrawl-first path without an async provider ID. */
+export async function recordSynchronousSearchResults(
+  workflowId: string,
+  providerTaskId: string,
+  candidates: readonly VerifiedLiveCandidateRecord[],
+  isPartial: boolean,
+  coverageNotes: readonly string[],
+  metadata: Readonly<Record<string, unknown>>,
+): Promise<number> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase.rpc("internal_record_synchronous_search_results", {
+    p_workflow_id: workflowId,
+    p_provider_task_id: providerTaskId,
+    p_candidates: candidates,
+    p_is_partial: isPartial,
+    p_coverage_notes: coverageNotes,
+    p_provider_metadata: metadata,
+  });
+  if (error !== null) {
+    throw mapDatabaseError(error);
+  }
+  if (typeof data !== "number" || !Number.isInteger(data) || data < 0) {
+    throw new Error("Synchronous search result RPC returned an invalid count.");
+  }
+  return data;
+}
+
 export async function recordCachedSearchResults(
   workflowId: string,
   candidates: readonly VerifiedLiveCandidateRecord[],

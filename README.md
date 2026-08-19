@@ -20,7 +20,8 @@ flowchart LR
   Intent["Prompt or exact product URL"]
   Gate["Deferred Turnstile + guest session"]
   Cache{"Exact observation<br/>≤24 hours old?"}
-  Browse["Bounded Browser Use session<br/>AU region"]
+  Firecrawl["Firecrawl search +<br/>structured extraction"]
+  Browse["Browser Use fallback<br/>AU region"]
   Validate["Source, dimensions, URL,<br/>currency, image validation"]
   Image["Pinned-DNS image cache"]
   Fit["Pure destination + package-aware<br/>access predicates"]
@@ -35,7 +36,8 @@ flowchart LR
   Measure --> Gate
   Intent --> Gate --> Cache
   Cache -->|hit| Fit
-  Cache -->|miss / refresh| Browse --> Validate --> Image --> Fit
+  Cache -->|miss / refresh| Firecrawl --> Validate --> Image --> Fit
+  Firecrawl -->|zero validated products| Browse --> Validate
   Fit --> Compare --> Review --> Reuse
   Reuse -->|hit| View
   Reuse -->|miss + approved budget| Meshy --> Scale --> View
@@ -48,6 +50,7 @@ flowchart LR
     Snapshots["Hashed share tokens + product events"]
   end
 
+  Firecrawl -.-> Queue
   Browse -.-> Queue
   Cache -.-> Observations
   Image -.-> Assets
@@ -208,13 +211,14 @@ Relevant environment variables:
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser auth key |
 | `SUPABASE_SECRET_KEY` | Server-only database and Storage access |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Browser-visible deferred anti-abuse challenge; configure the matching secret in Supabase Auth, not Vercel |
+| `FIRECRAWL_API_KEY` | Server-only primary retailer discovery and extraction |
 | `BROWSER_USE_API_KEY` | Bounded live retailer browsing |
 | `BROWSER_USE_WEBHOOK_SECRET` | Signed Browser Use notifications |
+| `BROWSER_USE_MODEL` | Rendered-page fallback model; `claude-sonnet-4.6` by default |
 | `MESHY_API_KEY` | Explicitly approved live model generation |
 | `MESHY_WEBHOOK_SECRET` | Opaque Meshy webhook capability |
 | `CRON_SECRET` / `ABUSE_HASH_SECRET` | Recovery and privacy-bounded abuse controls |
 | `ENABLE_MESHY` | Enables offline batch generation when `true` |
-| `FIRECRAWL_API_KEY` | Offline legacy catalog ingestion only |
 | `ANTHROPIC_API_KEY` | Strict structured extraction for missing retailer facts |
 | `NOTION_TOKEN` | Optional legacy waitlist integration |
 

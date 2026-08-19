@@ -14,7 +14,7 @@ const MAX_REDIRECTS = 3;
 const REQUEST_TIMEOUT_MS = 12_000;
 const MAX_IMAGE_PIXELS = 40_000_000;
 
-type SupportedImage = "image/jpeg" | "image/png" | "image/webp";
+type SupportedImage = "image/jpeg" | "image/png" | "image/webp" | "image/avif";
 
 interface PinnedImageResponse {
   readonly status: number;
@@ -73,7 +73,7 @@ export async function cacheRetailerImage(sourceUrl: string): Promise<CachedRetai
   };
 }
 
-/** Decodes every input under a pixel cap and converts WebP to Meshy-compatible PNG. */
+/** Decodes every input under a pixel cap and converts modern web formats to PNG. */
 export async function normalizeImageForModel(
   body: Buffer,
   contentType: SupportedImage,
@@ -92,7 +92,7 @@ export async function normalizeImageForModel(
   ) {
     throw new Error("Retailer image dimensions exceed the safe pixel limit.");
   }
-  if (contentType === "image/webp") {
+  if (contentType === "image/webp" || contentType === "image/avif") {
     const png = await decoder.png({ compressionLevel: 9 }).toBuffer();
     if (png.length === 0 || png.length > MAX_IMAGE_BYTES) {
       throw new Error("Normalized retailer image exceeds the 8 MB limit.");
@@ -136,11 +136,20 @@ export async function fetchBoundedPublicImage(
 }
 
 export function validateImageBytes(contentTypeHeader: string | undefined, body: Buffer): SupportedImage {
-  const contentType = contentTypeHeader?.split(";", 1)[0]?.trim().toLowerCase();
+  const declaredContentType = contentTypeHeader?.split(";", 1)[0]?.trim().toLowerCase();
   const detected = detectImageType(body);
-  if (detected === undefined || contentType !== detected) {
-    throw new Error("Retailer image MIME type and file signature must be JPEG, PNG, or WebP.");
+  if (
+    detected === undefined ||
+    (declaredContentType !== "image/jpeg" &&
+      declaredContentType !== "image/png" &&
+      declaredContentType !== "image/webp" &&
+      declaredContentType !== "image/avif")
+  ) {
+    throw new Error("Retailer image must declare and contain a supported raster format.");
   }
+  // Retailer CDNs may content-negotiate AVIF/WebP bytes while retaining the
+  // source asset's JPEG header. The decoded magic bytes are authoritative;
+  // every accepted format is still bounded and decoded by sharp below.
   return detected;
 }
 
@@ -169,15 +178,12 @@ async function requestPinnedImage(
   target: { readonly address: string; readonly family: 4 | 6 },
 ): Promise<PinnedImageResponse> {
   return new Promise((resolve, reject) => {
-    const lookup: LookupFunction = (_hostname, _options, callback) => {
-      callback(null, target.address, target.family);
-    };
     const request = httpsRequest(
       url,
       {
         method: "GET",
         headers: { Accept: "image/avif,image/webp,image/png,image/jpeg;q=0.9" },
-        lookup,
+        lookup: createPinnedLookup(target),
         servername: url.hostname,
         timeout: REQUEST_TIMEOUT_MS,
       },
@@ -216,6 +222,19 @@ async function requestPinnedImage(
   });
 }
 
+/** Preserves DNS pinning for both single-address and `all` Node lookup calls. */
+export function createPinnedLookup(
+  target: { readonly address: string; readonly family: 4 | 6 },
+): LookupFunction {
+  return (_hostname, options, callback) => {
+    if (options.all === true) {
+      callback(null, [{ address: target.address, family: target.family }]);
+      return;
+    }
+    callback(null, target.address, target.family);
+  };
+}
+
 function detectImageType(body: Buffer): SupportedImage | undefined {
   if (body.length >= 3 && body[0] === 0xff && body[1] === 0xd8 && body[2] === 0xff) {
     return "image/jpeg";
@@ -226,11 +245,18 @@ function detectImageType(body: Buffer): SupportedImage | undefined {
   if (body.length >= 12 && body.subarray(0, 4).toString("ascii") === "RIFF" && body.subarray(8, 12).toString("ascii") === "WEBP") {
     return "image/webp";
   }
+  if (
+    body.length >= 12 &&
+    body.subarray(4, 8).toString("ascii") === "ftyp" &&
+    ["avif", "avis"].includes(body.subarray(8, 12).toString("ascii"))
+  ) {
+    return "image/avif";
+  }
   return undefined;
 }
 
-function imageExtension(contentType: SupportedImage): "jpg" | "png" | "webp" {
-  return contentType === "image/jpeg" ? "jpg" : contentType === "image/png" ? "png" : "webp";
+function imageExtension(contentType: SupportedImage): "jpg" | "png" {
+  return contentType === "image/jpeg" ? "jpg" : "png";
 }
 
 function isRedirect(status: number): boolean {

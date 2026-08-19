@@ -16,7 +16,10 @@ import { canonicalizePublicProductUrl, UnsafePublicUrlError } from "@/lib/live-s
 
 export const runtime = "nodejs";
 export const preferredRegion = "syd1";
-export const maxDuration = 30;
+// The deferred worker gets one bounded Firecrawl discovery/extraction pass and,
+// only if that yields nothing, one Browser Use submission. Keep enough room for
+// that handoff so Vercel cannot strand a claimed provider task mid-submission.
+export const maxDuration = 60;
 
 const MAX_COMMAND_BYTES = 16 * 1024;
 

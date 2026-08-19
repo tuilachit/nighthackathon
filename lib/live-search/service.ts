@@ -21,6 +21,7 @@ import {
   recordDiscoveryCache,
   recordMeshySubmission,
   recordSearchResults,
+  recordSynchronousSearchResults,
 } from "./repository";
 import {
   ProviderRequestError,
@@ -29,6 +30,10 @@ import {
   getBrowserSearchSession,
   parseCompletedBrowserOutput,
 } from "./providers/browser-use";
+import {
+  searchProductsWithFirecrawl,
+  type FirecrawlPrimarySearchResult,
+} from "./providers/firecrawl";
 import { hasSameRegistrableDomain } from "./url-security";
 import { createMeshyImageTask, getMeshyTask } from "./providers/meshy";
 import {
@@ -48,18 +53,93 @@ export async function dispatchSearchWorkflow(
   workflowId: string,
   requestHash: string,
 ): Promise<void> {
+  const [claim, command] = await Promise.all([
+    claimSearchDispatch(workflowId, requestHash),
+    getWorkflowCommand(workflowId),
+  ]);
+  if (!claim.shouldSubmit) {
+    return;
+  }
+
+  let firecrawl: FirecrawlPrimarySearchResult | undefined;
+  let firecrawlOutput: BrowserSearchOutput | undefined;
+  let firecrawlCandidates: readonly VerifiedLiveCandidateRecord[] | undefined;
+  try {
+    firecrawl = await searchProductsWithFirecrawl(command.intent);
+    if (firecrawl.output.products.length > 0) {
+      firecrawlOutput = await cacheValidatedImages(
+        firecrawl.output,
+        firecrawl.imageCandidates,
+      );
+      assertOutputMatchesIntent(firecrawlOutput, command.intent);
+      firecrawlCandidates = evaluateLiveProducts(firecrawlOutput, command.measurement);
+    }
+  } catch (error) {
+    console.warn(JSON.stringify({
+      level: "warn",
+      message: "firecrawl_primary_fallback",
+      workflowId,
+      error: errorMessage(error),
+    }));
+  }
+
+  if (
+    firecrawl !== undefined &&
+    firecrawlOutput !== undefined &&
+    firecrawlCandidates !== undefined
+  ) {
+    // Do not wrap this durable write in the Browser Use fallback catch. If the
+    // response is lost after commit, starting a paid fallback would duplicate
+    // work; the owner-scoped workflow poll will observe the committed result.
+    await recordSynchronousSearchResults(
+      workflowId,
+      claim.providerTaskId,
+      firecrawlCandidates,
+      firecrawlOutput.partial,
+      firecrawlOutput.partial ? firecrawlOutput.notes : [],
+      {
+        provider: "firecrawl",
+        attemptedPages: firecrawl.attemptedPages,
+        rejectedPages: firecrawl.rejectedPages,
+        notes: firecrawlOutput.notes,
+      },
+    );
+    try {
+      await recordDiscoveryCache(
+        command.cacheKey,
+        EXTRACTION_SCHEMA_VERSION,
+        createDiscoveryCachePayload(firecrawlOutput),
+      );
+    } catch (error) {
+      console.error("Could not update the discovery cache", error);
+    }
+    console.info(JSON.stringify({
+      level: "info",
+      message: "firecrawl_primary_completed",
+      workflowId,
+      attemptedPages: firecrawl.attemptedPages,
+      validatedProducts: firecrawlOutput.products.length,
+      partial: firecrawlOutput.partial,
+    }));
+    return;
+  }
+
+  if (firecrawl !== undefined) {
+    console.warn(JSON.stringify({
+      level: "warn",
+      message: "firecrawl_primary_fallback",
+      workflowId,
+      attemptedPages: firecrawl.attemptedPages,
+      rejectedPages: firecrawl.rejectedPages,
+    }));
+  }
+
   let externalTaskId: string | undefined;
   try {
-    const [claim, command] = await Promise.all([
-      claimSearchDispatch(workflowId, requestHash),
-      getWorkflowCommand(workflowId),
-    ]);
-    if (!claim.shouldSubmit) {
-      return;
-    }
     const session = await createBrowserSearchSession(
       command.intent,
       command.measurement,
+      firecrawl?.discoveryHits ?? [],
     );
     externalTaskId = session.id;
     await recordBrowserSubmission(workflowId, claim.providerTaskId, session.id, {
@@ -148,6 +228,7 @@ export async function reconcileBrowserUseTask(
       workflowId: context.workflowId,
       sessionId: externalTaskId,
       providerStatus: session.status,
+      model: session.model ?? null,
       isTaskSuccessful: session.isTaskSuccessful ?? null,
       maxCostUsd: session.maxCostUsd ?? null,
       totalCostUsd: session.totalCostUsd ?? null,
@@ -282,14 +363,31 @@ function assertOutputMatchesIntent(
   }
 }
 
-async function cacheValidatedImages(output: BrowserSearchOutput): Promise<BrowserSearchOutput> {
+async function cacheValidatedImages(
+  output: BrowserSearchOutput,
+  alternatives: Readonly<Record<string, readonly string[]>> = {},
+): Promise<BrowserSearchOutput> {
   const results = await Promise.allSettled(
     output.products.map(async (product) => {
-      const cached = await cacheRetailerImage(product.imageUrl);
+      const imageUrls = [...new Set([
+        product.imageUrl,
+        ...(alternatives[product.productUrl] ?? []),
+      ])].filter((url) => isAllowedRetailerImageCandidate(product, url)).slice(0, 4);
+      const attempts = await Promise.allSettled(imageUrls.map(cacheRetailerImage));
+      const cached = attempts.find(
+        (attempt): attempt is PromiseFulfilledResult<Awaited<ReturnType<typeof cacheRetailerImage>>> =>
+          attempt.status === "fulfilled",
+      )?.value;
+      if (cached === undefined) {
+        const firstFailure = attempts.find(
+          (attempt): attempt is PromiseRejectedResult => attempt.status === "rejected",
+        );
+        throw firstFailure?.reason ?? new Error("No safe retailer image candidate was available.");
+      }
       return {
         ...product,
         imageUrl: cached.publicUrl,
-        sourceImageUrl: product.imageUrl,
+        sourceImageUrl: cached.sourceUrl,
         sourceImageHash: cached.sha256,
       } as LiveProductObservation & ControlledImageFacts;
     }),
@@ -300,6 +398,14 @@ async function cacheValidatedImages(output: BrowserSearchOutput): Promise<Browse
     if (result.status === "fulfilled") {
       products.push(result.value);
     } else {
+      const source = output.products[index];
+      console.warn(JSON.stringify({
+        level: "warn",
+        message: "retailer_image_cache_rejected",
+        retailer: source?.retailer.key ?? "unknown",
+        imageHost: safeUrlHost(source?.imageUrl),
+        error: errorMessage(result.reason),
+      }));
       failures.push(`Rejected product ${index + 1}: source image could not be safely cached.`);
     }
   }
@@ -311,6 +417,38 @@ async function cacheValidatedImages(output: BrowserSearchOutput): Promise<Browse
     partial: output.partial || failures.length > 0,
     notes: [...output.notes, ...failures].slice(0, MAX_COVERAGE_NOTES),
   };
+}
+
+function isAllowedRetailerImageCandidate(
+  product: LiveProductObservation,
+  value: string,
+): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") {
+      return false;
+    }
+    if (product.retailer.key === "kmart-au") {
+      return (
+        hasSameRegistrableDomain("https://kmart.com.au", value) ||
+        url.hostname.toLowerCase() === "kmartau.mo.cloudinary.net"
+      );
+    }
+    return hasSameRegistrableDomain(`https://${product.retailer.host}`, value);
+  } catch {
+    return false;
+  }
+}
+
+function safeUrlHost(value: string | undefined): string {
+  if (value === undefined) {
+    return "unknown";
+  }
+  try {
+    return new URL(value).hostname;
+  } catch {
+    return "invalid";
+  }
 }
 
 interface ControlledImageFacts {
