@@ -30,6 +30,16 @@ export interface LiveSearchServerEnvironment extends PublicSupabaseEnvironment {
   readonly abuseHashSecret: string;
   readonly browserUseMaxCostUsd: number;
   readonly maxResults: number;
+  /** How many candidate product URLs discovery may gather before extraction. */
+  readonly discoveryPoolSize: number;
+  /** Validated products to reach before discovery may stop early. */
+  readonly completenessFloor: number;
+  /** Validated products wanted from each requested retailer. */
+  readonly minPerRetailer: number;
+  /** Candidate pages extracted concurrently; bounds provider burst and latency. */
+  readonly extractionBatchSize: number;
+  /** Wall-clock ceiling for discovery plus extraction, under the 30s function limit. */
+  readonly discoveryBudgetMs: number;
 }
 
 export function getPublicSupabaseEnvironment(): PublicSupabaseEnvironment {
@@ -61,7 +71,12 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
     cronSecret: requiredSecret("CRON_SECRET"),
     abuseHashSecret: requiredSecret("ABUSE_HASH_SECRET"),
     browserUseMaxCostUsd: boundedNumber("BROWSER_USE_MAX_COST_USD", 1, 0.05, 2),
-    maxResults: Math.round(boundedNumber("LIVE_SEARCH_MAX_RESULTS", 6, 3, 20)),
+    maxResults: Math.round(boundedNumber("LIVE_SEARCH_MAX_RESULTS", 12, 3, 40)),
+    discoveryPoolSize: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_POOL", 30, 8, 60)),
+    completenessFloor: Math.round(boundedNumber("LIVE_SEARCH_MIN_PRODUCTS", 8, 1, 30)),
+    minPerRetailer: Math.round(boundedNumber("LIVE_SEARCH_MIN_PER_RETAILER", 3, 1, 15)),
+    extractionBatchSize: Math.round(boundedNumber("LIVE_SEARCH_EXTRACTION_BATCH", 6, 1, 12)),
+    discoveryBudgetMs: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_BUDGET_MS", 20_000, 5_000, 25_000)),
   };
 }
 

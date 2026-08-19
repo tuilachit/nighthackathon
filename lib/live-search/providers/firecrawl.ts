@@ -59,12 +59,24 @@ export interface FirecrawlProductExtraction {
   readonly markdown: string;
 }
 
+export interface FirecrawlRejection {
+  readonly url: string;
+  readonly missingFields: readonly string[];
+  readonly reasons: readonly string[];
+}
+
 export interface FirecrawlPrimarySearchResult {
   readonly output: BrowserSearchOutput;
   readonly discoveryHits: readonly FirecrawlDiscoveryHit[];
   readonly attemptedPages: number;
   readonly rejectedPages: number;
   readonly imageCandidates?: Readonly<Record<string, readonly string[]>>;
+  /** Every candidate URL that failed, with the exact field that failed it. */
+  readonly rejections: readonly FirecrawlRejection[];
+  readonly productsPerRetailer: Readonly<Record<string, number>>;
+  readonly reachedCompletenessFloor: boolean;
+  readonly stoppedReason: "completeness-floor" | "budget-exhausted" | "candidates-exhausted";
+  readonly elapsedMs: number;
 }
 
 /**
@@ -73,73 +85,117 @@ export interface FirecrawlPrimarySearchResult {
  */
 export async function searchProductsWithFirecrawl(
   intent: LiveSearchIntent,
-  maxResults = getLiveSearchServerEnvironment().maxResults,
+  maxResults?: number,
   fetchImplementation: FetchImplementation = fetch,
+  clock: () => number = Date.now,
 ): Promise<FirecrawlPrimarySearchResult> {
+  const environment = getLiveSearchServerEnvironment();
+  const limit = maxResults ?? environment.maxResults;
+  const startedAt = clock();
+  const deadline = startedAt + environment.discoveryBudgetMs;
+
+  // Discovery gathers a wide candidate pool; extraction spends the expensive
+  // per-page budget on it in bounded batches and stops as soon as the
+  // completeness floor is met. Previously the pool was capped at the display
+  // limit, so a single surviving product was both the first and the last result.
   const discoveryHits = await discoverProductPagesWithFirecrawl(
     intent,
-    maxResults,
+    environment.discoveryPoolSize,
     fetchImplementation,
   );
-  const settled = await Promise.allSettled(discoveryHits.map((hit) => {
-    if (hit.extraction !== undefined) {
-      return Promise.resolve(hit.extraction);
-    }
-    // Firecrawl search reliably discovers retailer URLs, but JSON extraction is
-    // not guaranteed on each search result. Finish the bounded product-page
-    // extraction here rather than discarding a valid discovery and falling
-    // through to the slower interactive-browser provider.
-    return extractProductWithFirecrawl(hit.url, fetchImplementation);
-  }));
+
   const products: LiveProductObservation[] = [];
   const imageCandidates: Record<string, readonly string[]> = {};
   const notes: string[] = [];
+  const rejections: FirecrawlRejection[] = [];
+  let attemptedPages = 0;
+  let stoppedReason: FirecrawlPrimarySearchResult["stoppedReason"] = "candidates-exhausted";
 
-  for (const [index, result] of settled.entries()) {
-    const hit = discoveryHits[index];
-    if (hit === undefined) {
-      continue;
+  for (const batch of batched(discoveryHits, environment.extractionBatchSize)) {
+    if (meetsCompletenessFloor(products, intent, environment, limit)) {
+      stoppedReason = "completeness-floor";
+      break;
     }
-    if (result.status === "rejected") {
-      console.warn(JSON.stringify({
-        level: "warn",
-        message: "firecrawl_extraction_failed",
-        url: hit.url,
-        error: result.reason instanceof Error ? result.reason.message : String(result.reason),
-      }));
-      notes.push(`Could not validate ${shortHost(hit.url)} from the retailer page.`);
-      continue;
+    if (clock() >= deadline) {
+      stoppedReason = "budget-exhausted";
+      notes.push("Stopped searching at the time limit before every retailer was complete.");
+      break;
     }
-    const validation = validateBrowserSearchOutput({
-      products: [toUntrustedObservation(result.value, hit, intent)],
-      partial: false,
-      notes: [],
-    });
-    const product = validation.value?.products[0];
-    if (!validation.ok || product === undefined) {
-      // validation.errors names the exact field that failed. Discarding it left
-      // every rejection reading as a generic "incomplete", which made the drop
-      // rate impossible to attribute to any one field in production.
-      console.warn(JSON.stringify({
-        level: "warn",
-        message: "firecrawl_candidate_rejected",
-        url: hit.url,
-        missingFields: missingFieldNames(validation.errors),
-        reasons: validation.errors,
-      }));
-      notes.push(rejectionNote(shortHost(hit.url), validation.errors));
-      continue;
-    }
-    products.push(product);
-    if (result.value.imageCandidates !== undefined) {
-      imageCandidates[product.productUrl] = result.value.imageCandidates;
+    attemptedPages += batch.length;
+    const settled = await Promise.allSettled(batch.map((hit) => {
+      if (hit.extraction !== undefined) {
+        return Promise.resolve(hit.extraction);
+      }
+      // Firecrawl search reliably discovers retailer URLs, but JSON extraction is
+      // not guaranteed on each search result. Finish the bounded product-page
+      // extraction here rather than discarding a valid discovery and falling
+      // through to the slower interactive-browser provider.
+      return extractProductWithFirecrawl(hit.url, fetchImplementation);
+    }));
+
+    for (const [index, result] of settled.entries()) {
+      const hit = batch[index];
+      if (hit === undefined) {
+        continue;
+      }
+      if (result.status === "rejected") {
+        const reason = result.reason instanceof Error
+          ? result.reason.message
+          : String(result.reason);
+        console.warn(JSON.stringify({
+          level: "warn",
+          message: "firecrawl_extraction_failed",
+          url: hit.url,
+          error: reason,
+        }));
+        rejections.push({ url: hit.url, missingFields: [], reasons: [reason] });
+        notes.push(`Could not validate ${shortHost(hit.url)} from the retailer page.`);
+        continue;
+      }
+      const validation = validateBrowserSearchOutput({
+        products: [toUntrustedObservation(result.value, hit, intent)],
+        partial: false,
+        notes: [],
+      });
+      const product = validation.value?.products[0];
+      if (!validation.ok || product === undefined) {
+        // validation.errors names the exact field that failed. Discarding it left
+        // every rejection reading as a generic "incomplete", which made the drop
+        // rate impossible to attribute to any one field in production.
+        const missingFields = missingFieldNames(validation.errors);
+        console.warn(JSON.stringify({
+          level: "warn",
+          message: "firecrawl_candidate_rejected",
+          url: hit.url,
+          missingFields,
+          reasons: validation.errors,
+        }));
+        rejections.push({ url: hit.url, missingFields, reasons: validation.errors });
+        notes.push(rejectionNote(shortHost(hit.url), validation.errors));
+        continue;
+      }
+      if (products.some((existing) => existing.productUrl === product.productUrl)) {
+        continue;
+      }
+      products.push(product);
+      if (result.value.imageCandidates !== undefined) {
+        imageCandidates[product.productUrl] = result.value.imageCandidates;
+      }
     }
   }
 
+  if (meetsCompletenessFloor(products, intent, environment, limit)) {
+    stoppedReason = "completeness-floor";
+  }
+
+  const productsPerRetailer = countPerRetailer(products);
   if (intent.kind === "prompt") {
     for (const retailer of intent.retailers) {
-      if (!products.some((product) => product.retailer.key === retailer)) {
+      const found = productsPerRetailer[retailer] ?? 0;
+      if (found === 0) {
         notes.push(`No validated Firecrawl result returned for ${retailer}.`);
+      } else if (found < environment.minPerRetailer) {
+        notes.push(`Only ${found} of ${environment.minPerRetailer} wanted products passed for ${retailer}.`);
       }
     }
   }
@@ -147,12 +203,30 @@ export async function searchProductsWithFirecrawl(
     notes.push("Firecrawl found no candidate product pages.");
   }
 
+  const elapsedMs = clock() - startedAt;
+  const reachedCompletenessFloor = meetsCompletenessFloor(products, intent, environment, limit);
   const boundedNotes = [...new Set(notes)].slice(0, MAX_COVERAGE_NOTES);
+  const displayed = products.slice(0, limit);
   const combined = validateBrowserSearchOutput({
-    products,
-    partial: boundedNotes.length > 0,
+    products: displayed,
+    partial: boundedNotes.length > 0 || !reachedCompletenessFloor,
     notes: boundedNotes,
   });
+
+  console.info(JSON.stringify({
+    level: "info",
+    message: "firecrawl_discovery_summary",
+    intentKind: intent.kind,
+    discovered: discoveryHits.length,
+    attemptedPages,
+    validated: products.length,
+    productsPerRetailer,
+    rejected: rejections.length,
+    reachedCompletenessFloor,
+    stoppedReason,
+    elapsedMs,
+  }));
+
   if (!combined.ok || combined.value === undefined) {
     return {
       output: {
@@ -161,18 +235,76 @@ export async function searchProductsWithFirecrawl(
         notes: ["Firecrawl results did not pass the combined validation gate."],
       },
       discoveryHits,
-      attemptedPages: discoveryHits.length,
-      rejectedPages: discoveryHits.length,
+      attemptedPages,
+      rejectedPages: attemptedPages,
       imageCandidates,
+      rejections,
+      productsPerRetailer,
+      reachedCompletenessFloor: false,
+      stoppedReason,
+      elapsedMs,
     };
   }
   return {
     output: combined.value,
     discoveryHits,
-    attemptedPages: discoveryHits.length,
-    rejectedPages: discoveryHits.length - combined.value.products.length,
+    attemptedPages,
+    rejectedPages: attemptedPages - combined.value.products.length,
     imageCandidates,
+    rejections,
+    productsPerRetailer,
+    reachedCompletenessFloor,
+    stoppedReason,
+    elapsedMs,
   };
+}
+
+/** Splits candidates into bounded concurrent batches to cap provider burst. */
+function batched<T>(values: readonly T[], size: number): readonly (readonly T[])[] {
+  const batches: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    batches.push(values.slice(index, index + size));
+  }
+  return batches;
+}
+
+function countPerRetailer(
+  products: readonly LiveProductObservation[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const product of products) {
+    counts[product.retailer.key] = (counts[product.retailer.key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * Discovery may stop early only once the result set is genuinely complete:
+ * the floor is met and every requested retailer is represented. Stopping at
+ * the first validated product is what reduced production runs to one candidate.
+ */
+function meetsCompletenessFloor(
+  products: readonly LiveProductObservation[],
+  intent: LiveSearchIntent,
+  environment: {
+    readonly completenessFloor: number;
+    readonly minPerRetailer: number;
+  },
+  limit: number,
+): boolean {
+  if (intent.kind === "product-link") {
+    return products.length >= 1;
+  }
+  if (products.length >= limit) {
+    return true;
+  }
+  if (products.length < environment.completenessFloor) {
+    return false;
+  }
+  const counts = countPerRetailer(products);
+  return intent.retailers.every(
+    (retailer) => (counts[retailer] ?? 0) >= environment.minPerRetailer,
+  );
 }
 
 /** Discovers bounded product-page candidates without opening an interactive browser. */
@@ -198,16 +330,26 @@ export async function discoverProductPagesWithFirecrawl(
       fetchImplementation,
     )),
   );
-  const deduplicated = new Map<string, FirecrawlDiscoveryHit>();
-  for (const result of results) {
-    if (result.status !== "fulfilled") {
-      continue;
-    }
-    for (const hit of result.value) {
-      deduplicated.set(hit.url, hit);
+  // Interleave retailers rather than concatenating them. Truncating a
+  // concatenated list by insertion order handed every slot to whichever
+  // retailer's HTTP call happened to resolve first.
+  const perRetailerHits = results.map((result) => (
+    result.status === "fulfilled" ? [...result.value] : []
+  ));
+  const seen = new Set<string>();
+  const interleaved: FirecrawlDiscoveryHit[] = [];
+  const longest = Math.max(0, ...perRetailerHits.map((hits) => hits.length));
+  for (let index = 0; index < longest; index += 1) {
+    for (const hits of perRetailerHits) {
+      const hit = hits[index];
+      if (hit === undefined || seen.has(hit.url)) {
+        continue;
+      }
+      seen.add(hit.url);
+      interleaved.push(hit);
     }
   }
-  return [...deduplicated.values()].slice(0, maxResults);
+  return interleaved.slice(0, maxResults);
 }
 
 /** Extracts compact product facts from one already-validated public product URL. */

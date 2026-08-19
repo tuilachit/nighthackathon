@@ -75,11 +75,16 @@ export async function dispatchSearchWorkflow(
       firecrawlCandidates = evaluateLiveProducts(firecrawlOutput, command.measurement);
     }
   } catch (error) {
+    // Distinguish a missing key from a provider failure. Both used to log under
+    // one label, which made local misconfiguration read as a Firecrawl outage.
+    const message = errorMessage(error);
     console.warn(JSON.stringify({
       level: "warn",
-      message: "firecrawl_primary_fallback",
+      message: /is required for the live-search backend/.test(message)
+        ? "firecrawl_not_configured"
+        : "firecrawl_provider_failed",
       workflowId,
-      error: errorMessage(error),
+      error: message,
     }));
   }
 
@@ -99,8 +104,15 @@ export async function dispatchSearchWorkflow(
       firecrawlOutput.partial ? firecrawlOutput.notes : [],
       {
         provider: "firecrawl",
+        discoveredUrls: firecrawl.discoveryHits.length,
         attemptedPages: firecrawl.attemptedPages,
         rejectedPages: firecrawl.rejectedPages,
+        validatedProducts: firecrawlOutput.products.length,
+        productsPerRetailer: firecrawl.productsPerRetailer,
+        reachedCompletenessFloor: firecrawl.reachedCompletenessFloor,
+        stoppedReason: firecrawl.stoppedReason,
+        elapsedMs: firecrawl.elapsedMs,
+        rejections: firecrawl.rejections,
         notes: firecrawlOutput.notes,
       },
     );
@@ -117,20 +129,31 @@ export async function dispatchSearchWorkflow(
       level: "info",
       message: "firecrawl_primary_completed",
       workflowId,
+      discoveredUrls: firecrawl.discoveryHits.length,
       attemptedPages: firecrawl.attemptedPages,
       validatedProducts: firecrawlOutput.products.length,
+      productsPerRetailer: firecrawl.productsPerRetailer,
+      reachedCompletenessFloor: firecrawl.reachedCompletenessFloor,
+      stoppedReason: firecrawl.stoppedReason,
+      elapsedMs: firecrawl.elapsedMs,
       partial: firecrawlOutput.partial,
     }));
     return;
   }
 
+  // Only a Firecrawl run that validated nothing reaches the interactive-browser
+  // fallback. A partial-but-non-empty result is committed above, marked partial
+  // with its coverage notes, rather than discarded in favour of a slower provider.
   if (firecrawl !== undefined) {
     console.warn(JSON.stringify({
       level: "warn",
-      message: "firecrawl_primary_fallback",
+      message: "firecrawl_zero_results_fallback",
       workflowId,
+      discoveredUrls: firecrawl.discoveryHits.length,
       attemptedPages: firecrawl.attemptedPages,
       rejectedPages: firecrawl.rejectedPages,
+      rejections: firecrawl.rejections,
+      elapsedMs: firecrawl.elapsedMs,
     }));
   }
 
