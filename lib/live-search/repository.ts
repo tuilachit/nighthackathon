@@ -209,7 +209,11 @@ export async function getWorkflowForOwner(
   const assetData = arrayValue(snapshot.assets);
   const assets = assetData.map(parseAsset);
   const assetsByCandidate = new Map<string, LiveAsset>();
+  const usdzByCandidate = new Map<string, LiveAsset>();
   for (const { candidateId, asset } of assets) {
+    if (asset.kind === "usdz") {
+      usdzByCandidate.set(candidateId, asset);
+    }
     const current = assetsByCandidate.get(candidateId);
     if (current === undefined || (asset.kind === "glb" && current.kind !== "glb")) {
       assetsByCandidate.set(candidateId, asset);
@@ -218,7 +222,16 @@ export async function getWorkflowForOwner(
   const candidates = candidateData.map((row) => {
     const candidate = parseCandidate(row);
     const asset = assetsByCandidate.get(candidate.id);
-    return asset === undefined ? candidate : { ...candidate, asset };
+    if (asset === undefined) {
+      return candidate;
+    }
+    // The GLB drives the interactive viewer; a scale-verified USDZ sibling
+    // rides along as the Apple Quick Look source so iPhones get AR too.
+    const usdz = asset.kind === "glb" ? usdzByCandidate.get(candidate.id) : undefined;
+    return {
+      ...candidate,
+      asset: usdz === undefined ? asset : { ...asset, iosUsdzUrl: usdz.url },
+    };
   });
   return parseWorkflow(workflowData, candidates);
 }

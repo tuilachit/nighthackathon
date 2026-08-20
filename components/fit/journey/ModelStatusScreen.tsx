@@ -75,6 +75,7 @@ export function ModelStatusScreen({
           model={{
             dimensions: asset.dimensions,
             glbUrl: asset.url,
+            iosUsdzUrl: asset.iosUsdzUrl,
             placeholderBoxGlbUrl: "/models/unit-box.glb",
           }}
         />

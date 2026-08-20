@@ -7,7 +7,8 @@ import {
   markdownContainsEvidence,
 } from "./ingest";
 
-const OBSERVED_AT = "2026-08-19T12:00:00.000Z";
+// Relative so the shared validator's 24h freshness window never expires it.
+const OBSERVED_AT = new Date(Date.now() - 60_000).toISOString();
 
 function extraction(overrides: Partial<FirecrawlProductExtraction> = {}): FirecrawlProductExtraction {
   return {
