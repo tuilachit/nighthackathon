@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
-import { validateBrowserSearchOutput } from "@/lib/live-search/validation";
+import { validateCatalogObservations } from "@/lib/live-search/validation";
 import { LIVE_RETAILER_IDENTITIES } from "@/lib/live-search/types";
 import type { BrowserSearchOutput, LiveRetailer, LiveProductObservation, LiveSearchIntent } from "@/lib/live-search/types";
 import { catalogSearchOutput, rankCatalogMatches } from "@/lib/live-search/catalog/relevance";
@@ -33,13 +33,10 @@ export async function readCatalogCandidates(
     throw new Error(`Could not read catalog snapshots: ${error.message}`);
   }
   const rows = Array.isArray(data) ? data : [];
-  // Re-validate stored rows through the shared gate (with the catalog freshness
-  // window) so a snapshot that drifted from the contract is dropped, not served.
-  const validated = validateBrowserSearchOutput(
-    { products: rows, partial: false, notes: [] },
-    { maxObservationAgeMs: CATALOG_MAX_AGE_MS },
-  );
-  return validated.value?.products ?? [];
+  // Re-validate stored rows through the shared per-product gate (with the
+  // catalog freshness window) so a snapshot that drifted from the contract is
+  // dropped individually, not served — and never takes the rest down with it.
+  return validateCatalogObservations(rows, { maxObservationAgeMs: CATALOG_MAX_AGE_MS });
 }
 
 /**

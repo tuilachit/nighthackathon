@@ -71,6 +71,36 @@ export interface ValidateObservationOptions {
 
 const DEFAULT_MAX_OBSERVATION_AGE_MS = 24 * 60 * 60_000;
 
+/**
+ * Validates stored catalog rows through the same per-product gate as browser
+ * output. The response-level product cap deliberately does not apply here: it
+ * bounds a single provider response, while the catalog legitimately holds
+ * hundreds of rows — wrapping the whole catalog in a fake browser response
+ * once made every row vanish the moment the catalog crossed 50 products. A
+ * row that fails the contract is dropped individually, never the whole set.
+ */
+export function validateCatalogObservations(
+  rows: readonly unknown[],
+  options: ValidateObservationOptions = {},
+): readonly LiveProductObservation[] {
+  const products: LiveProductObservation[] = [];
+  const seenProducts = new Set<string>();
+  for (const [index, entry] of rows.entries()) {
+    const entryErrors: string[] = [];
+    const product = parseObservation(entry, `catalog[${index}]`, entryErrors, options);
+    if (product === undefined || entryErrors.length > 0) {
+      continue;
+    }
+    const key = `${product.retailer.key}:${product.retailerProductId}`;
+    if (seenProducts.has(key)) {
+      continue;
+    }
+    seenProducts.add(key);
+    products.push(product);
+  }
+  return products;
+}
+
 export function validateBrowserSearchOutput(
   input: unknown,
   options: ValidateObservationOptions = {},

@@ -213,6 +213,15 @@ async function tryCompleteFromCatalog(
     return false;
   }
   if (result.matchCount < servingFloor) {
+    // Falling through to the paid live path must be visible in the logs;
+    // a silent fall-through once hid the catalog serving nothing at all.
+    console.warn(JSON.stringify({
+      level: "warn",
+      message: "catalog_below_serving_floor",
+      workflowId,
+      matchCount: result.matchCount,
+      servingFloor,
+    }));
     return false;
   }
 

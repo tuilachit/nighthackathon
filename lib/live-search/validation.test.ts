@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   validateBrowserSearchOutput,
+  validateCatalogObservations,
   validateCreateLiveSearchRequest,
 } from "./validation";
 
@@ -462,5 +463,46 @@ describe("validateBrowserSearchOutput", () => {
 
     expect(result.ok).toBe(false);
     expect(result.errors.join(" ")).toContain("explicitly match Width/Height/Depth or W/H/D");
+  });
+});
+
+describe("validateCatalogObservations", () => {
+  it("validates hundreds of catalog rows where the browser response cap would reject them wholesale", () => {
+    // Regression: the catalog read once wrapped every stored row in a fake
+    // browser response. The moment the catalog crossed 50 products, the
+    // 50-product response cap rejected the whole set and every search fell
+    // through to the paid live path with zero candidates.
+    const rows = Array.from({ length: 371 }, (_, i) =>
+      validObservation({ retailerProductId: `ikea-${i}` }));
+
+    expect(validateBrowserSearchOutput({ products: rows, partial: false, notes: [] }).ok).toBe(false);
+    expect(validateCatalogObservations(rows)).toHaveLength(371);
+  });
+
+  it("drops a contract-violating row alone, never the rest of the catalog", () => {
+    const rows = [
+      validObservation({ retailerProductId: "ikea-good-1" }),
+      validObservation({ retailerProductId: "ikea-bad", priceMinor: -5 }),
+      validObservation({ retailerProductId: "ikea-good-2" }),
+    ];
+    const products = validateCatalogObservations(rows);
+    expect(products.map((p) => p.retailerProductId)).toEqual(["ikea-good-1", "ikea-good-2"]);
+  });
+
+  it("keeps the per-product truth contract: a stale observation is dropped", () => {
+    const stale = validObservation({
+      retailerProductId: "ikea-stale",
+      observedAt: new Date(Date.now() - 60 * 24 * 60 * 60_000).toISOString(),
+    });
+    expect(validateCatalogObservations([stale], { maxObservationAgeMs: 45 * 24 * 60 * 60_000 }))
+      .toHaveLength(0);
+  });
+
+  it("dedupes rows sharing a retailer product id", () => {
+    const rows = [
+      validObservation({ retailerProductId: "ikea-dup" }),
+      validObservation({ retailerProductId: "ikea-dup" }),
+    ];
+    expect(validateCatalogObservations(rows)).toHaveLength(1);
   });
 });
