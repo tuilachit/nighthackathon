@@ -23,7 +23,12 @@ export type CatalogCategory =
   | "sideboard"
   | "drawers"
   | "tv-unit"
-  | "cabinet";
+  | "cabinet"
+  | "desk"
+  | "wardrobe"
+  | "bedside"
+  | "table"
+  | "bed";
 
 /**
  * Slug fragments that mark a storage-furniture product, most specific first so
@@ -37,6 +42,11 @@ const CATEGORY_RULES: readonly { readonly hint: CatalogCategory; readonly fragme
   { hint: "drawers", fragments: ["chest-of-drawers", "chest-of", "drawer-unit", "-drawers-", "tallboy", "-drawer-"] },
   { hint: "tv-unit", fragments: ["tv-unit", "tv-bench", "media-unit", "tv-stand", "entertainment-unit"] },
   { hint: "cabinet", fragments: ["storage-cabinet", "display-cabinet", "cabinet-with"] },
+  { hint: "desk", fragments: ["-desk-", "desk-", "-desk/", "workstation", "gaming-desk", "standing-desk"] },
+  { hint: "wardrobe", fragments: ["wardrobe", "armoire", "-robe-"] },
+  { hint: "bedside", fragments: ["bedside-table", "bedside", "nightstand", "night-stand"] },
+  { hint: "table", fragments: ["coffee-table", "side-table", "dining-table", "console-table", "-table-"] },
+  { hint: "bed", fragments: ["bed-frame", "bedframe", "day-bed", "daybed"] },
 ];
 
 /** Extracts <loc> URLs from a sitemap or sitemap-index document. */

@@ -24,6 +24,11 @@ const CATEGORY_LABELS: Record<CatalogCategory, string> = {
   drawers: "Chest of drawers",
   "tv-unit": "TV unit",
   cabinet: "Cabinet",
+  desk: "Desk",
+  wardrobe: "Wardrobe",
+  bedside: "Bedside table",
+  table: "Table",
+  bed: "Bed frame",
 };
 
 export function buildCatalogObservation(input: {
