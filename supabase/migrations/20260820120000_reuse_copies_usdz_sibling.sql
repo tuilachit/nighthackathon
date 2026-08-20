@@ -201,8 +201,7 @@ begin
     where sibling.workflow_id = v_source_asset.workflow_id
       and sibling.candidate_id = v_source_asset.candidate_id
       and sibling.kind = 'usdz'
-      and sibling.scale_verified
-    on conflict (workflow_id, candidate_id, kind) do nothing;
+      and sibling.scale_verified;
 
     -- Preserve the established transition state machine while keeping the
     -- entire reuse decision and asset copy in one transaction.
