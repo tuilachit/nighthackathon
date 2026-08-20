@@ -107,11 +107,17 @@ async function main(): Promise<void> {
   const perRetailer = Number.parseInt(arg("per-retailer", "30"), 10);
   const output = arg("output", "catalog-products.json");
   const pageTimeoutMs = Number.parseInt(arg("page-timeout", "45000"), 10);
+  // Optional retailer scope: IKEA has a free extraction path, so paid runs are
+  // usually Kmart-only and this keeps credits off pages we get for nothing.
+  const retailerScope = arg("retailer", "");
   const observedAt = new Date().toISOString();
 
   const creditsBefore = await firecrawlCredits();
-  console.log(`Enumerating ${category} (<=${perRetailer}/retailer)...`);
-  const candidates = await enumerateCandidates(category, perRetailer);
+  console.log(`Enumerating ${category} (<=${perRetailer}/retailer${retailerScope === "" ? "" : `, ${retailerScope} only`})...`);
+  const allCandidates = await enumerateCandidates(category, perRetailer);
+  const candidates = retailerScope === ""
+    ? allCandidates
+    : allCandidates.filter((candidate) => candidate.retailer === retailerScope);
   console.log(`${candidates.length} candidates. Credits before: ${creditsBefore ?? "?"}\n`);
 
   const rows: CatalogRow[] = [];

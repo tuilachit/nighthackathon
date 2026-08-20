@@ -110,6 +110,25 @@ describe("SpaceMeasurementInput", () => {
     expect(onParsed).not.toHaveBeenCalled();
   });
 
+  it("skips measuring into an open room-sized space for AR-first browsing", async () => {
+    const user = userEvent.setup();
+    const onParsed = vi.fn();
+    render(<SpaceMeasurementInput onParsed={onParsed} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Skip — browse an open space" }),
+    );
+
+    expect(onParsed).toHaveBeenCalledWith(
+      expect.objectContaining({ widthMm: 4000, heightMm: 2600, depthMm: 4000 }),
+      undefined,
+    );
+    // The review handoff persists like any typed measurement: same flow, same honesty.
+    expect(
+      readPendingMeasurementReviewDraft(window.sessionStorage),
+    ).not.toBeUndefined();
+  });
+
   it("prefills an existing space in the selected centimetre format", () => {
     render(
       <SpaceMeasurementInput
