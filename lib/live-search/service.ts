@@ -36,6 +36,7 @@ import {
   type FirecrawlPrimarySearchResult,
 } from "./providers/firecrawl";
 import { hasSameRegistrableDomain } from "./url-security";
+import { assertControlledCacheImage, type ControlledImageFacts } from "./controlled-image";
 import { createMeshyImageTask, getMeshyTask } from "./providers/meshy";
 import {
   MAX_COVERAGE_NOTES,
@@ -480,10 +481,31 @@ async function cacheValidatedImages(
 ): Promise<BrowserSearchOutput> {
   const results = await Promise.allSettled(
     output.products.map(async (product) => {
+      // A catalog row that already carries our controlled cached image and its
+      // provenance needs no network work: the copy is content-addressed and
+      // verified, so re-fetching the retailer image every serve would only add
+      // latency and traffic. If the claim fails verification, fall through and
+      // cache the retailer original again.
+      const controlled = product as LiveProductObservation & Partial<ControlledImageFacts>;
+      if (controlled.sourceImageUrl !== undefined && controlled.sourceImageHash !== undefined) {
+        try {
+          assertControlledCacheImage(
+            product.imageUrl,
+            controlled.sourceImageHash,
+            getPublicSupabaseEnvironment().url,
+          );
+          return controlled as LiveProductObservation & ControlledImageFacts;
+        } catch {
+          // Not a valid controlled copy; recache from the retailer original.
+        }
+      }
       const imageUrls = [...new Set([
         product.imageUrl,
+        controlled.sourceImageUrl,
         ...(alternatives[product.productUrl] ?? []),
-      ])].filter((url) => isAllowedRetailerImageCandidate(product, url)).slice(0, 4);
+      ])].filter(
+        (url): url is string => url !== undefined && isAllowedRetailerImageCandidate(product, url),
+      ).slice(0, 4);
       const attempts = await Promise.allSettled(imageUrls.map(cacheRetailerImage));
       const cached = attempts.find(
         (attempt): attempt is PromiseFulfilledResult<Awaited<ReturnType<typeof cacheRetailerImage>>> =>
@@ -562,11 +584,6 @@ function safeUrlHost(value: string | undefined): string {
   }
 }
 
-interface ControlledImageFacts {
-  readonly sourceImageUrl: string;
-  readonly sourceImageHash: string;
-}
-
 interface DiscoveryCacheImageFacts {
   readonly cachedImageUrl: string;
   readonly sourceImageHash: string;
@@ -617,7 +634,7 @@ function restoreControlledCacheImages(
       cachedImageUrl: typeof raw.cachedImageUrl === "string" ? raw.cachedImageUrl : "",
       sourceImageHash: typeof raw.sourceImageHash === "string" ? raw.sourceImageHash : "",
     };
-    assertControlledCacheImage(facts.cachedImageUrl, facts.sourceImageHash);
+    assertControlledCacheImage(facts.cachedImageUrl, facts.sourceImageHash, getPublicSupabaseEnvironment().url);
     return {
       ...product,
       imageUrl: facts.cachedImageUrl,
@@ -626,30 +643,6 @@ function restoreControlledCacheImages(
     } as LiveProductObservation & ControlledImageFacts;
   });
   return { ...output, products };
-}
-
-function assertControlledCacheImage(urlValue: string, sha256: string): void {
-  if (!/^[0-9a-f]{64}$/.test(sha256)) {
-    throw new ProviderResponseError("Cached product image hash was invalid.");
-  }
-  let url: URL;
-  try {
-    url = new URL(urlValue);
-  } catch {
-    throw new ProviderResponseError("Cached product image URL was invalid.");
-  }
-  const expectedOrigin = getPublicSupabaseEnvironment().url;
-  const expectedPath = `/storage/v1/object/public/product-images-public/${sha256}.`;
-  if (
-    url.protocol !== "https:" ||
-    url.origin !== expectedOrigin ||
-    url.search.length > 0 ||
-    url.hash.length > 0 ||
-    !url.pathname.startsWith(expectedPath) ||
-    !/\.(?:jpg|png)$/.test(url.pathname)
-  ) {
-    throw new ProviderResponseError("Cached product image was not a controlled content-addressed asset.");
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

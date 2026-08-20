@@ -1,7 +1,12 @@
 import "server-only";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/server";
+import { getPublicSupabaseEnvironment } from "@/lib/live-search/env";
 import { validateCatalogObservations } from "@/lib/live-search/validation";
+import {
+  prepareCatalogRowsForValidation,
+  restoreCachedCatalogImages,
+} from "@/lib/live-search/catalog/serving-images";
 import { LIVE_RETAILER_IDENTITIES } from "@/lib/live-search/types";
 import type { BrowserSearchOutput, LiveRetailer, LiveProductObservation, LiveSearchIntent } from "@/lib/live-search/types";
 import { catalogSearchOutput, rankCatalogMatches } from "@/lib/live-search/catalog/relevance";
@@ -33,10 +38,20 @@ export async function readCatalogCandidates(
     throw new Error(`Could not read catalog snapshots: ${error.message}`);
   }
   const rows = Array.isArray(data) ? data : [];
-  // Re-validate stored rows through the shared per-product gate (with the
-  // catalog freshness window) so a snapshot that drifted from the contract is
-  // dropped individually, not served — and never takes the rest down with it.
-  return validateCatalogObservations(rows, { maxObservationAgeMs: CATALOG_MAX_AGE_MS });
+  // Rows served before carry our cached copy as imageUrl; validate them on the
+  // retailer original (the fact the gate can defend), then restore the verified
+  // cached copy. Re-validation runs through the shared per-product gate (with
+  // the catalog freshness window) so a snapshot that drifted from the contract
+  // is dropped individually, not served — and never takes the rest down with it.
+  const prepared = prepareCatalogRowsForValidation(rows);
+  const validated = validateCatalogObservations(prepared.rows, {
+    maxObservationAgeMs: CATALOG_MAX_AGE_MS,
+  });
+  return restoreCachedCatalogImages(
+    validated,
+    prepared.cachedImages,
+    getPublicSupabaseEnvironment().url,
+  );
 }
 
 /**
