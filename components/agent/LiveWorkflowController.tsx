@@ -37,6 +37,7 @@ import {
   cancelLiveSearch,
   createComparisonShare,
   createLiveSearch,
+  fetchComparisonInsight,
   getLiveSearch,
   LiveSearchApiError,
   startGuestSession,
@@ -561,6 +562,56 @@ function WorkflowRouteScreen({
     );
   }, [defaultComparisonCandidates, linkedCandidateRestorePending]);
 
+  // The comparison pair shown on the compare surface, resolved exactly as the
+  // render block resolves it, so the insight request always matches the screen.
+  const comparisonPair = useMemo(() => {
+    if (surface !== "compare" || linkedCandidateRestorePending) return undefined;
+    const selected = comparedKeys.flatMap((id) => {
+      const candidate = decisionCandidates.find(
+        (entry) => entry.candidateId === id || entry.key === id,
+      );
+      return candidate === undefined ? [] : [candidate];
+    });
+    const defaults = selectDefaultCrossRetailerComparison(defaultComparisonCandidates);
+    const pair = (selected.length === 2 ? selected : defaults).slice(0, 2);
+    return pair.length === 2 ? ([pair[0], pair[1]] as const) : undefined;
+  }, [
+    comparedKeys,
+    decisionCandidates,
+    defaultComparisonCandidates,
+    linkedCandidateRestorePending,
+    surface,
+  ]);
+
+  const [comparisonInsight, setComparisonInsight] = useState<string>();
+  const [comparisonInsightPending, setComparisonInsightPending] = useState(false);
+  useEffect(() => {
+    if (comparisonPair === undefined) {
+      setComparisonInsight(undefined);
+      setComparisonInsightPending(false);
+      return;
+    }
+    const controller = new AbortController();
+    setComparisonInsight(undefined);
+    setComparisonInsightPending(true);
+    void fetchComparisonInsight(
+      comparisonPair[0].workflowId,
+      comparisonPair[0].candidateId,
+      comparisonPair[1].candidateId,
+      controller.signal,
+    )
+      .then((response) => {
+        if (!controller.signal.aborted) setComparisonInsight(response.insight);
+      })
+      .catch(() => {
+        // The deterministic verdict carries the screen; a failed insight is silence.
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setComparisonInsightPending(false);
+      });
+    return () => controller.abort();
+  }, [comparisonPair]);
+
   useEffect(() => {
     if (
       workflow === undefined ||
@@ -869,6 +920,8 @@ function WorkflowRouteScreen({
           measurement={workflow.measurement}
           candidates={exactPair}
           selectedCandidateKey={selectedCandidateKey}
+          aiInsight={comparisonInsight}
+          aiInsightPending={comparisonInsightPending}
           onSelectCandidate={setSelectedCandidateKey}
           onContinue={(candidate) => {
             router.push(
