@@ -17,6 +17,9 @@ import {
 } from "@/lib/pending-measurement-review";
 import type { MeasurementReviewStorage } from "@/lib/pending-measurement-review";
 
+/** An open 4 m x 2.6 m x 4 m area: room-sized, so any single furniture item fits. */
+const OPEN_SPACE_SENTENCE = "400 cm wide, 260 high, 400 deep";
+
 export interface SpaceMeasurementInputProps {
   readonly initialMeasurement?: SpaceMeasurement;
   readonly editingSpaceId?: string;
@@ -54,6 +57,25 @@ export function SpaceMeasurementInput({
       return;
     }
 
+    const draft = createPendingMeasurementReviewDraft(
+      result.measurement,
+      result.detectedUnit,
+      editingSpaceId,
+    );
+    persistPendingMeasurementReviewDraft(browserSessionStorage(), draft);
+    setMessage(undefined);
+    onParsed(result.measurement, editingSpaceId);
+  }
+
+  // A generous room, not a magic bypass: fit checking still runs against these
+  // stated bounds, the review screen still shows them, and results still say
+  // what they were checked against. It exists for the shopper who only wants
+  // to find an item and place it in AR.
+  function useOpenSpace(): void {
+    const result = parseMeasurementInput(OPEN_SPACE_SENTENCE, "cm");
+    if (result.status !== "complete") {
+      return;
+    }
     const draft = createPendingMeasurementReviewDraft(
       result.measurement,
       result.detectedUnit,
@@ -154,6 +176,17 @@ export function SpaceMeasurementInput({
           >
             Check measurements
           </button>
+          <button
+            type="button"
+            onClick={useOpenSpace}
+            className="mt-3 min-h-12 w-full rounded-sm border border-[#17221f]/30 px-5 py-3 text-base font-bold text-[#17221f] outline-none hover:border-[#17221f] focus-visible:ring-2 focus-visible:ring-[#2f6b59] focus-visible:ring-offset-2"
+          >
+            Skip — browse an open space
+          </button>
+          <p className="mt-2 text-center text-xs leading-5 text-[#17221f]/65">
+            Checks items against an open 4 × 2.6 m area, so anything can go
+            straight to AR placement.
+          </p>
         </div>
       </form>
     </main>
