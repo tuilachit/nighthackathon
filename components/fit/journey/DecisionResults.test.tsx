@@ -133,7 +133,7 @@ describe("DecisionResults", () => {
     const onOpenComparison = vi.fn();
     render(<DecisionResults {...defaultProps({ onOpenComparison })} />);
 
-    expect(screen.getByText("Start with top matches from two retailers")).toBeInTheDocument();
+    expect(screen.getByText("Two top matches ready")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Compare top matches" }));
 
     expect(onOpenComparison).toHaveBeenCalledWith(["ikea-1", "kmart-1"]);
