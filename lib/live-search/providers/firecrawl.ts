@@ -632,11 +632,22 @@ function resolveProductUrl(
     if (!hasSameRegistrableDomain(canonicalTarget, canonical)) {
       throw new FirecrawlResponseError("Firecrawl scrape left the submitted retailer domain.");
     }
-    if (retailer === undefined || isKnownRetailerProductPage(retailer, canonical)) {
+    if (retailer === undefined ||
+        (isKnownRetailerProductPage(retailer, canonical) && endsInProductId(canonical))) {
       return canonical;
     }
   }
   return canonicalTarget;
+}
+
+/**
+ * Real retailer product URLs end in the article or product number. A model
+ * canonical claim that merely lives under the product path is not enough:
+ * ".../p/<slug>-80616966/false" passed the path check and shipped a dead link.
+ */
+function endsInProductId(url: string): boolean {
+  const path = parsePublicHttpsUrl(url).pathname.replace(/\/+$/, "");
+  return /\d{4,}$/.test(path);
 }
 
 function retailerForUrl(value: string): LiveRetailer | undefined {
@@ -661,6 +672,11 @@ function productExtractionFromData(
     throw new FirecrawlResponseError("Firecrawl scrape omitted the product name.");
   }
   const imageCandidates = [...new Set([
+    // The page's own og:image is the retailer's declared product photo and is
+    // the most reliable candidate. Model-picked and crawled images follow: the
+    // image list can lead with designer portraits or lifestyle shots (a SKRUVBY
+    // page shipped a person's photo to production before og:image came first).
+    metadataOgImage(data),
     optionalString(extracted.imageUrl),
     ...stringArray(data.images),
   ].flatMap((value) => {
@@ -980,6 +996,13 @@ function metadataUrl(data: Record<string, unknown>): string | undefined {
 
 function metadataTitle(data: Record<string, unknown>): string | undefined {
   return isRecord(data.metadata) ? optionalString(data.metadata.title) : undefined;
+}
+
+function metadataOgImage(data: Record<string, unknown>): string | undefined {
+  if (!isRecord(data.metadata)) {
+    return undefined;
+  }
+  return optionalString(data.metadata.ogImage) ?? optionalString(data.metadata["og:image"]);
 }
 
 function safeOptionalPublicUrl(value: string | undefined): string | undefined {

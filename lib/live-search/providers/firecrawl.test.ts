@@ -244,6 +244,71 @@ describe("extractProductWithFirecrawl", () => {
     expect(extraction.priceMinor).toBeUndefined();
   });
 
+  it("prefers the page og:image over crawled images and model picks", async () => {
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "SKRUVBY. Width 60 cm, Height 140 cm, Depth 37.5 cm.",
+          images: [
+            // A designer portrait crawled from the page; hosted on the retailer,
+            // so host checks pass — only og:image priority keeps it out.
+            "https://www.ikea.com/au/en/images/products/designer-portrait__1441852_pe986544_s.jpg",
+          ],
+          metadata: {
+            sourceURL: "https://www.ikea.com/au/en/p/skruvby-bookcase-black-blue-20616912/",
+            ogImage: "https://www.ikea.com/au/en/images/products/skruvby-bookcase-black-blue__1128172_pe876451_s5.jpg",
+          },
+          json: {
+            canonicalUrl: "https://www.ikea.com/au/en/p/skruvby-bookcase-black-blue-20616912/",
+            name: "SKRUVBY Bookcase, black-blue",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/skruvby-bookcase-black-blue-20616912/",
+      fetchImplementation,
+    );
+    expect(extraction.imageUrl).toBe(
+      "https://www.ikea.com/au/en/images/products/skruvby-bookcase-black-blue__1128172_pe876451_s5.jpg",
+    );
+  });
+
+  it("rejects a model canonical that does not end in a product id", async () => {
+    // Production stored ".../p/<slug>-80616966/false" as a product link; it
+    // passed the product-path check but is a dead page.
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "SMAGORA",
+          json: {
+            canonicalUrl: "https://www.ikea.com/au/en/p/smagoera-changing-table-bookshelf-white-80616966/false",
+            name: "SMAGORA Changing table/bookshelf",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/smagoera-changing-table-bookshelf-white-80616966/",
+      fetchImplementation,
+    );
+    expect(extraction.url).toBe("https://www.ikea.com/au/en/p/smagoera-changing-table-bookshelf-white-80616966");
+  });
+
   it("skips a product-page image path in favour of the real CDN image", async () => {
     // Firecrawl sometimes lists the page URL with a trailing segment
     // (".../p/<slug>/false") first in the images array; it passes the retailer
