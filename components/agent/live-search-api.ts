@@ -98,6 +98,35 @@ export async function approveLiveCandidate(
   );
 }
 
+export interface ComparisonInsightResponse {
+  readonly insight?: string;
+}
+
+/**
+ * Fetches the optional model-written comparison take. Callers must treat every
+ * failure as "no insight" — the deterministic verdict is computed client-side
+ * and never depends on this call.
+ */
+export async function fetchComparisonInsight(
+  workflowId: string,
+  firstCandidateId: string,
+  secondCandidateId: string,
+  signal?: AbortSignal,
+): Promise<ComparisonInsightResponse> {
+  const query = new URLSearchParams({ a: firstCandidateId, b: secondCandidateId });
+  return requestJson(
+    `/api/v1/search-jobs/${encodeURIComponent(workflowId)}/comparison-insight?${query.toString()}`,
+    { method: "GET", cache: "no-store", signal },
+    (payload: unknown): ComparisonInsightResponse => {
+      if (typeof payload !== "object" || payload === null) {
+        return {};
+      }
+      const insight = (payload as { insight?: unknown }).insight;
+      return typeof insight === "string" && insight.length > 0 ? { insight } : {};
+    },
+  );
+}
+
 export interface CancelLiveSearchResponse {
   readonly workflowId: string;
   readonly state: LiveSearchWorkflow["state"];

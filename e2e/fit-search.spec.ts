@@ -302,6 +302,7 @@ test("comparison defaults across retailers and accepts products from other tiers
   await page.getByRole("button", { name: "Compare top matches" }).click();
   await expect(page).toHaveURL(new RegExp(`/fit/jobs/${WORKFLOW_PROMPT}/compare$`));
   await expect(page.getByRole("heading", { name: "Clearance comparison" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Which one, and why" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "BILLY narrow bookcase" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Kmart slim cube shelf" })).toBeVisible();
   await expect(page.getByText("10 mm", { exact: true })).toBeVisible();
@@ -575,6 +576,13 @@ async function installMockApi(
       } else {
         await fulfillJson(route, workflow);
       }
+      return;
+    }
+
+    const insightMatch = path.match(/^\/api\/v1\/search-jobs\/([^/]+)\/comparison-insight$/);
+    if (request.method() === "GET" && insightMatch !== null) {
+      // Mirrors a deployment without a model key: deterministic verdict only.
+      await fulfillJson(route, { summary: "Deterministic verdict.", factors: [] });
       return;
     }
 

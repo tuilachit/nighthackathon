@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { SpaceMeasurement } from "@/lib/catalog-types";
 import type { DecisionCandidate } from "@/lib/live-search/types";
+import { buildComparisonVerdict, shortName } from "@/lib/live-search/comparison-verdict";
 import { MeasurementEnvelopeDiagram } from "../MeasurementEnvelopeDiagram";
 import {
   accessBasisLabel,
@@ -23,6 +24,9 @@ export interface DecisionComparisonScreenProps {
   readonly onContinue: (candidate: DecisionCandidate) => void;
   readonly onRetailerOutbound?: (candidate: DecisionCandidate) => void;
   readonly continueLabel?: string;
+  /** Optional model-written take. The deterministic verdict renders regardless. */
+  readonly aiInsight?: string;
+  readonly aiInsightPending?: boolean;
 }
 
 /**
@@ -37,8 +41,11 @@ export function DecisionComparisonScreen({
   onContinue,
   onRetailerOutbound,
   continueLabel,
+  aiInsight,
+  aiInsightPending,
 }: DecisionComparisonScreenProps): React.JSX.Element {
   const [first, second] = candidates;
+  const verdict = buildComparisonVerdict(first, second);
   const [internalSelection, setInternalSelection] = useState(first.key);
   const resolvedSelection = candidates.find(
     (candidate) => candidate.key === (selectedCandidateKey ?? internalSelection),
@@ -105,6 +112,42 @@ export function DecisionComparisonScreen({
               : `${clearanceLeader.name} has the higher minimum-clearance value.`}
           </p>
         </div>
+      </section>
+
+      <section
+        aria-labelledby="decision-support-title"
+        className="mt-4 border border-[#17221f] bg-white"
+      >
+        <div className="border-b border-[#17221f]/20 px-3 py-3">
+          <h2 id="decision-support-title" className="text-sm font-bold text-[#17221f]">
+            Which one, and why
+          </h2>
+          <p className="mt-2 text-xs font-bold leading-5 text-[#17221f]">
+            {verdict.summary}
+          </p>
+        </div>
+        {verdict.factors.length > 0 ? (
+          <ul className="space-y-1.5 px-3 py-3">
+            {verdict.factors.map((factor) => (
+              <li key={factor.kind} className="flex gap-2 text-[11px] leading-4 text-[#17221f]/80">
+                <span aria-hidden className="fit-data text-[9px] font-bold uppercase tracking-[0.09em] text-[#17221f]/50">
+                  {factor.kind === "footprint" ? "floor" : factor.kind}
+                </span>
+                <span>{factor.statement}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {aiInsight !== undefined || aiInsightPending === true ? (
+          <div className="border-t border-[#17221f]/20 bg-[#f4f7f5] px-3 py-3">
+            <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
+              AI take · uses only the verified numbers above
+            </p>
+            <p aria-live="polite" className="mt-1 text-[11px] leading-4 text-[#17221f]/80">
+              {aiInsight ?? `Weighing ${shortName(first)} against ${shortName(second)}…`}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <div className="mt-4 grid grid-cols-2 border border-[#17221f]/25 bg-white">
