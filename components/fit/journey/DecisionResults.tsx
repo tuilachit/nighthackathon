@@ -80,7 +80,7 @@ export function DecisionResults({
             Products checked against your space
           </h2>
           <p className="mt-1 text-xs leading-5 text-[#17221f]/65">
-            One result tier at a time. Source facts stay attached to every item.
+            Every dimension and price comes from the retailer’s page.
           </p>
         </div>
         <span className="fit-data shrink-0 text-[9px] font-bold uppercase tracking-[0.08em] text-[#17221f]/65">
