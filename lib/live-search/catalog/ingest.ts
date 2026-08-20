@@ -105,8 +105,9 @@ export function deriveRetailerProductId(retailer: LiveRetailer, url: string): st
     return undefined;
   }
   if (retailer === "ikea-au") {
-    // .../p/<slug>-<digits>[/]  — the trailing digit run is the article number.
-    const match = path.match(/-(\d{6,})\/?$/);
+    // .../p/<slug>-<article>[/] — the article number is a digit run, with an
+    // "s" prefix on combination products (s49591826).
+    const match = path.match(/-(s?\d{6,})\/?$/i);
     return match?.[1];
   }
   // Kmart: /product/<slug>-<digits> or /product/<digits>
@@ -134,7 +135,17 @@ export function markdownContainsEvidence(markdown: string, evidence: string): bo
 }
 
 function normalizeWhitespace(value: string): string {
-  return value.replace(/\s+/g, " ").trim().toLowerCase();
+  // Quote marks and colon spacing are formatting, not fact: the page may carry
+  // "width":"40 cm" where the evidence sentence reads Width: 40 cm. Stripping
+  // quotes and normalising colon spacing lets the same fact match across those
+  // formats while an invented value still fails, because the digits and units
+  // must match exactly.
+  return value
+    .replace(/"/g, "")
+    .replace(/\s*:\s*/g, ": ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function trimmedOr(value: string | undefined, fallback: string | undefined): string | undefined {

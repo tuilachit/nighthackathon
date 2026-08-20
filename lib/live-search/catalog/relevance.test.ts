@@ -128,6 +128,38 @@ describe("rankCatalogMatches", () => {
     const link: LiveSearchIntent = { kind: "product-link", url: "https://www.ikea.com/au/en/p/billy-1" } as LiveSearchIntent;
     expect(rankCatalogMatches(products, link)).toEqual([]);
   });
+
+  it("never serves mounting hardware even when its name matches the query kind", () => {
+    // Stored from a real page: a $5 wardrobe *connector* whose name contains
+    // "wardrobe". Size is the only signal that it is not furniture.
+    const connector = observation({
+      retailerProductId: "6",
+      name: "SKÅDIS connector for wardrobe, white",
+      category: "Wardrobe",
+      priceMinor: 500,
+      assembledDimensions: { widthMm: 55, heightMm: 45, depthMm: 22 },
+    });
+    const wardrobe = observation({
+      retailerProductId: "7",
+      name: "PAX Wardrobe, white",
+      category: "Wardrobe",
+      priceMinor: 29900,
+      assembledDimensions: { widthMm: 1000, heightMm: 2011, depthMm: 580 },
+    });
+    const names = rankCatalogMatches([connector, wardrobe], PROMPT("white wardrobe"))
+      .map((m) => m.observation.name);
+    expect(names).toEqual(["PAX Wardrobe, white"]);
+  });
+
+  it("keeps genuinely low furniture like a wide TV bench", () => {
+    const bench = observation({
+      retailerProductId: "8",
+      name: "BESTÅ TV bench, white",
+      category: "TV unit",
+      assembledDimensions: { widthMm: 1200, heightMm: 380, depthMm: 400 },
+    });
+    expect(rankCatalogMatches([bench], PROMPT("tv bench"))).toHaveLength(1);
+  });
 });
 
 describe("catalogSearchOutput", () => {

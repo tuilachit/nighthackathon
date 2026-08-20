@@ -61,14 +61,16 @@ function decodeEntities(value: string): string {
 export function parseIkeaProductPage(html: string, pageUrl: string): FreeExtractionResult | undefined {
   const captures: string[] = [];
   const dims: Record<string, number> = {};
+  const capturedText: Record<string, string> = {};
   for (const label of ["width", "height", "depth"] as const) {
     const match = html.match(DIMENSION_PATTERN(label));
     const mm = match?.[1] === undefined ? undefined : toMm(match[1]);
-    if (match === null || mm === undefined) {
+    if (match === null || match[1] === undefined || mm === undefined) {
       return undefined;
     }
     captures.push(match[0]);
     dims[label] = mm;
+    capturedText[label] = match[1];
   }
 
   const productId = pageUrl.match(/(\d{6,})\/?$/)?.[1];
@@ -108,11 +110,11 @@ export function parseIkeaProductPage(html: string, pageUrl: string): FreeExtract
     return undefined;
   }
 
-  // The evidence sentence restates exactly the values captured from the page
-  // JSON above (capturedFrom carries the raw substrings for the audit trail),
-  // in the labelled form the shared validator requires.
+  // The evidence sentence carries the captured page values verbatim (a page
+  // that says "106.0 cm" keeps its ".0"), in the labelled form the shared
+  // validator requires; capturedFrom holds the raw substrings for audit.
   const dimensionsEvidence =
-    `Width: ${width / 10} cm; Height: ${height / 10} cm; Depth: ${depth / 10} cm`;
+    `Width: ${capturedText.width} cm; Height: ${capturedText.height} cm; Depth: ${capturedText.depth} cm`;
 
   return {
     extraction: {

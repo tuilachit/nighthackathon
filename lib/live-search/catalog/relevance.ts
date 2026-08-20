@@ -40,6 +40,17 @@ const CATEGORY_SYNONYMS: readonly (readonly string[])[] = [
   ["lamp", "lighting"],
 ];
 
+// A product this small in both width and height is mounting hardware or an
+// accessory (connectors, knobs, brackets), not standalone furniture. Pages for
+// these parse cleanly, so they pass validation; size is the only tell.
+const MIN_FURNITURE_SPAN_MM = 300;
+
+/** True for standalone furniture; false for small accessories and hardware. */
+export function isStandaloneFurniture(observation: LiveProductObservation): boolean {
+  const { widthMm, heightMm } = observation.assembledDimensions;
+  return widthMm >= MIN_FURNITURE_SPAN_MM || heightMm >= MIN_FURNITURE_SPAN_MM;
+}
+
 const STOPWORDS = new Set([
   "a", "an", "the", "for", "with", "and", "or", "of", "in", "to", "my", "me",
   "i", "need", "want", "looking", "under", "below", "less", "than", "cheap",
@@ -142,6 +153,9 @@ export function rankCatalogMatches(
   const matches: CatalogMatch[] = [];
   for (const observation of observations) {
     if (!retailers.has(observation.retailer.key as never)) {
+      continue;
+    }
+    if (!isStandaloneFurniture(observation)) {
       continue;
     }
     if (priceCap !== undefined && observation.priceMinor > priceCap) {

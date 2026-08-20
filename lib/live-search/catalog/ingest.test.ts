@@ -38,6 +38,14 @@ describe("markdownContainsEvidence", () => {
     expect(markdownContainsEvidence("Width 40 cm", "Width 90 cm, Depth 30 cm, Height 200 cm")).toBe(false);
   });
 
+  it("matches evidence against the page's JSON-styled dimension fields", () => {
+    // The zero-credit IKEA path captures dimensions as raw page bytes like
+    // "width":"40 cm"; the labelled evidence sentence must match them.
+    const pageBytes = '"width":"40 cm"\n"height":"106 cm"\n"depth":"28 cm"';
+    expect(markdownContainsEvidence(pageBytes, "Width: 40 cm; Height: 106 cm; Depth: 28 cm")).toBe(true);
+    expect(markdownContainsEvidence(pageBytes, "Width: 90 cm; Height: 106 cm; Depth: 28 cm")).toBe(false);
+  });
+
   it("rejects empty evidence", () => {
     expect(markdownContainsEvidence("anything", "   ")).toBe(false);
   });
