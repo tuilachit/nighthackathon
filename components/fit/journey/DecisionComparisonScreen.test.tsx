@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { SpaceMeasurement } from "@/lib/catalog-types";
 import { DecisionComparisonScreen } from "./DecisionComparisonScreen";
+import { shortName } from "@/lib/live-search/comparison-verdict";
 import { candidateFixture } from "./test-support";
 
 const measurement: SpaceMeasurement = {
@@ -98,13 +99,13 @@ describe("DecisionComparisonScreen", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: `Continue with ${first.name}` }),
+      screen.getByRole("button", { name: `Continue with ${shortName(first)}` }),
     ).toBeVisible();
     await user.click(
       screen.getAllByRole("radio", { name: "Choose this product" })[1],
     );
     await user.click(
-      screen.getByRole("button", { name: `Continue with ${second.name}` }),
+      screen.getByRole("button", { name: `Continue with ${shortName(second)}` }),
     );
     expect(onContinue).toHaveBeenCalledWith(second);
   });

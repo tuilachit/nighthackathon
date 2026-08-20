@@ -77,6 +77,42 @@ export function DecisionComparisonScreen({
       </header>
 
       <section
+        aria-labelledby="decision-support-title"
+        className="mt-4 border border-[#17221f] bg-white"
+      >
+        <div className="border-b border-[#17221f]/20 px-3 py-3">
+          <h2 id="decision-support-title" className="text-sm font-bold text-[#17221f]">
+            Which one, and why
+          </h2>
+          <p className="mt-2 text-xs font-bold leading-5 text-[#17221f]">
+            {verdict.summary}
+          </p>
+        </div>
+        {verdict.factors.length > 0 ? (
+          <ul className="space-y-1.5 px-3 py-3">
+            {verdict.factors.map((factor) => (
+              <li key={factor.kind} className="flex gap-2 text-[11px] leading-4 text-[#17221f]/80">
+                <span aria-hidden className="fit-data text-[9px] font-bold uppercase tracking-[0.09em] text-[#17221f]/50">
+                  {factor.kind === "footprint" ? "floor" : factor.kind}
+                </span>
+                <span>{factor.statement}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {aiInsight !== undefined || aiInsightPending === true ? (
+          <div className="border-t border-[#17221f]/20 bg-[#f4f7f5] px-3 py-3">
+            <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
+              AI take · uses only the verified numbers above
+            </p>
+            <p aria-live="polite" className="mt-1 text-[11px] leading-4 text-[#17221f]/80">
+              {aiInsight ?? `Weighing ${shortName(first)} against ${shortName(second)}…`}
+            </p>
+          </div>
+        ) : null}
+      </section>
+
+      <section
         aria-labelledby="shared-envelope-title"
         className="mt-4 border border-[#17221f] bg-white"
       >
@@ -114,42 +150,6 @@ export function DecisionComparisonScreen({
         </div>
       </section>
 
-      <section
-        aria-labelledby="decision-support-title"
-        className="mt-4 border border-[#17221f] bg-white"
-      >
-        <div className="border-b border-[#17221f]/20 px-3 py-3">
-          <h2 id="decision-support-title" className="text-sm font-bold text-[#17221f]">
-            Which one, and why
-          </h2>
-          <p className="mt-2 text-xs font-bold leading-5 text-[#17221f]">
-            {verdict.summary}
-          </p>
-        </div>
-        {verdict.factors.length > 0 ? (
-          <ul className="space-y-1.5 px-3 py-3">
-            {verdict.factors.map((factor) => (
-              <li key={factor.kind} className="flex gap-2 text-[11px] leading-4 text-[#17221f]/80">
-                <span aria-hidden className="fit-data text-[9px] font-bold uppercase tracking-[0.09em] text-[#17221f]/50">
-                  {factor.kind === "footprint" ? "floor" : factor.kind}
-                </span>
-                <span>{factor.statement}</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {aiInsight !== undefined || aiInsightPending === true ? (
-          <div className="border-t border-[#17221f]/20 bg-[#f4f7f5] px-3 py-3">
-            <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
-              AI take · uses only the verified numbers above
-            </p>
-            <p aria-live="polite" className="mt-1 text-[11px] leading-4 text-[#17221f]/80">
-              {aiInsight ?? `Weighing ${shortName(first)} against ${shortName(second)}…`}
-            </p>
-          </div>
-        ) : null}
-      </section>
-
       <div className="mt-4 grid grid-cols-2 border border-[#17221f]/25 bg-white">
         {candidates.map((candidate) => (
           <ComparisonProduct
@@ -171,7 +171,7 @@ export function DecisionComparisonScreen({
           onClick={() => onContinue(resolvedSelection)}
           className="min-h-12 w-full cursor-pointer bg-[#17221f] px-4 text-sm font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#17221f]"
         >
-          {continueLabel ?? `Continue with ${resolvedSelection.name}`}
+          {continueLabel ?? `Continue with ${shortName(resolvedSelection)}`}
         </button>
       </div>
     </section>
