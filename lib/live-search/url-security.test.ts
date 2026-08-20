@@ -16,6 +16,19 @@ describe("canonicalizePublicProductUrl", () => {
     ).toBe("https://www.example.com.au/item/desk?variant=oak");
   });
 
+  it("treats the same Kmart product as one URL regardless of Google Shopping click id", () => {
+    // Production discovery returned every Kmart product with a distinct srsltid,
+    // so identical products de-duplicated as different ones.
+    const a = canonicalizePublicProductUrl(
+      "https://www.kmart.com.au/product/nate-bookshelf-black-43531905?srsltid=AfmBOoqpQ5Uym",
+    );
+    const b = canonicalizePublicProductUrl(
+      "https://www.kmart.com.au/product/nate-bookshelf-black-43531905?srsltid=AfmBOorQAXKJb",
+    );
+    expect(a).toBe("https://www.kmart.com.au/product/nate-bookshelf-black-43531905");
+    expect(a).toBe(b);
+  });
+
   it.each([
     "http://example.com/product",
     "https://user:secret@example.com/product",

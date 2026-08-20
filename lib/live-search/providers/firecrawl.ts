@@ -20,7 +20,9 @@ import {
 
 const SEARCH_ENDPOINT = "https://api.firecrawl.dev/v2/search";
 const SCRAPE_ENDPOINT = "https://api.firecrawl.dev/v2/scrape";
-const FIRECRAWL_TIMEOUT_MS = 25_000;
+const DEFAULT_PAGE_TIMEOUT_MS = 9_000;
+/** Client abort trails the provider timeout so the provider's own error wins when it arrives. */
+const PAGE_TIMEOUT_GRACE_MS = 2_000;
 const FIRECRAWL_SEARCH_TIMEOUT_MS = 10_000;
 const AU_LOCATION = {
   country: "AU",
@@ -59,12 +61,29 @@ export interface FirecrawlProductExtraction {
   readonly markdown: string;
 }
 
+export interface FirecrawlRejection {
+  readonly url: string;
+  readonly missingFields: readonly string[];
+  readonly reasons: readonly string[];
+}
+
 export interface FirecrawlPrimarySearchResult {
   readonly output: BrowserSearchOutput;
   readonly discoveryHits: readonly FirecrawlDiscoveryHit[];
   readonly attemptedPages: number;
   readonly rejectedPages: number;
   readonly imageCandidates?: Readonly<Record<string, readonly string[]>>;
+  /** Every candidate URL that failed, with the exact field that failed it. */
+  readonly rejections: readonly FirecrawlRejection[];
+  readonly productsPerRetailer: Readonly<Record<string, number>>;
+  readonly reachedCompletenessFloor: boolean;
+  readonly stoppedReason:
+    | "completeness-floor"
+    | "budget-exhausted"
+    | "candidates-exhausted"
+    | "scrape-cap"
+    | "rate-limited";
+  readonly elapsedMs: number;
 }
 
 /**
@@ -73,57 +92,193 @@ export interface FirecrawlPrimarySearchResult {
  */
 export async function searchProductsWithFirecrawl(
   intent: LiveSearchIntent,
-  maxResults = getLiveSearchServerEnvironment().maxResults,
+  maxResults?: number,
   fetchImplementation: FetchImplementation = fetch,
+  clock: () => number = Date.now,
 ): Promise<FirecrawlPrimarySearchResult> {
+  const environment = getLiveSearchServerEnvironment();
+  const limit = maxResults ?? environment.maxResults;
+  const startedAt = clock();
+  const deadline = startedAt + environment.discoveryBudgetMs;
+
+  // Discovery gathers a wide candidate pool; extraction spends the expensive
+  // per-page budget on it through a bounded concurrent pool and stops as soon
+  // as the completeness floor is met. Previously the pool was capped at the display
+  // limit, so a single surviving product was both the first and the last result.
   const discoveryHits = await discoverProductPagesWithFirecrawl(
     intent,
-    maxResults,
+    environment.discoveryPoolSize,
     fetchImplementation,
   );
-  const settled = await Promise.allSettled(discoveryHits.map((hit) => {
-    if (hit.extraction !== undefined) {
-      return Promise.resolve(hit.extraction);
-    }
-    // Firecrawl search reliably discovers retailer URLs, but JSON extraction is
-    // not guaranteed on each search result. Finish the bounded product-page
-    // extraction here rather than discarding a valid discovery and falling
-    // through to the slower interactive-browser provider.
-    return extractProductWithFirecrawl(hit.url, fetchImplementation);
-  }));
+
   const products: LiveProductObservation[] = [];
   const imageCandidates: Record<string, readonly string[]> = {};
   const notes: string[] = [];
+  const rejections: FirecrawlRejection[] = [];
+  let attemptedPages = 0;
+  let stoppedReason: FirecrawlPrimarySearchResult["stoppedReason"] = "candidates-exhausted";
 
-  for (const [index, result] of settled.entries()) {
-    const hit = discoveryHits[index];
-    if (hit === undefined) {
-      continue;
-    }
-    if (result.status === "rejected") {
+  // A fixed number of scrapes stay in flight and a new one starts the moment any
+  // settles. Lock-step batches made every batch as slow as its slowest page, so
+  // one 20s timeout stalled five finished pages and a single batch spent the
+  // whole budget; production attempted 6 of 28 discovered URLs.
+  // Only pages without an inline extraction cost a scrape request; cap those so
+  // one search cannot exhaust the provider's per-minute allowance.
+  const queue = [...discoveryHits];
+  const inFlight = new Set<Promise<void>>();
+  let stopped = false;
+  let scrapesStarted = 0;
+  let rateLimited = false;
+
+  const settle = async (hit: FirecrawlDiscoveryHit): Promise<void> => {
+    attemptedPages += 1;
+    try {
+      // Firecrawl search reliably discovers retailer URLs, but JSON extraction is
+      // not guaranteed on each search result. Finish the bounded product-page
+      // extraction here rather than discarding a valid discovery and falling
+      // through to the slower interactive-browser provider.
+      const extraction = hit.extraction ??
+        await extractProductWithFirecrawl(
+          hit.url,
+          fetchImplementation,
+          environment.extractionPageTimeoutMs,
+        );
+      const validation = validateBrowserSearchOutput({
+        products: [toUntrustedObservation(extraction, hit, intent)],
+        partial: false,
+        notes: [],
+      });
+      const product = validation.value?.products[0];
+      if (!validation.ok || product === undefined) {
+        // validation.errors names the exact field that failed. Discarding it left
+        // every rejection reading as a generic "incomplete", which made the drop
+        // rate impossible to attribute to any one field in production.
+        const missingFields = missingFieldNames(validation.errors);
+        console.warn(JSON.stringify({
+          level: "warn",
+          message: "firecrawl_candidate_rejected",
+          url: hit.url,
+          missingFields,
+          reasons: validation.errors,
+        }));
+        rejections.push({ url: hit.url, missingFields, reasons: validation.errors });
+        notes.push(rejectionNote(shortHost(hit.url), validation.errors));
+        return;
+      }
+      if (products.some((existing) => existing.productUrl === product.productUrl)) {
+        return;
+      }
+      products.push(product);
+      if (extraction.imageCandidates !== undefined) {
+        imageCandidates[product.productUrl] = extraction.imageCandidates;
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      if (error instanceof FirecrawlRequestError && error.status === 429) {
+        // The provider has refused further requests this minute. Starting more
+        // pages would only add rejections; stop admitting work and report it.
+        rateLimited = true;
+      }
+      console.warn(JSON.stringify({
+        level: "warn",
+        message: "firecrawl_extraction_failed",
+        url: hit.url,
+        error: reason,
+      }));
+      rejections.push({ url: hit.url, missingFields: [], reasons: [reason] });
       notes.push(`Could not validate ${shortHost(hit.url)} from the retailer page.`);
-      continue;
     }
-    const validation = validateBrowserSearchOutput({
-      products: [toUntrustedObservation(result.value, hit, intent)],
-      partial: false,
-      notes: [],
-    });
-    const product = validation.value?.products[0];
-    if (!validation.ok || product === undefined) {
-      notes.push(`Rejected ${shortHost(hit.url)} because required source facts were incomplete.`);
-      continue;
+  };
+
+  while (!stopped && (queue.length > 0 || inFlight.size > 0)) {
+    if (meetsCompletenessFloor(products, intent, environment, limit)) {
+      stoppedReason = "completeness-floor";
+      stopped = true;
+      break;
     }
-    products.push(product);
-    if (result.value.imageCandidates !== undefined) {
-      imageCandidates[product.productUrl] = result.value.imageCandidates;
+    if (clock() >= deadline) {
+      stoppedReason = "budget-exhausted";
+      notes.push("Stopped searching at the time limit before every retailer was complete.");
+      stopped = true;
+      break;
     }
+    if (rateLimited) {
+      stoppedReason = "rate-limited";
+      notes.push("The retailer page provider rate-limited this search before every page was checked.");
+      stopped = true;
+    }
+    while (!stopped && queue.length > 0 && inFlight.size < environment.extractionConcurrency) {
+      const next = queue[0];
+      if (next === undefined) {
+        break;
+      }
+      const costsScrape = next.extraction === undefined;
+      if (costsScrape && scrapesStarted >= environment.maxScrapesPerSearch) {
+        // Pages with inline extraction are still free to validate; stop only
+        // admitting new scrapes.
+        const freeIndex = queue.findIndex((hit) => hit.extraction !== undefined);
+        if (freeIndex === -1) {
+          stoppedReason = "scrape-cap";
+          notes.push("Checked the maximum number of retailer pages allowed for one search.");
+          stopped = true;
+          break;
+        }
+        const [free] = queue.splice(freeIndex, 1);
+        if (free === undefined) {
+          break;
+        }
+        const freeTask: Promise<void> = settle(free).finally(() => {
+          inFlight.delete(freeTask);
+        });
+        inFlight.add(freeTask);
+        continue;
+      }
+      queue.shift();
+      if (costsScrape) {
+        scrapesStarted += 1;
+      }
+      const task: Promise<void> = settle(next).finally(() => {
+        inFlight.delete(task);
+      });
+      inFlight.add(task);
+    }
+    if (stopped) {
+      // Pages already admitted may finish, but never past the deadline.
+      await Promise.race([
+        Promise.allSettled([...inFlight]),
+        sleep(Math.max(0, deadline - clock())),
+      ]);
+      break;
+    }
+    if (inFlight.size === 0) {
+      break;
+    }
+    // Wake on the first settled page or the deadline, whichever comes first, so
+    // a slow page never delays the decision to start the next one.
+    await Promise.race([
+      ...inFlight,
+      sleep(Math.max(0, deadline - clock())),
+    ]);
+  }
+  // Pages still in flight at the deadline are abandoned for this response; their
+  // per-page timeout bounds the provider spend.
+  if (!stopped && rateLimited) {
+    stoppedReason = "rate-limited";
+    notes.push("The retailer page provider rate-limited this search before every page was checked.");
   }
 
+  if (meetsCompletenessFloor(products, intent, environment, limit)) {
+    stoppedReason = "completeness-floor";
+  }
+
+  const productsPerRetailer = countPerRetailer(products);
   if (intent.kind === "prompt") {
     for (const retailer of intent.retailers) {
-      if (!products.some((product) => product.retailer.key === retailer)) {
+      const found = productsPerRetailer[retailer] ?? 0;
+      if (found === 0) {
         notes.push(`No validated Firecrawl result returned for ${retailer}.`);
+      } else if (found < environment.minPerRetailer) {
+        notes.push(`Only ${found} of ${environment.minPerRetailer} wanted products passed for ${retailer}.`);
       }
     }
   }
@@ -131,12 +286,32 @@ export async function searchProductsWithFirecrawl(
     notes.push("Firecrawl found no candidate product pages.");
   }
 
+  const elapsedMs = clock() - startedAt;
+  const reachedCompletenessFloor = meetsCompletenessFloor(products, intent, environment, limit);
   const boundedNotes = [...new Set(notes)].slice(0, MAX_COVERAGE_NOTES);
+  const displayed = products.slice(0, limit);
   const combined = validateBrowserSearchOutput({
-    products,
-    partial: boundedNotes.length > 0,
+    products: displayed,
+    partial: boundedNotes.length > 0 || !reachedCompletenessFloor,
     notes: boundedNotes,
   });
+
+  console.info(JSON.stringify({
+    level: "info",
+    message: "firecrawl_discovery_summary",
+    intentKind: intent.kind,
+    discovered: discoveryHits.length,
+    attemptedPages,
+    validated: products.length,
+    productsPerRetailer,
+    rejected: rejections.length,
+    scrapesStarted,
+    rateLimited,
+    reachedCompletenessFloor,
+    stoppedReason,
+    elapsedMs,
+  }));
+
   if (!combined.ok || combined.value === undefined) {
     return {
       output: {
@@ -145,18 +320,71 @@ export async function searchProductsWithFirecrawl(
         notes: ["Firecrawl results did not pass the combined validation gate."],
       },
       discoveryHits,
-      attemptedPages: discoveryHits.length,
-      rejectedPages: discoveryHits.length,
+      attemptedPages,
+      rejectedPages: attemptedPages,
       imageCandidates,
+      rejections,
+      productsPerRetailer,
+      reachedCompletenessFloor: false,
+      stoppedReason,
+      elapsedMs,
     };
   }
   return {
     output: combined.value,
     discoveryHits,
-    attemptedPages: discoveryHits.length,
-    rejectedPages: discoveryHits.length - combined.value.products.length,
+    attemptedPages,
+    rejectedPages: attemptedPages - combined.value.products.length,
     imageCandidates,
+    rejections,
+    productsPerRetailer,
+    reachedCompletenessFloor,
+    stoppedReason,
+    elapsedMs,
   };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function countPerRetailer(
+  products: readonly LiveProductObservation[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const product of products) {
+    counts[product.retailer.key] = (counts[product.retailer.key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * Discovery may stop early only once the result set is genuinely complete:
+ * the floor is met and every requested retailer is represented. Stopping at
+ * the first validated product is what reduced production runs to one candidate.
+ */
+function meetsCompletenessFloor(
+  products: readonly LiveProductObservation[],
+  intent: LiveSearchIntent,
+  environment: {
+    readonly completenessFloor: number;
+    readonly minPerRetailer: number;
+  },
+  limit: number,
+): boolean {
+  if (intent.kind === "product-link") {
+    return products.length >= 1;
+  }
+  if (products.length >= limit) {
+    return true;
+  }
+  if (products.length < environment.completenessFloor) {
+    return false;
+  }
+  const counts = countPerRetailer(products);
+  return intent.retailers.every(
+    (retailer) => (counts[retailer] ?? 0) >= environment.minPerRetailer,
+  );
 }
 
 /** Discovers bounded product-page candidates without opening an interactive browser. */
@@ -182,22 +410,33 @@ export async function discoverProductPagesWithFirecrawl(
       fetchImplementation,
     )),
   );
-  const deduplicated = new Map<string, FirecrawlDiscoveryHit>();
-  for (const result of results) {
-    if (result.status !== "fulfilled") {
-      continue;
-    }
-    for (const hit of result.value) {
-      deduplicated.set(hit.url, hit);
+  // Interleave retailers rather than concatenating them. Truncating a
+  // concatenated list by insertion order handed every slot to whichever
+  // retailer's HTTP call happened to resolve first.
+  const perRetailerHits = results.map((result) => (
+    result.status === "fulfilled" ? [...result.value] : []
+  ));
+  const seen = new Set<string>();
+  const interleaved: FirecrawlDiscoveryHit[] = [];
+  const longest = Math.max(0, ...perRetailerHits.map((hits) => hits.length));
+  for (let index = 0; index < longest; index += 1) {
+    for (const hits of perRetailerHits) {
+      const hit = hits[index];
+      if (hit === undefined || seen.has(hit.url)) {
+        continue;
+      }
+      seen.add(hit.url);
+      interleaved.push(hit);
     }
   }
-  return [...deduplicated.values()].slice(0, maxResults);
+  return interleaved.slice(0, maxResults);
 }
 
 /** Extracts compact product facts from one already-validated public product URL. */
 export async function extractProductWithFirecrawl(
   targetUrl: string,
   fetchImplementation: FetchImplementation = fetch,
+  pageTimeoutMs: number = DEFAULT_PAGE_TIMEOUT_MS,
 ): Promise<FirecrawlProductExtraction> {
   const canonicalTarget = canonicalizePublicProductUrl(targetUrl);
   const environment = getLiveSearchServerEnvironment();
@@ -221,9 +460,12 @@ export async function extractProductWithFirecrawl(
       removeBase64Images: true,
       blockAds: true,
       proxy: "auto",
-      timeout: 20_000,
+      // Ask Firecrawl to give up on a slow page before we do. Two production runs
+      // showed 9 of 12 scrapes hitting the old 20s ceiling; one slow page then
+      // held its whole batch and a single batch consumed the entire budget.
+      timeout: pageTimeoutMs,
     }),
-    signal: AbortSignal.timeout(FIRECRAWL_TIMEOUT_MS),
+    signal: AbortSignal.timeout(pageTimeoutMs + PAGE_TIMEOUT_GRACE_MS),
   });
   const payload = await readFirecrawlResponse(response, "scrape");
   if (!isRecord(payload.data)) {
@@ -296,10 +538,18 @@ async function searchRetailer(
 }
 
 function retailerSearchQuery(retailer: LiveRetailer, query: string): string {
+  // The user's own words carry the intent; appending a fixed noun only dilutes
+  // them, so "black bookshelf" is no longer searched as "black bookshelf furniture".
+  //
+  // The path scope stays. includeDomains cannot express a path prefix, and
+  // ikea.com serves every market from one registrable domain, so without it an
+  // Australian search returns US and EU product pages that
+  // isKnownRetailerProductPage then discards - spending the result budget on rows
+  // that can never survive.
   const productPath = retailer === "ikea-au"
     ? "site:ikea.com/au/en/p/"
     : "site:kmart.com.au/product/";
-  return `${query} furniture ${productPath}`;
+  return `${query} ${productPath}`;
 }
 
 function isKnownRetailerProductPage(retailer: LiveRetailer, value: string): boolean {
@@ -318,7 +568,7 @@ function productExtractionSchema(): Readonly<Record<string, unknown>> {
       retailerProductId: { type: "string", minLength: 1, maxLength: 120 },
       category: { type: "string", minLength: 1, maxLength: 100 },
       imageUrl: { type: "string", format: "uri" },
-      priceMinor: { type: "integer", minimum: 1 },
+      priceText: { type: "string", minLength: 1, maxLength: 40 },
       currency: { type: "string", pattern: "^[A-Z]{3}$" },
       availability: {
         type: "string",
@@ -345,11 +595,66 @@ function productExtractionPrompt(): string {
   return [
     "Extract only facts explicitly stated for this exact furniture product and variant.",
     "Copy the canonical URL, product name, retailer product ID, category, primary image,",
-    "listed price in integer minor units, ISO-4217 currency, availability, and assembled dimensions.",
+    "the listed price exactly as displayed including its symbol (priceText, e.g. \"$129.00\"),",
+    "ISO-4217 currency, availability, and assembled dimensions.",
+    "Never convert the price to cents or any other unit; copy the characters shown on the page.",
     "Only return widthMm, heightMm, and depthMm when all three axes are explicit.",
     "Never infer dimension order, estimate a value, or substitute package dimensions.",
     "Preserve a short verbatim dimensionsEvidence string. Omit any unavailable field.",
   ].join(" ");
+}
+
+/**
+ * The scraped target already passed the product-page check at discovery. A
+ * model-supplied canonical URL may only replace it when it is itself a known
+ * product page on the same retailer; otherwise a category or shop landing page
+ * (kmart.com.au/shop/officeworks in production) becomes the product link.
+ */
+function resolveProductUrl(
+  canonicalTarget: string,
+  candidates: readonly (string | undefined)[],
+): string {
+  const retailer = retailerForUrl(canonicalTarget);
+  for (const candidate of candidates) {
+    if (candidate === undefined) {
+      continue;
+    }
+    let canonical: string;
+    try {
+      canonical = canonicalizePublicProductUrl(candidate);
+    } catch {
+      continue;
+    }
+    // Any claim that the page lives on another registrable domain is treated as
+    // a redirect off the retailer and rejects the whole extraction; the content
+    // cannot be trusted as retailer-sourced. This is the existing security
+    // boundary and is intentionally stricter than ignoring the claim.
+    if (!hasSameRegistrableDomain(canonicalTarget, canonical)) {
+      throw new FirecrawlResponseError("Firecrawl scrape left the submitted retailer domain.");
+    }
+    if (retailer === undefined ||
+        (isKnownRetailerProductPage(retailer, canonical) && endsInProductId(canonical))) {
+      return canonical;
+    }
+  }
+  return canonicalTarget;
+}
+
+/**
+ * Real retailer product URLs end in the article or product number. A model
+ * canonical claim that merely lives under the product path is not enough:
+ * ".../p/<slug>-80616966/false" passed the path check and shipped a dead link.
+ */
+function endsInProductId(url: string): boolean {
+  const path = parsePublicHttpsUrl(url).pathname.replace(/\/+$/, "");
+  return /\d{4,}$/.test(path);
+}
+
+function retailerForUrl(value: string): LiveRetailer | undefined {
+  const host = parsePublicHttpsUrl(value).hostname.toLowerCase();
+  const match = (Object.entries(LIVE_RETAILER_IDENTITIES) as [LiveRetailer, RetailerIdentity][])
+    .find(([, identity]) => host === identity.host || host.endsWith(`.${identity.host}`));
+  return match?.[0];
 }
 
 function productExtractionFromData(
@@ -358,15 +663,20 @@ function productExtractionFromData(
 ): FirecrawlProductExtraction {
   const extracted = isRecord(data.json) ? data.json : {};
   const markdown = optionalString(data.markdown) ?? "";
-  const returnedUrl = optionalString(extracted.canonicalUrl) ?? metadataUrl(data) ?? canonicalTarget;
-  if (!hasSameRegistrableDomain(canonicalTarget, returnedUrl)) {
-    throw new FirecrawlResponseError("Firecrawl scrape left the submitted retailer domain.");
-  }
+  const returnedUrl = resolveProductUrl(canonicalTarget, [
+    optionalString(extracted.canonicalUrl),
+    metadataUrl(data),
+  ]);
   const name = optionalString(extracted.name) ?? metadataTitle(data);
   if (name === undefined) {
     throw new FirecrawlResponseError("Firecrawl scrape omitted the product name.");
   }
   const imageCandidates = [...new Set([
+    // The page's own og:image is the retailer's declared product photo and is
+    // the most reliable candidate. Model-picked and crawled images follow: the
+    // image list can lead with designer portraits or lifestyle shots (a SKRUVBY
+    // page shipped a person's photo to production before og:image came first).
+    metadataOgImage(data),
     optionalString(extracted.imageUrl),
     ...stringArray(data.images),
   ].flatMap((value) => {
@@ -374,6 +684,7 @@ function productExtractionFromData(
     return url === undefined || isObviouslyNonProductImage(url) ? [] : [url];
   }))].slice(0, 6);
   const imageUrl = imageCandidates[0];
+  const price = readPrice(extracted.priceText, extracted.currency, markdown);
   const extractedDimensions = dimensions(extracted.assembledDimensions);
   const markdownDimensions = readExplicitDimensions(markdown);
   const explicitDimensions = extractedDimensions ?? markdownDimensions?.dimensions;
@@ -391,8 +702,8 @@ function productExtractionFromData(
       "imageCandidates",
       imageCandidates.length === 0 ? undefined : imageCandidates,
     ),
-    ...optionalProperty("priceMinor", positiveInteger(extracted.priceMinor)),
-    ...optionalProperty("currency", currencyCode(extracted.currency)),
+      ...optionalProperty("priceMinor", price?.minorUnits),
+    ...optionalProperty("currency", price?.currency),
     ...optionalProperty("availability", availability(extracted.availability)),
     ...optionalProperty("dimensions", explicitDimensions),
     ...optionalProperty("dimensionsEvidence", dimensionsEvidence),
@@ -512,11 +823,80 @@ function dimensionsFromEntries(
     : { widthMm, heightMm, depthMm };
 }
 
+interface ExtractedPrice {
+  readonly minorUnits: number;
+  readonly currency: string;
+}
+
+const DISPLAYED_PRICE_PATTERN =
+  /(?:A\$|AU\$|AUD\s*|\$)\s*(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?/;
+const AMOUNT_PATTERN = /(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?/;
+const AUSTRALIAN_PRICE_MARKER = /A\$|AU\$|\bAUD\b/i;
+
+/**
+ * Derives a price in minor units from the price as displayed on the retailer page.
+ *
+ * The provider is deliberately never asked to perform this conversion. A model
+ * reading "$129.00" reliably answers 129 for a field documented as integer minor
+ * units, which understates the price by a factor of one hundred and is
+ * indistinguishable from a genuine $1.29 product once the page is out of scope.
+ * Parsing the displayed characters keeps the conversion deterministic and testable.
+ */
+function readPrice(
+  priceText: unknown,
+  currencyInput: unknown,
+  markdown: string,
+): ExtractedPrice | undefined {
+  const displayed = optionalString(priceText) ?? readDisplayedPrice(markdown);
+  if (displayed === undefined) {
+    return undefined;
+  }
+  const currency = currencyCode(currencyInput) ??
+    (AUSTRALIAN_PRICE_MARKER.test(displayed) ? "AUD" : undefined);
+  if (currency === undefined) {
+    return undefined;
+  }
+  const minorUnits = toMinorUnits(displayed, currency);
+  return minorUnits === undefined ? undefined : { minorUnits, currency };
+}
+
+function readDisplayedPrice(markdown: string): string | undefined {
+  return markdown.match(DISPLAYED_PRICE_PATTERN)?.[0];
+}
+
+function toMinorUnits(displayed: string, currency: string): number | undefined {
+  const match = displayed.match(AMOUNT_PATTERN);
+  const whole = match?.[1];
+  if (match === null || whole === undefined) {
+    return undefined;
+  }
+  const exponent = minorUnitExponent(currency);
+  const fraction = (match[2] ?? "").padEnd(exponent, "0").slice(0, exponent);
+  const minorUnits = Number(whole.replace(/,/g, "")) * 10 ** exponent +
+    (fraction.length === 0 ? 0 : Number(fraction));
+  return Number.isSafeInteger(minorUnits) && minorUnits > 0 ? minorUnits : undefined;
+}
+
+function minorUnitExponent(currency: string): number {
+  try {
+    return new Intl.NumberFormat("en-AU", { style: "currency", currency })
+      .resolvedOptions().maximumFractionDigits ?? 2;
+  } catch {
+    return 2;
+  }
+}
+
 function isObviouslyNonProductImage(value: string): boolean {
   const url = parsePublicHttpsUrl(value);
   return (
     /\.(?:svg|gif)(?:$|\?)/i.test(url.pathname) ||
-    /(?:^|[\/_-])(?:logo|icon|sprite|avatar)(?:[\/_-]|$)/i.test(url.pathname)
+    /(?:^|[\/_-])(?:logo|icon|sprite|avatar)(?:[\/_-]|$)/i.test(url.pathname) ||
+    // A product-page path is not an image. Scrapes sometimes emit the page URL
+    // with a trailing segment (".../p/<slug>/false"); it passes the retailer
+    // host check but is not a real asset, and being first in the image list it
+    // would otherwise shadow the genuine CDN image. Real product images live on
+    // the retailers' image CDNs, never under /p/ or /product/.
+    /\/(?:p|product)\//i.test(url.pathname)
   );
 }
 
@@ -563,6 +943,21 @@ function retailerIdentityForExactLink(
   };
 }
 
+/** Extracts the bare field names from validation paths like `products[0].category`. */
+function missingFieldNames(errors: readonly string[]): readonly string[] {
+  return [...new Set(errors.flatMap((error) => {
+    const match = error.match(/^products\[\d+\]\.([A-Za-z]+)/);
+    return match?.[1] === undefined ? [] : [match[1]];
+  }))];
+}
+
+function rejectionNote(host: string, errors: readonly string[]): string {
+  const fields = missingFieldNames(errors);
+  return fields.length === 0
+    ? `Rejected ${host} because required source facts were incomplete.`
+    : `Rejected ${host}: missing ${fields.join(", ")}.`;
+}
+
 function shortHost(value: string): string {
   try {
     return parsePublicHttpsUrl(value).hostname;
@@ -601,6 +996,13 @@ function metadataUrl(data: Record<string, unknown>): string | undefined {
 
 function metadataTitle(data: Record<string, unknown>): string | undefined {
   return isRecord(data.metadata) ? optionalString(data.metadata.title) : undefined;
+}
+
+function metadataOgImage(data: Record<string, unknown>): string | undefined {
+  if (!isRecord(data.metadata)) {
+    return undefined;
+  }
+  return optionalString(data.metadata.ogImage) ?? optionalString(data.metadata["og:image"]);
 }
 
 function safeOptionalPublicUrl(value: string | undefined): string | undefined {

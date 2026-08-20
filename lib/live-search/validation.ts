@@ -59,8 +59,51 @@ export function validateCreateLiveSearchRequest(
 }
 
 /** Validates Browser Use structured output before any product reaches fit evaluation. */
+export interface ValidateObservationOptions {
+  /**
+   * How old an observation's observedAt may be. Defaults to 24h for the live
+   * path, where a result must describe a current scrape. Catalog serving passes
+   * a longer window because a stored snapshot's dimensions are durable; its
+   * price and availability staleness are surfaced to the user separately.
+   */
+  readonly maxObservationAgeMs?: number;
+}
+
+const DEFAULT_MAX_OBSERVATION_AGE_MS = 24 * 60 * 60_000;
+
+/**
+ * Validates stored catalog rows through the same per-product gate as browser
+ * output. The response-level product cap deliberately does not apply here: it
+ * bounds a single provider response, while the catalog legitimately holds
+ * hundreds of rows — wrapping the whole catalog in a fake browser response
+ * once made every row vanish the moment the catalog crossed 50 products. A
+ * row that fails the contract is dropped individually, never the whole set.
+ */
+export function validateCatalogObservations(
+  rows: readonly unknown[],
+  options: ValidateObservationOptions = {},
+): readonly LiveProductObservation[] {
+  const products: LiveProductObservation[] = [];
+  const seenProducts = new Set<string>();
+  for (const [index, entry] of rows.entries()) {
+    const entryErrors: string[] = [];
+    const product = parseObservation(entry, `catalog[${index}]`, entryErrors, options);
+    if (product === undefined || entryErrors.length > 0) {
+      continue;
+    }
+    const key = `${product.retailer.key}:${product.retailerProductId}`;
+    if (seenProducts.has(key)) {
+      continue;
+    }
+    seenProducts.add(key);
+    products.push(product);
+  }
+  return products;
+}
+
 export function validateBrowserSearchOutput(
   input: unknown,
+  options: ValidateObservationOptions = {},
 ): ValidationResult<BrowserSearchOutput> {
   const parsedInput = typeof input === "string" ? parseJson(input) : input;
   if (!isRecord(parsedInput)) {
@@ -79,7 +122,7 @@ export function validateBrowserSearchOutput(
   const seenProducts = new Set<string>();
   for (const [index, entry] of parsedInput.products.entries()) {
     const entryErrors: string[] = [];
-    const product = parseObservation(entry, `products[${index}]`, entryErrors);
+    const product = parseObservation(entry, `products[${index}]`, entryErrors, options);
     if (product === undefined || entryErrors.length > 0) {
       rejected.push(...entryErrors);
       continue;
@@ -260,12 +303,13 @@ function parseRetailerIdentity(
     return undefined;
   }
   if (LIVE_RETAILERS.includes(key as LiveRetailer)) {
-    const canonical = LIVE_RETAILER_IDENTITIES[key as LiveRetailer];
-    if (label !== canonical.label || host !== canonical.host) {
-      errors.push(`${path} does not match the registered ${key} identity.`);
-      return undefined;
-    }
-    return canonical;
+    // The server owns the canonical identity for a registered retailer. A provider
+    // that answers "www.ikea.com" or "IKEA" instead of the exact registered strings
+    // is naming the right retailer imprecisely, not a different one, so normalize
+    // instead of discarding the observation. This is not the security boundary:
+    // productUrl and imageUrl are independently constrained to that retailer's
+    // allowed hosts by readRetailerUrl and readRetailerImageUrl.
+    return LIVE_RETAILER_IDENTITIES[key as LiveRetailer];
   }
   return { key, label, host };
 }
@@ -274,6 +318,7 @@ function parseObservation(
   input: unknown,
   path: string,
   errors: string[],
+  options: ValidateObservationOptions = {},
 ): LiveProductObservation | undefined {
   if (!isRecord(input)) {
     errors.push(`${path} must be an object.`);
@@ -298,7 +343,7 @@ function parseObservation(
     errors,
   );
   const dimensionsEvidence = readTrimmedString(input.dimensionsEvidence, `${path}.dimensionsEvidence`, errors, MAX_EVIDENCE_LENGTH);
-  const observedAt = readIsoDate(input.observedAt, `${path}.observedAt`, errors);
+  const observedAt = readIsoDate(input.observedAt, `${path}.observedAt`, errors, options);
   const availability =
     input.availability === "in_stock" ||
     input.availability === "out_of_stock" ||
@@ -664,14 +709,20 @@ function readRetailerHost(
   return normalized;
 }
 
-function readIsoDate(input: unknown, path: string, errors: string[]): string | undefined {
+function readIsoDate(
+  input: unknown,
+  path: string,
+  errors: string[],
+  options: ValidateObservationOptions = {},
+): string | undefined {
   if (typeof input !== "string" || Number.isNaN(Date.parse(input))) {
     errors.push(`${path} must be an ISO timestamp.`);
     return undefined;
   }
   const observedAt = new Date(input);
   const now = Date.now();
-  if (observedAt.getTime() > now + 5 * 60_000 || observedAt.getTime() < now - 24 * 60 * 60_000) {
+  const maxAge = options.maxObservationAgeMs ?? DEFAULT_MAX_OBSERVATION_AGE_MS;
+  if (observedAt.getTime() > now + 5 * 60_000 || observedAt.getTime() < now - maxAge) {
     errors.push(`${path} must describe the current search observation.`);
     return undefined;
   }

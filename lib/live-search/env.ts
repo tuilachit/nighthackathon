@@ -30,6 +30,22 @@ export interface LiveSearchServerEnvironment extends PublicSupabaseEnvironment {
   readonly abuseHashSecret: string;
   readonly browserUseMaxCostUsd: number;
   readonly maxResults: number;
+  /** How many candidate product URLs discovery may gather before extraction. */
+  readonly discoveryPoolSize: number;
+  /** Validated products to reach before discovery may stop early. */
+  readonly completenessFloor: number;
+  /** Validated products wanted from each requested retailer. */
+  readonly minPerRetailer: number;
+  /** Candidate pages kept in flight at once; bounds provider burst. */
+  readonly extractionConcurrency: number;
+  /** Hard cap on page scrapes per search; the provider plan is rate-limited per minute. */
+  readonly maxScrapesPerSearch: number;
+  /** Per-page scrape ceiling. Slow retailer pages fail fast instead of holding the budget. */
+  readonly extractionPageTimeoutMs: number;
+  /** Wall-clock ceiling for discovery plus extraction, inside the route's maxDuration. */
+  readonly discoveryBudgetMs: number;
+  /** Minimum relevant catalog matches before a search is served from the catalog instead of scraped. */
+  readonly catalogServingFloor: number;
 }
 
 export function getPublicSupabaseEnvironment(): PublicSupabaseEnvironment {
@@ -61,7 +77,29 @@ export function getLiveSearchServerEnvironment(): LiveSearchServerEnvironment {
     cronSecret: requiredSecret("CRON_SECRET"),
     abuseHashSecret: requiredSecret("ABUSE_HASH_SECRET"),
     browserUseMaxCostUsd: boundedNumber("BROWSER_USE_MAX_COST_USD", 1, 0.05, 2),
-    maxResults: Math.round(boundedNumber("LIVE_SEARCH_MAX_RESULTS", 6, 3, 20)),
+    maxResults: Math.round(boundedNumber("LIVE_SEARCH_MAX_RESULTS", 12, 3, 40)),
+    discoveryPoolSize: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_POOL", 30, 8, 60)),
+    completenessFloor: Math.round(boundedNumber("LIVE_SEARCH_MIN_PRODUCTS", 8, 1, 30)),
+    minPerRetailer: Math.round(boundedNumber("LIVE_SEARCH_MIN_PER_RETAILER", 3, 1, 15)),
+    // Firecrawl enforces a per-plan maxConcurrency (2 on the plan in use, readable
+    // from /v2/team/queue-status). Exceeding it does not fail fast: the surplus is
+    // queued server-side and the queue wait is charged against our own request
+    // timeout, which is what produced SCRAPE_TIMEOUT on pages that answer in about
+    // two seconds when the limit is respected. Measured on the same four retailer
+    // URLs: concurrency 4 gave 7.2-14.9s and one timeout; concurrency 2 gave
+    // 0.64-2.1s and four successes.
+    extractionConcurrency: Math.round(boundedNumber("LIVE_SEARCH_EXTRACTION_CONCURRENCY", 2, 1, 16)),
+    maxScrapesPerSearch: Math.round(boundedNumber("LIVE_SEARCH_MAX_SCRAPES", 8, 1, 60)),
+    // Within the concurrency limit these pages answer in about two seconds, so the
+    // ceiling exists only to bound a genuinely stuck page rather than to absorb
+    // provider queueing.
+    extractionPageTimeoutMs: Math.round(boundedNumber("LIVE_SEARCH_PAGE_TIMEOUT_MS", 15_000, 3_000, 25_000)),
+    discoveryBudgetMs: Math.round(boundedNumber("LIVE_SEARCH_DISCOVERY_BUDGET_MS", 40_000, 5_000, 50_000)),
+    // Serve from the prepared catalog when it has at least this many relevant,
+    // in-budget matches; below it, fall through to a live scrape. Kept low enough
+    // to reliably answer common queries yet above one, so a search never stops at
+    // a single result when the catalog can offer a useful spread.
+    catalogServingFloor: Math.round(boundedNumber("LIVE_SEARCH_CATALOG_FLOOR", 3, 1, 30)),
   };
 }
 

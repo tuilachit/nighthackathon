@@ -73,6 +73,34 @@ describe("discoverProductPagesWithFirecrawl", () => {
     }
   });
 
+  it("sends the user's own words without an injected category noun", async () => {
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({ success: true, data: { web: [] } });
+    });
+
+    await discoverProductPagesWithFirecrawl({
+      kind: "prompt",
+      text: "black bookshelf",
+      retailers: ["ikea-au", "kmart-au"],
+    }, 6, fetchImplementation);
+
+    const queries = fetchImplementation.mock.calls.map(
+      (call) => (JSON.parse(String(call[1]?.body)) as { query: string }).query,
+    );
+    expect(queries).toEqual([
+      "black bookshelf site:ikea.com/au/en/p/",
+      "black bookshelf site:kmart.com.au/product/",
+    ]);
+    for (const query of queries) {
+      expect(query).not.toContain("furniture");
+    }
+  });
+
   it("preserves one canonical exact product link without a provider call", async () => {
     const fetchImplementation = vi.fn();
     const result = await discoverProductPagesWithFirecrawl({
@@ -106,7 +134,7 @@ describe("extractProductWithFirecrawl", () => {
           name: "BILLY bookcase",
           retailerProductId: "123",
           category: "bookcase",
-          priceMinor: 14900,
+          priceText: "$149.00",
           currency: "AUD",
           availability: "in_stock",
           assembledDimensions: {
@@ -143,6 +171,180 @@ describe("extractProductWithFirecrawl", () => {
     expect(requestBody.formats).toEqual(expect.arrayContaining(["markdown", "images"]));
   });
 
+  it.each([
+    ["$129.00", 12_900],
+    ["$129", 12_900],
+    ["$1,299.99", 129_999],
+    ["A$89.50", 8_950],
+  ])("converts the displayed price %s to %i minor units", async (priceText, expected) => {
+    // Production returned priceMinor 129 for a $129 bookcase because the provider
+    // was asked to convert to minor units itself. The conversion is now ours.
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        markdown: "# SKRUVBY",
+        images: ["https://www.ikea.com/image.jpg"],
+        metadata: { sourceURL: "https://www.ikea.com/au/en/p/skruvby-1/" },
+        json: {
+          canonicalUrl: "https://www.ikea.com/au/en/p/skruvby-1/",
+          name: "SKRUVBY bookcase",
+          priceText,
+          currency: "AUD",
+        },
+      },
+    }));
+
+    await expect(extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/skruvby-1/",
+      fetchImplementation,
+    )).resolves.toMatchObject({ priceMinor: expected, currency: "AUD" });
+  });
+
+  it("recovers the price from page text when the provider omits priceText", async () => {
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        markdown: "SKRUVBY Bookcase, black-blue\n$129.00\nIn stock",
+        images: ["https://www.ikea.com/image.jpg"],
+        metadata: { sourceURL: "https://www.ikea.com/au/en/p/skruvby-1/" },
+        json: {
+          canonicalUrl: "https://www.ikea.com/au/en/p/skruvby-1/",
+          name: "SKRUVBY bookcase",
+          currency: "AUD",
+        },
+      },
+    }));
+
+    await expect(extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/skruvby-1/",
+      fetchImplementation,
+    )).resolves.toMatchObject({ priceMinor: 12_900, currency: "AUD" });
+  });
+
+  it("omits the price rather than trusting a provider-supplied minor-unit integer", async () => {
+    const fetchImplementation = vi.fn(async () => Response.json({
+      success: true,
+      data: {
+        markdown: "SKRUVBY Bookcase",
+        images: ["https://www.ikea.com/image.jpg"],
+        metadata: { sourceURL: "https://www.ikea.com/au/en/p/skruvby-1/" },
+        json: {
+          canonicalUrl: "https://www.ikea.com/au/en/p/skruvby-1/",
+          name: "SKRUVBY bookcase",
+          priceMinor: 129,
+          currency: "AUD",
+        },
+      },
+    }));
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/skruvby-1/",
+      fetchImplementation,
+    );
+    expect(extraction.priceMinor).toBeUndefined();
+  });
+
+  it("prefers the page og:image over crawled images and model picks", async () => {
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "SKRUVBY. Width 60 cm, Height 140 cm, Depth 37.5 cm.",
+          images: [
+            // A designer portrait crawled from the page; hosted on the retailer,
+            // so host checks pass — only og:image priority keeps it out.
+            "https://www.ikea.com/au/en/images/products/designer-portrait__1441852_pe986544_s.jpg",
+          ],
+          metadata: {
+            sourceURL: "https://www.ikea.com/au/en/p/skruvby-bookcase-black-blue-20616912/",
+            ogImage: "https://www.ikea.com/au/en/images/products/skruvby-bookcase-black-blue__1128172_pe876451_s5.jpg",
+          },
+          json: {
+            canonicalUrl: "https://www.ikea.com/au/en/p/skruvby-bookcase-black-blue-20616912/",
+            name: "SKRUVBY Bookcase, black-blue",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/skruvby-bookcase-black-blue-20616912/",
+      fetchImplementation,
+    );
+    expect(extraction.imageUrl).toBe(
+      "https://www.ikea.com/au/en/images/products/skruvby-bookcase-black-blue__1128172_pe876451_s5.jpg",
+    );
+  });
+
+  it("rejects a model canonical that does not end in a product id", async () => {
+    // Production stored ".../p/<slug>-80616966/false" as a product link; it
+    // passed the product-path check but is a dead page.
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "SMAGORA",
+          json: {
+            canonicalUrl: "https://www.ikea.com/au/en/p/smagoera-changing-table-bookshelf-white-80616966/false",
+            name: "SMAGORA Changing table/bookshelf",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/smagoera-changing-table-bookshelf-white-80616966/",
+      fetchImplementation,
+    );
+    expect(extraction.url).toBe("https://www.ikea.com/au/en/p/smagoera-changing-table-bookshelf-white-80616966");
+  });
+
+  it("skips a product-page image path in favour of the real CDN image", async () => {
+    // Firecrawl sometimes lists the page URL with a trailing segment
+    // (".../p/<slug>/false") first in the images array; it passes the retailer
+    // host check but is not an asset. The genuine CDN image must win.
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "BILLY Bookcase. Width 40 cm, Height 106 cm, Depth 28 cm.",
+          images: [
+            "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/false",
+            "https://asset.inter.ikea.com/images/PE917983_preview?v=cb0ed6e4",
+          ],
+          metadata: { sourceURL: "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/" },
+          json: {
+            canonicalUrl: "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/",
+            name: "BILLY Bookcase, white",
+            priceText: "$59.00",
+            currency: "AUD",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/",
+      fetchImplementation,
+    );
+    expect(extraction.imageUrl).toBe("https://asset.inter.ikea.com/images/PE917983_preview?v=cb0ed6e4");
+  });
+
   it("recovers dimensions only from explicit labelled retailer text", async () => {
     const fetchImplementation = vi.fn(async () => Response.json({
       success: true,
@@ -162,7 +364,7 @@ describe("extractProductWithFirecrawl", () => {
           canonicalUrl: "https://www.ikea.com/au/en/p/billy-123/",
           retailerProductId: "123",
           category: "bookcase",
-          priceMinor: 14900,
+          priceText: "$149.00",
           currency: "AUD",
           availability: "in_stock",
         },
@@ -298,6 +500,96 @@ describe("extractProductWithFirecrawl", () => {
     expect(result.markdown).toContain("80 x 28 x 202 cm");
   });
 
+  it("keeps the scraped product URL when the model names a category page as canonical", async () => {
+    // Production stored kmart.com.au/shop/officeworks as a product link. The
+    // scraped target already passed the product-page check; a model-supplied
+    // canonical may only replace it with another known product page.
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "Stockholm 8 Cube Bookcase $143.00",
+          images: ["https://kmartau.mo.cloudinary.net/bookcase.jpg"],
+          metadata: { sourceURL: "https://www.kmart.com.au/product/stockholm-8-cube-bookcase-43500001" },
+          json: {
+            canonicalUrl: "https://www.kmart.com.au/shop/officeworks",
+            name: "Stockholm 8 Cube Bookcase",
+            priceText: "$143.00",
+            currency: "AUD",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.kmart.com.au/product/stockholm-8-cube-bookcase-43500001?srsltid=abc",
+      fetchImplementation,
+    );
+    expect(extraction.url).toBe(
+      "https://www.kmart.com.au/product/stockholm-8-cube-bookcase-43500001",
+    );
+  });
+
+  it("accepts a model canonical that is itself a known product page on the retailer", async () => {
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "BILLY",
+          images: ["https://www.ikea.com/image.jpg"],
+          json: {
+            canonicalUrl: "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/",
+            name: "BILLY bookcase",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/?utm_source=x",
+      fetchImplementation,
+    );
+    expect(extraction.url).toBe("https://www.ikea.com/au/en/p/billy-bookcase-white-30616558");
+  });
+
+  it("sends the fail-fast page timeout to the provider instead of the old 20s ceiling", async () => {
+    // Nine of twelve production scrapes hit Firecrawl's 20s SCRAPE_TIMEOUT and
+    // each held its batch for the full budget. The provider must be told to give
+    // up on a slow page on our schedule.
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: { markdown: "BILLY", json: { name: "BILLY" } },
+      });
+    });
+
+    await extractProductWithFirecrawl(
+      "https://www.ikea.com/au/en/p/billy-123/",
+      fetchImplementation,
+      7_000,
+    );
+
+    const body = JSON.parse(String(fetchImplementation.mock.calls[0]?.[1]?.body)) as {
+      timeout: number;
+    };
+    expect(body.timeout).toBe(7_000);
+  });
+
   it("rejects a canonical redirect to another registrable domain", async () => {
     const fetchImplementation = vi.fn(async (
       _input: string | URL,
@@ -369,7 +661,7 @@ describe("searchProductsWithFirecrawl", () => {
                 imageUrl: ikea
                   ? "https://www.ikea.com/images/billy.jpg"
                   : "https://kmartau.mo.cloudinary.net/bookcase.jpg",
-                priceMinor: ikea ? 14_900 : 8_900,
+                priceText: ikea ? "$149.00" : "$89.00",
                 currency: "AUD",
                 availability: "in_stock",
                 assembledDimensions: {
@@ -386,6 +678,10 @@ describe("searchProductsWithFirecrawl", () => {
       throw new Error(`Unexpected Firecrawl endpoint: ${endpoint}`);
     });
 
+    // The floor is what makes two products a complete result here; the fixture
+    // has exactly one page per retailer, so the floor must be reachable from it.
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "2");
+    vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "1");
     const result = await searchProductsWithFirecrawl({
       kind: "prompt",
       text: "black narrow bookcase under $250",
@@ -394,12 +690,16 @@ describe("searchProductsWithFirecrawl", () => {
 
     expect(result.output.products).toHaveLength(2);
     expect(result.output.partial).toBe(false);
+    expect(result.reachedCompletenessFloor).toBe(true);
+    expect(result.stoppedReason).toBe("completeness-floor");
+    expect(result.productsPerRetailer).toEqual({ "ikea-au": 1, "kmart-au": 1 });
     expect(result.output.products.map((product) => product.retailer.key)).toEqual([
       "ikea-au",
       "kmart-au",
     ]);
     expect(result.attemptedPages).toBe(2);
     expect(result.rejectedPages).toBe(0);
+    expect(result.rejections).toEqual([]);
     expect(fetchImplementation).toHaveBeenCalledTimes(2);
   });
 
@@ -424,7 +724,7 @@ describe("searchProductsWithFirecrawl", () => {
               retailerProductId: "ikea-001",
               category: "bookcase",
               imageUrl: "https://www.ikea.com/images/billy.jpg",
-              priceMinor: 14_900,
+              priceText: "$149.00",
               currency: "AUD",
               availability: "in_stock",
               assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
@@ -486,7 +786,7 @@ describe("searchProductsWithFirecrawl", () => {
               name: ikea ? "BILLY bookcase" : "Oak-look bookcase",
               retailerProductId: ikea ? "ikea-001" : "kmart-001",
               category: "bookcase",
-              priceMinor: ikea ? 14_900 : 8_900,
+              priceText: ikea ? "$149.00" : "$89.00",
               currency: "AUD",
               availability: "in_stock",
               assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
@@ -539,7 +839,7 @@ describe("searchProductsWithFirecrawl", () => {
               name: ikea ? "BILLY bookcase" : "Oak-look bookcase",
               retailerProductId: ikea ? "ikea-001" : "kmart-001",
               category: "bookcase",
-              priceMinor: ikea ? 14_900 : 8_900,
+              priceText: ikea ? "$149.00" : "$89.00",
               currency: "AUD",
               availability: "in_stock",
             },
@@ -549,6 +849,8 @@ describe("searchProductsWithFirecrawl", () => {
       throw new Error(`Unexpected Firecrawl endpoint: ${endpoint}`);
     });
 
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "2");
+    vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "1");
     const result = await searchProductsWithFirecrawl({
       kind: "prompt",
       text: "black bookshelf",
@@ -584,7 +886,7 @@ describe("searchProductsWithFirecrawl", () => {
             retailerProductId: "ikea-001",
             category: "bookcase",
             imageUrl: "https://www.ikea.com/images/billy.jpg",
-            priceMinor: 14_900,
+              priceText: "$149.00",
             currency: "AUD",
             availability: "in_stock",
             assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
@@ -604,5 +906,331 @@ describe("searchProductsWithFirecrawl", () => {
     expect(result.output.products[0]?.retailer.key).toBe("ikea-au");
     expect(result.output.partial).toBe(true);
     expect(result.output.notes.join(" ")).toContain("kmart-au");
+  });
+});
+
+/**
+ * Builds a Firecrawl double serving `pagesPerRetailer` product pages per
+ * retailer. Each `/scrape` extraction is complete unless its URL is listed in
+ * `incompleteUrls`, in which case dimensions are omitted so the validation
+ * gate rejects it. `dedupeUrls` makes search return the same URL from both
+ * retailer queries to exercise de-duplication.
+ */
+function firecrawlPool(options: {
+  readonly pagesPerRetailer: number;
+  readonly incompleteUrls?: readonly string[];
+  readonly duplicateFirstUrlAcrossRetailers?: boolean;
+  readonly onScrape?: (url: string) => void;
+}) {
+  const productUrl = (retailer: "ikea" | "kmart", index: number): string => (
+    retailer === "ikea"
+      ? `https://www.ikea.com/au/en/p/bookcase-ikea-${String(index).padStart(3, "0")}/`
+      : `https://www.kmart.com.au/product/bookcase-kmart-${String(index).padStart(3, "0")}/`
+  );
+  return vi.fn(async (input: string | URL, init?: RequestInit) => {
+    const endpoint = String(input);
+    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    if (endpoint.endsWith("/search")) {
+      const ikea = (body.includeDomains as string[])[0] === "ikea.com";
+      const web = Array.from({ length: options.pagesPerRetailer }, (_, index) => ({
+        url: options.duplicateFirstUrlAcrossRetailers && index === 0
+          ? productUrl("ikea", 0)
+          : productUrl(ikea ? "ikea" : "kmart", index),
+        title: `Bookcase ${index}`,
+      }));
+      return Response.json({ success: true, data: { web } });
+    }
+    if (endpoint.endsWith("/scrape")) {
+      const url = body.url as string;
+      options.onScrape?.(url);
+      const ikea = url.includes("ikea.com");
+      // Canonicalization strips the trailing slash before scrape, so match the
+      // id at end-of-string with the slash optional.
+      const id = url.match(/-(\w+-\d{3})\/?$/)?.[1] ?? "unknown";
+      const stripSlash = (value: string): string => value.replace(/\/$/, "");
+      const complete = !(options.incompleteUrls ?? []).map(stripSlash).includes(stripSlash(url));
+      return Response.json({
+        success: true,
+        data: {
+          markdown: complete ? "Width: 70 cm\nHeight: 160 cm\nDepth: 28 cm" : "No dimensions listed",
+          images: [ikea
+            ? "https://www.ikea.com/images/billy.jpg"
+            : "https://kmartau.mo.cloudinary.net/bookcase.jpg"],
+          metadata: { sourceURL: url },
+          json: {
+            canonicalUrl: url,
+            name: `Bookcase ${id}`,
+            retailerProductId: id,
+            category: "bookcase",
+            priceText: ikea ? "$149.00" : "$89.00",
+            currency: "AUD",
+            availability: "in_stock",
+          },
+        },
+      });
+    }
+    throw new Error(`Unexpected Firecrawl endpoint: ${endpoint}`);
+  });
+}
+
+describe("searchProductsWithFirecrawl completeness", () => {
+  const prompt = {
+    kind: "prompt" as const,
+    text: "black bookshelf",
+    retailers: ["ikea-au", "kmart-au"] as const,
+  };
+
+  it("does not stop after the first valid product", async () => {
+    // Production reduced every run to a single candidate. With eight pages
+    // available and a floor of eight, all eight must be extracted and kept.
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
+    vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
+    vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "4");
+    const fetchImplementation = firecrawlPool({ pagesPerRetailer: 4 });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.output.products).toHaveLength(8);
+    expect(result.productsPerRetailer).toEqual({ "ikea-au": 4, "kmart-au": 4 });
+    expect(result.reachedCompletenessFloor).toBe(true);
+    expect(result.stoppedReason).toBe("completeness-floor");
+    expect(result.output.partial).toBe(false);
+  });
+
+  it("stops extracting once the completeness floor is met", async () => {
+    // Twenty pages are discoverable but only the batches needed to reach the
+    // floor may be scraped; the rest of the paid budget stays unspent.
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
+    vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
+    vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "4");
+    const scraped: string[] = [];
+    const fetchImplementation = firecrawlPool({
+      pagesPerRetailer: 10,
+      onScrape: (url) => scraped.push(url),
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.discoveryHits).toHaveLength(20);
+    expect(result.output.products.length).toBeGreaterThanOrEqual(8);
+    // A streaming pool may have up to (concurrency - 1) pages already in flight
+    // when the floor is met; that overshoot is the bounded cost of never
+    // letting one slow page stall the rest. The remaining pages stay unspent.
+    expect(result.attemptedPages).toBeGreaterThanOrEqual(8);
+    expect(result.attemptedPages).toBeLessThanOrEqual(8 + 3);
+    expect(scraped.length).toBe(result.attemptedPages);
+    expect(scraped.length).toBeLessThan(20);
+    expect(result.stoppedReason).toBe("completeness-floor");
+  });
+
+  it("keeps searching past rejected pages until the floor is met", async () => {
+    // Four of the first eight pages fail validation. The floor is only met by
+    // continuing into later batches rather than returning the four survivors.
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
+    vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
+    vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "4");
+    vi.stubEnv("LIVE_SEARCH_MAX_SCRAPES", "30");
+    const incompleteUrls = [
+      "https://www.ikea.com/au/en/p/bookcase-ikea-000/",
+      "https://www.kmart.com.au/product/bookcase-kmart-000/",
+      "https://www.ikea.com/au/en/p/bookcase-ikea-001/",
+      "https://www.kmart.com.au/product/bookcase-kmart-001/",
+    ];
+    const fetchImplementation = firecrawlPool({ pagesPerRetailer: 10, incompleteUrls });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.output.products.length).toBeGreaterThanOrEqual(8);
+    expect(result.reachedCompletenessFloor).toBe(true);
+    expect(result.rejections).toHaveLength(4);
+    const canonical = incompleteUrls.map((value) => value.replace(/\/$/, ""));
+    for (const rejection of result.rejections) {
+      expect(canonical).toContain(rejection.url);
+      expect(rejection.missingFields).toContain("assembledDimensions");
+    }
+  });
+
+  it("never starts more scrapes per search than the plan allowance", async () => {
+    // Production: 8 concurrent scrapes against a ~10 req/min plan turned 16 of
+    // 27 attempts into immediate 429s. The cap bounds paid requests per search
+    // regardless of how many pages discovery found.
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "20");
+    vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
+    vi.stubEnv("LIVE_SEARCH_MAX_SCRAPES", "5");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "4");
+    const scraped: string[] = [];
+    const fetchImplementation = firecrawlPool({
+      pagesPerRetailer: 10,
+      onScrape: (url) => scraped.push(url),
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.discoveryHits).toHaveLength(20);
+    expect(scraped).toHaveLength(5);
+    expect(result.attemptedPages).toBe(5);
+    expect(result.output.products).toHaveLength(5);
+    expect(result.stoppedReason).toBe("scrape-cap");
+    expect(result.output.partial).toBe(true);
+    expect(result.output.notes.join(" ")).toContain("maximum number of retailer pages");
+  });
+
+  it("stops admitting pages once the provider rate-limits and says so", async () => {
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "20");
+    vi.stubEnv("LIVE_SEARCH_DISCOVERY_POOL", "30");
+    vi.stubEnv("LIVE_SEARCH_MAX_SCRAPES", "30");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "2");
+    let scrapes = 0;
+    const base = firecrawlPool({ pagesPerRetailer: 10 });
+    const fetchImplementation = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/scrape")) {
+        scrapes += 1;
+        if (scrapes >= 3) {
+          return new Response(
+            JSON.stringify({ success: false, error: "Rate limit exceeded. Consumed (req/min): 11" }),
+            { status: 429 },
+          );
+        }
+      }
+      return base(input, init);
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.stoppedReason).toBe("rate-limited");
+    expect(result.output.products.length).toBeGreaterThanOrEqual(2);
+    // Two pages in flight when the first 429 landed may also have been refused,
+    // but no fresh page is admitted after the provider says stop.
+    expect(scrapes).toBeLessThanOrEqual(2 + 2);
+    expect(result.output.partial).toBe(true);
+    expect(result.output.notes.join(" ")).toContain("rate-limited");
+    expect(result.rejections.some((rejection) =>
+      rejection.reasons.join(" ").includes("HTTP 429"),
+    )).toBe(true);
+  });
+
+  it("records the exact rejection reason for every rejected URL", async () => {
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
+    vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
+    const rejectedUrl = "https://www.kmart.com.au/product/bookcase-kmart-000/";
+    const fetchImplementation = firecrawlPool({
+      pagesPerRetailer: 2,
+      incompleteUrls: [rejectedUrl],
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.rejections).toEqual([
+      expect.objectContaining({
+        url: rejectedUrl.replace(/\/$/, ""),
+        missingFields: expect.arrayContaining(["assembledDimensions", "dimensionsEvidence"]),
+      }),
+    ]);
+    expect(result.output.notes.join(" ")).toContain("Rejected www.kmart.com.au: missing");
+  });
+
+  it("keeps partial retailer coverage visible when one retailer falls short", async () => {
+    // IKEA yields three products, Kmart yields none. The IKEA products must be
+    // preserved and the result flagged partial with a note naming Kmart.
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "6");
+    vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
+    const fetchImplementation = firecrawlPool({
+      pagesPerRetailer: 3,
+      incompleteUrls: [
+        "https://www.kmart.com.au/product/bookcase-kmart-000/",
+        "https://www.kmart.com.au/product/bookcase-kmart-001/",
+        "https://www.kmart.com.au/product/bookcase-kmart-002/",
+      ],
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.output.products).toHaveLength(3);
+    expect(result.productsPerRetailer).toEqual({ "ikea-au": 3 });
+    expect(result.reachedCompletenessFloor).toBe(false);
+    expect(result.stoppedReason).toBe("candidates-exhausted");
+    expect(result.output.partial).toBe(true);
+    expect(result.output.notes).toContain("No validated Firecrawl result returned for kmart-au.");
+  });
+
+  it("marks the result partial below the floor even when every page validated", async () => {
+    // Retailer inventory genuinely only had four pages. Everything validated,
+    // but four is under the floor of eight, so the coverage stays visible.
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
+    vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "3");
+    const fetchImplementation = firecrawlPool({ pagesPerRetailer: 2 });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.output.products).toHaveLength(4);
+    expect(result.reachedCompletenessFloor).toBe(false);
+    expect(result.output.partial).toBe(true);
+    expect(result.output.notes.join(" ")).toContain("Only 2 of 3 wanted products passed for ikea-au");
+  });
+
+  it("de-duplicates a URL discovered from both retailer queries", async () => {
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "2");
+    vi.stubEnv("LIVE_SEARCH_MIN_PER_RETAILER", "1");
+    const scraped: string[] = [];
+    const fetchImplementation = firecrawlPool({
+      pagesPerRetailer: 2,
+      duplicateFirstUrlAcrossRetailers: true,
+      onScrape: (url) => scraped.push(url),
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    const uniqueScraped = new Set(scraped);
+    expect(uniqueScraped.size).toBe(scraped.length);
+    const productUrls = result.output.products.map((product) => product.productUrl);
+    expect(new Set(productUrls).size).toBe(productUrls.length);
+  });
+
+  it("returns an empty, partial result when no page validates so the caller can recover", async () => {
+    // Zero valid results must not throw: the service layer decides recovery.
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
+    const fetchImplementation = firecrawlPool({
+      pagesPerRetailer: 2,
+      incompleteUrls: [
+        "https://www.ikea.com/au/en/p/bookcase-ikea-000/",
+        "https://www.ikea.com/au/en/p/bookcase-ikea-001/",
+        "https://www.kmart.com.au/product/bookcase-kmart-000/",
+        "https://www.kmart.com.au/product/bookcase-kmart-001/",
+      ],
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation);
+
+    expect(result.output.products).toEqual([]);
+    expect(result.output.partial).toBe(true);
+    expect(result.rejections).toHaveLength(4);
+    expect(result.reachedCompletenessFloor).toBe(false);
+    expect(result.attemptedPages).toBe(4);
+  });
+
+  it("stops at the time budget and reports it", async () => {
+    vi.stubEnv("LIVE_SEARCH_MIN_PRODUCTS", "8");
+    vi.stubEnv("LIVE_SEARCH_DISCOVERY_BUDGET_MS", "5000");
+    vi.stubEnv("LIVE_SEARCH_EXTRACTION_CONCURRENCY", "2");
+    // A private clock keeps observedAt real, so validation freshness still
+    // holds while the discovery deadline is driven deterministically.
+    let now = 0;
+    const clock = (): number => now;
+    const fetchImplementation = firecrawlPool({
+      pagesPerRetailer: 10,
+      onScrape: () => { now += 3_000; },
+    });
+
+    const result = await searchProductsWithFirecrawl(prompt, 12, fetchImplementation, clock);
+
+    expect(result.stoppedReason).toBe("budget-exhausted");
+    expect(result.output.products.length).toBeGreaterThan(0);
+    expect(result.output.products.length).toBeLessThan(8);
+    expect(result.output.partial).toBe(true);
+    expect(result.output.notes.join(" ")).toContain("time limit");
+    expect(result.elapsedMs).toBeGreaterThanOrEqual(5_000);
   });
 });

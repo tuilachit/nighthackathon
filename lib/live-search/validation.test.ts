@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   validateBrowserSearchOutput,
+  validateCatalogObservations,
   validateCreateLiveSearchRequest,
 } from "./validation";
 
@@ -186,6 +187,37 @@ describe("validateBrowserSearchOutput", () => {
       assembledDimensions: { widthMm: 700, heightMm: 1_600, depthMm: 280 },
       packages: [],
     });
+  });
+
+  it.each([
+    ["www.ikea.com", "IKEA Australia"],
+    ["ikea.com", "IKEA"],
+    ["au.ikea.com", "IKEA AU"],
+  ])("normalizes an imprecise registered identity (host %s, label %s)", (host, label) => {
+    // Production dropped whole batches with "products[0].retailer does not match
+    // the registered ikea-au identity" because the provider was asked to reproduce
+    // the canonical strings exactly. The server owns that identity; productUrl and
+    // imageUrl remain the real host boundary.
+    const result = validateBrowserSearchOutput(browserOutput(validObservation({
+      retailer: { key: "ikea-au", label, host },
+    })));
+
+    expect(result.ok).toBe(true);
+    expect(result.value?.products[0]?.retailer).toEqual({
+      key: "ikea-au",
+      label: "IKEA Australia",
+      host: "ikea.com",
+    });
+  });
+
+  it("still rejects a product URL off the registered retailer domain", () => {
+    const result = validateBrowserSearchOutput(browserOutput(validObservation({
+      retailer: { key: "ikea-au", label: "IKEA Australia", host: "ikea.com" },
+      productUrl: "https://www.not-ikea.example/au/en/p/billy-ikea-001/",
+    })));
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(" ")).toContain("not on the declared ikea-au domain");
   });
 
   it("accepts a generalized retailer identity for product-link observations", () => {
@@ -431,5 +463,46 @@ describe("validateBrowserSearchOutput", () => {
 
     expect(result.ok).toBe(false);
     expect(result.errors.join(" ")).toContain("explicitly match Width/Height/Depth or W/H/D");
+  });
+});
+
+describe("validateCatalogObservations", () => {
+  it("validates hundreds of catalog rows where the browser response cap would reject them wholesale", () => {
+    // Regression: the catalog read once wrapped every stored row in a fake
+    // browser response. The moment the catalog crossed 50 products, the
+    // 50-product response cap rejected the whole set and every search fell
+    // through to the paid live path with zero candidates.
+    const rows = Array.from({ length: 371 }, (_, i) =>
+      validObservation({ retailerProductId: `ikea-${i}` }));
+
+    expect(validateBrowserSearchOutput({ products: rows, partial: false, notes: [] }).ok).toBe(false);
+    expect(validateCatalogObservations(rows)).toHaveLength(371);
+  });
+
+  it("drops a contract-violating row alone, never the rest of the catalog", () => {
+    const rows = [
+      validObservation({ retailerProductId: "ikea-good-1" }),
+      validObservation({ retailerProductId: "ikea-bad", priceMinor: -5 }),
+      validObservation({ retailerProductId: "ikea-good-2" }),
+    ];
+    const products = validateCatalogObservations(rows);
+    expect(products.map((p) => p.retailerProductId)).toEqual(["ikea-good-1", "ikea-good-2"]);
+  });
+
+  it("keeps the per-product truth contract: a stale observation is dropped", () => {
+    const stale = validObservation({
+      retailerProductId: "ikea-stale",
+      observedAt: new Date(Date.now() - 60 * 24 * 60 * 60_000).toISOString(),
+    });
+    expect(validateCatalogObservations([stale], { maxObservationAgeMs: 45 * 24 * 60 * 60_000 }))
+      .toHaveLength(0);
+  });
+
+  it("dedupes rows sharing a retailer product id", () => {
+    const rows = [
+      validObservation({ retailerProductId: "ikea-dup" }),
+      validObservation({ retailerProductId: "ikea-dup" }),
+    ];
+    expect(validateCatalogObservations(rows)).toHaveLength(1);
   });
 });
