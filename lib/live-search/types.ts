@@ -209,6 +209,8 @@ export interface LiveAsset {
   readonly url: string;
   readonly dimensions: ProductDimensions;
   readonly scaleVerified: boolean;
+  /** Quick Look source when a scale-verified USDZ sibling of this asset exists. */
+  readonly iosUsdzUrl?: string;
 }
 
 export interface LiveSearchWorkflow {

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "usdz-convert",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/private/tmp/claude-501/-Users-locnguyen-Documents-Founder-INC/dfee62f5-daa2-4074-a1d7-1174eb898175/scratchpad/usdz/server.js"],
+      "port": 4173
+    }
+  ]
+}
