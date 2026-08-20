@@ -748,7 +748,7 @@ function WorkflowRouteScreen({
     return (
       <JourneyShell
         title="Choose what fits"
-        support="Browse one decision tier, then compare two products."
+        support="Start with what fits, then pick two to compare."
         backHref="/fit/search"
         backLabel="New search"
         status="Results"

@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { PRODUCT_NAME } from "@/lib/site-config";
 
-const DEMO_RECORDING_PATH = "docs/assets/fitment-demo.gif";
-
 export default function RootPage(): React.JSX.Element {
   return (
     <main className="fit-instrument min-h-svh px-4 py-5 sm:px-6 sm:py-7">
@@ -58,9 +56,7 @@ export default function RootPage(): React.JSX.Element {
           >
             <figcaption className="fit-data flex items-start justify-between gap-4 text-[9px] font-bold uppercase leading-4 tracking-[0.1em] text-[#17221f]/60">
               <span>Phone walkthrough</span>
-              <span className="max-w-[190px] break-all text-right">
-                {DEMO_RECORDING_PATH}
-              </span>
+              <span className="max-w-[190px] text-right">Measure · check · place</span>
             </figcaption>
 
             <div className="mx-auto w-full max-w-[430px]">
