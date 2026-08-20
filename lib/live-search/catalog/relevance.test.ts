@@ -63,6 +63,31 @@ describe("scoreObservation", () => {
     expect(withColour).toBeGreaterThan(categoryOnly);
   });
 
+  it("does not return a bookcase for a desk query that shares only its colour", () => {
+    // Reported from the preview: "black desk" returned SKRUVBY and LAIVA
+    // bookcases because "desk" was not a known kind, so "black" alone qualified.
+    expect(scoreObservation(observation({ name: "SKRUVBY Bookcase, black-blue", category: "Furniture" }), ["black", "desk"])).toBe(0);
+    expect(scoreObservation(observation({ name: "LAIVA Bookcase, black-brown", category: "Bookcase" }), ["black", "desk"])).toBe(0);
+  });
+
+  it.each([
+    ["wardrobe"], ["nightstand"], ["sofa"], ["dining table"], ["mirror"],
+  ])("returns nothing from a bookcase catalog for a %s query", (kind) => {
+    const keywords = queryKeywords(`black ${kind}`);
+    expect(scoreObservation(observation({ name: "BILLY Bookcase, black-brown", category: "Bookcase" }), keywords)).toBe(0);
+  });
+
+  it("requires every word to match when the query names no known kind", () => {
+    // "black lacquered" is not a kind we know; a product matching only "black"
+    // must not qualify, or the catalog answers unknown queries with colour.
+    expect(scoreObservation(observation({ name: "BILLY Bookcase, black-brown", category: "Bookcase" }), ["black", "lacquered"])).toBe(0);
+    expect(scoreObservation(observation({ name: "BILLY Bookcase, black-brown", category: "Bookcase" }), ["black", "brown"])).toBeGreaterThan(0);
+  });
+
+  it("matches whole words so bed does not match bedroom", () => {
+    expect(scoreObservation(observation({ name: "Storage cabinet bedroom black", category: "Furniture" }), ["bed"])).toBe(0);
+  });
+
   it("rejects a product of the wrong kind even when a colour matches", () => {
     const sideboard = observation({ name: "Black sideboard", category: "Sideboard" });
     expect(scoreObservation(sideboard, ["black", "bookshelf"])).toBe(0);

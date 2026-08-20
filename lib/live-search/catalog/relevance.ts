@@ -14,15 +14,30 @@ export interface CatalogMatch {
   readonly score: number;
 }
 
-// Words that describe the kind of item, grouped so a query for "bookshelf"
-// matches a product named "bookcase". Membership is checked against the product
-// name and category text.
+// Words that name a kind of furniture, grouped so a query for "bookshelf"
+// matches a product named "bookcase".
+//
+// Kinds the catalog does not stock are listed deliberately. Recognising "desk"
+// as a furniture kind is what makes a search for one return nothing from the
+// catalog and fall through to live search, instead of a bookcase that merely
+// shares the word "black". An unrecognised head noun must never degrade into
+// matching on colour alone.
 const CATEGORY_SYNONYMS: readonly (readonly string[])[] = [
   ["bookshelf", "bookcase", "bookshelves", "bookcases", "shelf", "shelves", "shelving"],
   ["sideboard", "buffet", "credenza"],
-  ["drawers", "drawer", "chest", "tallboy"],
+  ["drawers", "drawer", "chest", "tallboy", "dresser"],
   ["tv", "media", "entertainment"],
   ["cabinet", "cupboard"],
+  ["desk", "workstation"],
+  ["table", "dining"],
+  ["wardrobe", "closet", "armoire"],
+  ["nightstand", "bedside"],
+  ["chair", "stool", "armchair"],
+  ["sofa", "couch", "lounge"],
+  ["bed", "bedframe"],
+  ["mirror", "mirrors"],
+  ["rug", "rugs"],
+  ["lamp", "lighting"],
 ];
 
 const STOPWORDS = new Set([
@@ -61,37 +76,51 @@ function synonymGroup(keyword: string): readonly string[] | undefined {
   return CATEGORY_SYNONYMS.find((group) => group.includes(keyword));
 }
 
+/** Whole-word match, so "bed" does not match "bedroom" and "black" still matches "black-brown". */
+function mentions(haystack: string, term: string): boolean {
+  return new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(haystack);
+}
+
 /**
- * Scores a product against the query. A category keyword contributes when the
- * product name or category contains any of its synonyms; other keywords (colour,
- * material) contribute when they appear directly. Returns 0 when nothing matches
- * so the caller can drop it.
+ * Scores a product against the query, returning 0 when it is not a relevant
+ * result so the caller can drop it.
+ *
+ * The kind of item is decisive: if the query names one, the product must be
+ * that kind, and attribute words (colour, material) only rank among products
+ * that already qualify. When the query names no kind we know, every word must
+ * appear — a loose partial match is what let "black desk" return bookcases.
  */
 export function scoreObservation(observation: LiveProductObservation, keywords: readonly string[]): number {
   const haystack = `${observation.name} ${observation.category}`.toLowerCase();
   let score = 0;
   let categoryMatched = false;
   let categoryRequested = false;
+  let unmatchedAttributes = 0;
   for (const keyword of keywords) {
     const group = synonymGroup(keyword);
     if (group !== undefined) {
       categoryRequested = true;
-      if (group.some((synonym) => haystack.includes(synonym))) {
+      if (group.some((synonym) => mentions(haystack, synonym))) {
         categoryMatched = true;
         score += 2;
       }
       continue;
     }
-    if (haystack.includes(keyword)) {
+    if (mentions(haystack, keyword)) {
       score += 1;
+    } else {
+      unmatchedAttributes += 1;
     }
   }
-  // If the query asked for a specific kind of item and this product is a
-  // different kind, it is not a relevant result regardless of colour matches.
-  if (categoryRequested && !categoryMatched) {
-    return 0;
+  if (categoryRequested) {
+    // The query asked for a specific kind of item; a different kind is not a
+    // relevant result no matter how many attributes coincide.
+    return categoryMatched ? score : 0;
   }
-  return score;
+  // No recognised kind: only an exact-on-every-word product is safe to return,
+  // otherwise the catalog would answer an unknown query with whatever shares a
+  // colour. Returning nothing here lets the live search path answer instead.
+  return unmatchedAttributes === 0 ? score : 0;
 }
 
 /**
