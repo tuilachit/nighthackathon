@@ -309,6 +309,61 @@ describe("extractProductWithFirecrawl", () => {
     expect(extraction.url).toBe("https://www.ikea.com/au/en/p/smagoera-changing-table-bookshelf-white-80616966");
   });
 
+  it("rejects a Kmart canonical that moves the product id into its own segment", async () => {
+    // Production stored ".../product/<short-slug>/110068188" from a model
+    // canonical claim and the user got a 404: Kmart's real form dash-joins the
+    // id into the single product segment.
+    const scrapedUrl =
+      "https://www.kmart.com.au/product/otto-contour-home-office-study-woodgrain-desk-1400mm-black-desks-tables-and-workstations-110068188";
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "Otto Contour Desk",
+          json: {
+            canonicalUrl:
+              "https://www.kmart.com.au/product/otto-contour-home-office-study-woodgrain-desk-1400mm-black/110068188",
+            name: "Otto Contour Home Office Study Woodgrain Desk 1400mm Black",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(scrapedUrl, fetchImplementation);
+    expect(extraction.url).toBe(scrapedUrl);
+  });
+
+  it("rejects a well-formed canonical that names a different product", async () => {
+    const scrapedUrl = "https://www.ikea.com/au/en/p/billy-bookcase-white-30616558/";
+    const fetchImplementation = vi.fn(async (
+      _input: string | URL,
+      _init?: RequestInit,
+    ) => {
+      void _input;
+      void _init;
+      return Response.json({
+        success: true,
+        data: {
+          markdown: "BILLY",
+          json: {
+            // Valid shape, wrong article number: facts extracted from one page
+            // must never ship under another product's link.
+            canonicalUrl: "https://www.ikea.com/au/en/p/billy-bookcase-black-40616548/",
+            name: "BILLY Bookcase, white",
+          },
+        },
+      });
+    });
+
+    const extraction = await extractProductWithFirecrawl(scrapedUrl, fetchImplementation);
+    expect(extraction.url).toBe("https://www.ikea.com/au/en/p/billy-bookcase-white-30616558");
+  });
+
   it("skips a product-page image path in favour of the real CDN image", async () => {
     // Firecrawl sometimes lists the page URL with a trailing segment
     // (".../p/<slug>/false") first in the images array; it passes the retailer

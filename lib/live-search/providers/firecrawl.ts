@@ -633,7 +633,9 @@ function resolveProductUrl(
       throw new FirecrawlResponseError("Firecrawl scrape left the submitted retailer domain.");
     }
     if (retailer === undefined ||
-        (isKnownRetailerProductPage(retailer, canonical) && endsInProductId(canonical))) {
+        (isKnownRetailerProductPage(retailer, canonical) &&
+          matchesCanonicalProductShape(retailer, canonical) &&
+          claimsSameProduct(canonicalTarget, canonical))) {
       return canonical;
     }
   }
@@ -641,13 +643,41 @@ function resolveProductUrl(
 }
 
 /**
- * Real retailer product URLs end in the article or product number. A model
- * canonical claim that merely lives under the product path is not enough:
- * ".../p/<slug>-80616966/false" passed the path check and shipped a dead link.
+ * Real retailer product URLs end in the article number, dash-joined inside the
+ * final product path segment. A claim that merely lives under the product path
+ * is not enough (".../p/<slug>-80616966/false" shipped a dead link), and
+ * neither is one that moves the id into its own segment: Kmart's real form is
+ * "/product/<slug>-<id>", and a reformatted "/product/<slug>/<id>" claim
+ * shipped a 404 to production.
  */
-function endsInProductId(url: string): boolean {
-  const path = parsePublicHttpsUrl(url).pathname.replace(/\/+$/, "");
-  return /\d{4,}$/.test(path);
+function matchesCanonicalProductShape(retailer: LiveRetailer, url: string): boolean {
+  const segments = parsePublicHttpsUrl(url).pathname.toLowerCase().split("/").filter(
+    (segment) => segment.length > 0,
+  );
+  const last = segments[segments.length - 1];
+  const parent = segments[segments.length - 2];
+  if (last === undefined || parent === undefined) {
+    return false;
+  }
+  return retailer === "ikea-au"
+    ? parent === "p" && /(?:^|-)s?\d{6,}$/.test(last)
+    : parent === "product" && /(?:^|-)\d{4,}$/.test(last);
+}
+
+/**
+ * A canonical claim may reformat the slug, but never rename the product: its
+ * trailing article number must match the scraped page's. Without this a model
+ * could swap in a different — valid-looking — product URL for the extracted
+ * facts.
+ */
+function claimsSameProduct(target: string, claim: string): boolean {
+  const targetId = trailingProductId(target);
+  return targetId === undefined || trailingProductId(claim) === targetId;
+}
+
+function trailingProductId(url: string): string | undefined {
+  const path = parsePublicHttpsUrl(url).pathname.toLowerCase().replace(/\/+$/, "");
+  return path.match(/(s?\d{4,})$/)?.[1];
 }
 
 function retailerForUrl(value: string): LiveRetailer | undefined {
