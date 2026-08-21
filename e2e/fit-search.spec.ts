@@ -462,7 +462,8 @@ test("explicit new and demo compatibility routes override a stored job", async (
   await expect(
     page.getByRole("heading", { name: "See what clears the room and doorway" }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Products checked against your space" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Products checked against your space" })).toBeAttached();
+  await expect(page.getByText("Every dimension and price comes from the retailer’s page.")).toBeVisible();
 });
 
 test(LOST_ACK_TEST_NAME, async ({ page }) => {
