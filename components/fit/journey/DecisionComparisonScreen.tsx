@@ -81,18 +81,18 @@ export function DecisionComparisonScreen({
           <h2 id="decision-support-title" className="text-sm font-bold text-[#17221f]">
             Which one, and why
           </h2>
-          <p className="mt-2 text-xs font-bold leading-5 text-[#17221f]">
+          <p className="mt-2 text-sm font-bold leading-6 text-[#17221f]">
             {verdict.summary}
           </p>
         </div>
         {verdict.factors.length > 0 ? (
-          <ul className="space-y-1.5 px-3 py-3">
+          <ul className="space-y-2.5 px-3 py-3">
             {verdict.factors.map((factor) => (
-              <li key={factor.kind} className="flex gap-2 text-[11px] leading-4 text-[#17221f]/80">
-                <span aria-hidden className="fit-data text-[9px] font-bold uppercase tracking-[0.09em] text-[#17221f]/50">
+              <li key={factor.kind} className="flex gap-2.5 text-xs leading-5 text-[#17221f]/85">
+                <span aria-hidden className="fit-data w-11 shrink-0 pt-0.5 text-[9px] font-bold uppercase tracking-[0.09em] text-[#17221f]/50">
                   {factor.kind === "footprint" ? "floor" : factor.kind}
                 </span>
-                <span>{factor.statement}</span>
+                <span>{emphasiseLeader(factor.statement, [shortName(first), shortName(second)])}</span>
               </li>
             ))}
           </ul>
@@ -102,7 +102,7 @@ export function DecisionComparisonScreen({
             <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
               AI take · uses only the verified numbers above
             </p>
-            <p aria-live="polite" className="mt-1 text-[11px] leading-4 text-[#17221f]/80">
+            <p aria-live="polite" className="mt-1.5 text-xs leading-5 text-[#17221f]/85">
               {aiInsight ?? `Weighing ${shortName(first)} against ${shortName(second)}…`}
             </p>
           </div>
@@ -113,24 +113,30 @@ export function DecisionComparisonScreen({
         aria-labelledby="shared-envelope-title"
         className="mt-4 border border-[#17221f] bg-white"
       >
-        <div className="border-b border-[#17221f]/20 px-3 py-3">
-          <h2 id="shared-envelope-title" className="text-sm font-bold text-[#17221f]">
-            Shared measured envelope
-          </h2>
-          <p className="fit-data mt-1 text-[9px] font-bold text-[#17221f]/65">
-            {formatDimensions(measurement)}
-            {measurement.accessWidthMm === undefined
-              ? " · access not assessed"
-              : ` · ${measurement.accessWidthMm} mm access`}
-          </p>
-        </div>
-        <MeasurementEnvelopeDiagram measurement={measurement} />
-
-        <div className="grid grid-cols-2 border-t border-[#17221f]/20">
-          {candidates.map((candidate) => (
-            <ClearanceDrawing key={candidate.key} candidate={candidate} />
-          ))}
-        </div>
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#17221f]">
+            <span>
+              <h2 id="shared-envelope-title" className="text-sm font-bold text-[#17221f]">
+                Shared measured envelope
+              </h2>
+              <span className="fit-data mt-1 block text-[9px] font-bold text-[#17221f]/65">
+                {formatDimensions(measurement)}
+                {measurement.accessWidthMm === undefined
+                  ? " · access not assessed"
+                  : ` · ${measurement.accessWidthMm} mm access`}
+              </span>
+            </span>
+            <span aria-hidden="true" className="text-base group-open:rotate-45">+</span>
+          </summary>
+          <div className="border-t border-[#17221f]/20">
+            <MeasurementEnvelopeDiagram measurement={measurement} />
+            <div className="grid grid-cols-2 border-t border-[#17221f]/20">
+              {candidates.map((candidate) => (
+                <ClearanceDrawing key={candidate.key} candidate={candidate} />
+              ))}
+            </div>
+          </div>
+        </details>
 
         <div className="border-t border-[#17221f]/20 bg-[#f4f7f5] px-3 py-3 text-center">
           <p className="fit-data text-[8px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
@@ -355,4 +361,24 @@ function ComparisonFact({
       <p className="mt-0.5 break-words">{value}</p>
     </div>
   );
+}
+
+/** Bolds the product name a factor statement leads with, so the eye lands on who wins. */
+function emphasiseLeader(
+  statement: string,
+  names: readonly string[],
+): React.ReactNode {
+  for (const name of names) {
+    const index = statement.indexOf(name);
+    if (index !== -1) {
+      return (
+        <>
+          {statement.slice(0, index)}
+          <strong className="font-bold text-[#17221f]">{name}</strong>
+          {statement.slice(index + name.length)}
+        </>
+      );
+    }
+  }
+  return statement;
 }
