@@ -310,7 +310,7 @@ function comparisonState(
       return { label: "Restoring linked product", disabled: true };
     }
     return comparePair.length === 2
-      ? { label: "Two top matches ready", disabled: false }
+      ? { label: "Top matches ready", disabled: false }
       : { label: "Two products are needed", disabled: true };
   }
   if (comparedKeys.length === 1) {
