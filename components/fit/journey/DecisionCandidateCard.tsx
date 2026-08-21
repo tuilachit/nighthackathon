@@ -48,7 +48,7 @@ export function DecisionCandidateCard({
             </span>
           </div>
 
-          <h3 className="mt-2 break-words text-[15px] font-bold leading-[1.18] tracking-[-0.015em] text-[#17221f]">
+          <h3 className="mt-2 break-words text-base font-bold leading-[1.2] tracking-[-0.015em] text-[#17221f]">
             {candidate.name}
           </h3>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -59,9 +59,11 @@ export function DecisionCandidateCard({
               {candidate.price.currency} listed
             </span>
           </div>
-          <p className={`fit-data mt-2 text-[10px] font-bold leading-4 ${tier.textClass}`}>
-            {candidateDecisionReason(candidate)}
-          </p>
+          {candidate.fitStatus === "fits" ? null : (
+            <p className={`fit-data mt-2 text-[10px] font-bold leading-4 ${tier.textClass}`}>
+              {candidateDecisionReason(candidate)}
+            </p>
+          )}
         </div>
       </div>
 

@@ -279,7 +279,7 @@ function SearchRouteScreen({
   return (
     <JourneyShell
       title="What should fit?"
-      support="Describe the item or check one exact product link."
+      support="Describe it, or paste a product link."
       backHref="/fit"
       backLabel="Space"
       status="Search"

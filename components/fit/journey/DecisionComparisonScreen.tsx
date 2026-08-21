@@ -62,17 +62,14 @@ export function DecisionComparisonScreen({
   return (
     <section aria-labelledby="decision-comparison-title" className="pb-24">
       <header className="border-b border-[#17221f]/30 pb-3">
-        <p className="fit-data text-[9px] font-bold uppercase tracking-[0.09em] text-[#17221f]/65">
-          Two products · one measured envelope
-        </p>
         <h1
           id="decision-comparison-title"
-          className="fit-display mt-1 text-2xl font-bold tracking-[-0.035em] text-[#17221f]"
+          className="fit-display text-2xl font-bold tracking-[-0.035em] text-[#17221f]"
         >
           Clearance comparison
         </h1>
-        <p className="mt-2 max-w-[62ch] text-xs leading-5 text-[#17221f]/68">
-          The same room and access measurements are held constant for both products.
+        <p className="mt-1 text-xs leading-5 text-[#17221f]/68">
+          Same space held constant for both.
         </p>
       </header>
 

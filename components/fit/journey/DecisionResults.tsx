@@ -71,18 +71,13 @@ export function DecisionResults({
 
   return (
     <section aria-labelledby="decision-results-title" className="relative">
-      <div className="flex items-end justify-between gap-3 border-b border-[#17221f]/30 pb-3">
-        <div>
-          <h2
-            id="decision-results-title"
-            className="fit-display text-xl font-bold tracking-[-0.03em] text-[#17221f]"
-          >
-            Products checked against your space
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-[#17221f]/65">
-            Every dimension and price comes from the retailer’s page.
-          </p>
-        </div>
+      <h2 id="decision-results-title" className="sr-only">
+        Products checked against your space
+      </h2>
+      <div className="flex items-baseline justify-between gap-3 border-b border-[#17221f]/30 pb-2">
+        <p className="text-xs leading-5 text-[#17221f]/65">
+          Every dimension and price comes from the retailer’s page.
+        </p>
         <span className="fit-data shrink-0 text-[9px] font-bold uppercase tracking-[0.08em] text-[#17221f]/65">
           {candidates.length} checked
         </span>
